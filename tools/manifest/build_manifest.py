@@ -77,6 +77,24 @@ def asc(s):
 # twelve numbered slots — so it comes across and the slots are dropped by name
 # below; leaving it behind would have kept Celtic and Rangers hidden to avoid
 # a dozen junk entries.
+#
+# ---------------------------------------------------------------------------
+# DROPPED AGAIN 2026-09-05, and the measurement is why. A club channel carries
+# a picture only while that club is playing: 133 of these 158 answered the
+# tune with the panel's black filler when the line-up was swept, and on a
+# browsable row that is 133 chips a viewer opens onto a blank screen. They
+# were 47% of the UK tile.
+#
+# Shown that count and asked what to do with them, the user chose to drop
+# them outright over keeping them or giving them a tile of their own. So the
+# September fix is deliberately reversed: it put the clubs somewhere a viewer
+# could find them, and what a viewer finds there is mostly nothing.
+#
+# To bring them back, delete CLUB_ROSTER_DROP below — this mapping is left
+# intact so the shelves are still named, sectioned and out of PPV, and the
+# drop is one list that can be removed in one line. The fixture parser is
+# untouched either way: it reads the numbered event shelves, and these are
+# rosters.
 FOOTBALL_CLUB_SHELVES = {
     "769": ("SPORTS", "UK"),  # UK| CHAMPIONSHIP PPV       — CHAMP: BURNLEY, 24 clubs
     "766": ("SPORTS", "UK"),  # UK| LEAGUE ONE PPV         — L1: WIGAN ATHLETIC, 24
@@ -769,7 +787,37 @@ NAMED_REMOVAL = re.compile(
     # (DSTV's Zambian, Nigerian and South African services) which a bare
     # \bPARL rule would take as well; they are already dropped for their
     # territory, and taking them here would hide that if it ever changed.
-    r'|\bBBC\s+PARLI?AMENT\b',
+    r'|\bBBC\s+PARLI?AMENT\b'
+    # ---- the Sports shelf trim, 2026-09-05 at the user's request ----------
+    # "in sports there are a lot of channels we probably dont need". Four
+    # groups, all of them one service wearing several rows, and each pattern
+    # was run over the whole line-up before it went in — the counts are what
+    # it takes, not what it was meant to take.
+    #
+    # Tournament overflow: twelve numbered courts for one service, nine of
+    # them answering with the black filler when this was measured. Takes 12
+    # and leaves TENNIS CHANNEL itself, which carries the tournament.
+    r'|\bTENNIS\s*CHANNEL\s*PLUS\b'
+    # Fubo's numbered feeds (5) and Stadium's (3). FUBO SPORTS NETWORK and
+    # STADIUM stay: the numbers are the same service's spillover.
+    r'|\bFUBO\s*SPORTS\s*[1-5]\b'
+    r'|\bSTADIUM\s*[123]\b'
+    # MSG Sportsnet's three zone feeds. Regional sports networks are dropped
+    # everywhere else in this build for being blackout-locked to a territory
+    # this package does not sell; these three arrived under a name the RSN
+    # rule does not read.
+    r'|\bMSGSN\b.*\bZONE'
+    # beIN's overflow, ANCHORED TO THE US SHELF and to "HD" — the bare form
+    # `BEIN SPORTS [4-8]` matches 176 streams across the 8K bundles and the
+    # Arabic and French lineups, which is exactly the over-reach the rules
+    # above are written to avoid. beIN SPORTS and beIN SPORTS 2 stay.
+    r'|^US:\s*BEIN\s*SPORTS\s*[4-8]\s*HD\b'
+    # Ten single-interest channels, asked for as a group. Each takes its own
+    # US feed; the copies in territories this package does not serve (IT, CA,
+    # GR, RK and the GO: bundle) are already dropped and cost nothing here.
+    r'|\bPADEL|\bMOTO\s*AMERICA\b|\bBILLIARD\b|\bPICKLEBALL\b'
+    r'|\bFANTASY\s*SPORTS\b|\bGINX\b|\bFITE\s*TV\b|\bSPORTSMAN\s*CHANNEL\b'
+    r'|\bAFN\s*SPORT\b|\bYAHOO\s*SPORTS\b',
     re.I)
 
 # Ids NAMED_REMOVAL must not take, whatever the provider called them.
@@ -796,6 +844,44 @@ telemundo_drop, rsn_drop, ca_drop, us_news_drop = [], [], [], []
 misfiled_territory = []
 named_drop = []
 defunct_drop = []
+# The club rosters go, 2026-09-05; see FOOTBALL_CLUB_SHELVES. Set False to
+# put all 158 back on the UK tile exactly as they were.
+CLUB_ROSTER_DROP = True
+club_drop = []
+# UK music channels measured answering with the black filler on 2026-09-05,
+# dropped at the user's request after the sweep. By id and not by name,
+# because what these have in common is that they are DEAD, not anything about
+# what they are called — MTV Dance sits beside "80'S - DIRECT" in this list.
+#
+# The caveat, recorded because it decides whether this list is right: the
+# measurement came from a second line on the same upstream catalogue, and
+# these are single-source channels with no sibling to cross-check. A stream
+# absent from that line's package would look identical. Every one is one line
+# from coming back.
+UK_MUSIC_DEAD = {
+    162406,   # UK: MTV DANCE
+    162407,   # UK: MTV HITS
+    162421,   # UK: TRACE URBAN
+    162424,   # UK: 4 MUSIC
+    162519,   # UK: RMTV
+    405517,   # UK: SON LIFE
+    739287,   # UK: That's 80s
+    739288,   # UK: That's 60s
+    771040,   # UK: Ayozat TV
+    783785,   # UK: MTV 90s
+    1290973,  # UK: ALTERNATIVE - DIRECT
+    1290975,  # UK: DANCE/ EDM - DIRECT
+    1290977,  # UK: HIT LIST - DIRECT
+    1290979,  # UK: KIDZ BOP - DIRECT
+    1290981,  # UK: 80'S - DIRECT
+    1290982,  # UK: MUSIC CHOICE MAX - DIRECT
+    1290986,  # UK: POP LATINO - DIRECT
+    1290987,  # UK: R&B SOUL - DIRECT
+    1290988,  # UK: RAP - DIRECT
+    1290990,  # UK: TEEN BEATS - DIRECT
+    1290992,  # UK: TODAY'S COUNTRY: CMA AWARDS - DIRECT
+}
+dead_music_drop = []
 for s in ls:
     if s['stream_id'] in junkset: continue
     c = cat_live.get(str(s.get('category_id')))
@@ -830,6 +916,15 @@ for s in ls:
     if (NAMED_REMOVAL.search(asc(s['name']))
             and s['stream_id'] not in NAMED_REMOVAL_KEEP):
         named_drop.append(s['stream_id']); continue
+    # The club rosters, whole. One line to delete if they are ever wanted
+    # back; see FOOTBALL_CLUB_SHELVES for what was measured and decided.
+    # Ahead of ROSTER_SLOT_JUNK, which this makes redundant while it stands —
+    # the slot rule is left in place because it is what keeps "SPFL 07:" off
+    # the shelf on the day the rosters return.
+    if CLUB_ROSTER_DROP and str(s.get('category_id')) in FOOTBALL_CLUB_SHELVES:
+        club_drop.append(s['stream_id']); continue
+    if s['stream_id'] in UK_MUSIC_DEAD:
+        dead_music_drop.append(s['stream_id']); continue
     # A numbered event slot riding along inside a club-roster shelf; see
     # ROSTER_SLOT_JUNK. Anchored to those categories, so the identically
     # shaped slots on the shelves that STAY on PPV — the EPL VIP shelf, Live
@@ -3024,6 +3119,7 @@ _drop_lists = [
     ('rsn_drop', rsn_drop), ('ca_drop', ca_drop), ('us_news_drop', us_news_drop),
     ('defunct_drop', defunct_drop), ('misfiled_territory', misfiled_territory),
     ('named_drop', named_drop),
+    ('club_drop', club_drop), ('dead_music_drop', dead_music_drop),
     ('tier_unshelved', tier_unshelved),
     ('cross_region_dupe', cross_region_dupe),
     ('exact_dupe_drop', exact_dupe_drop), ('junk_sweep', junk_sweep),
