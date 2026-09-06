@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.agoro.tv.MainViewModel
+import com.agoro.tv.ui.components.LocalArrivalFocusAllowed
 import com.agoro.tv.data.Category
 import com.agoro.tv.data.ContentBundle
 import com.agoro.tv.data.ContentRepository
@@ -178,12 +179,6 @@ fun GuideTab(
     val categories = remember(bundle, favorites, recents, allChannels) {
         liveCategoryList(bundle, allChannels, favorites, recents)
     }
-    // The territory is the GROUP, not a property of each name. Spelled into
-    // every label the list read "News · United Kingdom, Sports · United
-    // Kingdom…" — the same four words nineteen times where the eye is trying
-    // to find a section. Named once per run, the entries carry only what
-    // differs.
-    val strip = remember(categories) { groupByRegion(categories) }
     val allView by vm.allChannelsView.collectAsState()
     // A lookup, not a filter over every channel — see LiveCategoryIndex.
     val byCategory by vm.channelsByCategory.collectAsState()
@@ -370,35 +365,14 @@ fun GuideTab(
         }
     }
     // Declared out here rather than beside the strip it points at: BACK reads
-    // it, and BACK is handled at the top of this composable.
+    // it, and BACK is handled from here. See [guideBackAction] for the order.
     val chipsFocus = remember { androidx.compose.ui.focus.FocusRequester() }
-    // BACK, in the order a viewer means it.
-    //
-    // The strip is reachable by UP, but only from the TOP ROW — which is a
-    // fine rule when a category holds twelve channels and a bad one now that
-    // UK holds 157. Reported 2026-09-05 as "am in locals and want to go to
-    // news": from row sixty that is sixty presses. The two shortcuts the grid
-    // already has are both unreachable on the box this ships to — a
-    // Chromecast with Google TV remote has no channel keys and no number pad
-    // — so BACK is the only key left that every remote carries.
-    //
-    // The rail keeps its own route: LEFT out of the channel column still
-    // opens it, and BACK from the STRIP still reaches it through the
-    // shell's handler, one press later than before. Nothing is taken away;
-    // a rung is added under it.
-    //
-    // ONE handler rather than two, because the order matters and composition
-    // order is a poor way to say so. Jumping back to now wins while the
-    // viewer has wandered in time — it is the bigger undo, and the second
-    // BACK then finds the strip.
-    val backAction = guideBackAction(awayFromNow, gridHandle.holdsFocusNow)
-    BackHandler(enabled = backAction != GuideBackAction.LeaveToShell) {
-        when (backAction) {
-            GuideBackAction.JumpToNow -> jumpToNow()
-            GuideBackAction.CategoryStrip -> scope.launch { chipsFocus.requestFocusRetrying() }
-            GuideBackAction.LeaveToShell -> Unit
-        }
-    }
+    GuideBackHandler(
+        awayFromNow = awayFromNow,
+        handle = gridHandle,
+        onJumpToNow = { jumpToNow() },
+        toCategoryStrip = { chipsFocus.requestFocusRetrying() },
+    )
 
     // The grid's focus entry — see GuideGridHandle. Every downward route into
     // the grid goes through it: geometric search from the strip or the day
@@ -992,32 +966,99 @@ internal fun dayLabel(offset: Int, nowMs: Long = System.currentTimeMillis()): St
         }
     }
 
-/** One entry in the category strip: a territory's name, or a shelf. */
 /** What BACK does in the guide. See [guideBackAction]. */
 internal enum class GuideBackAction { JumpToNow, CategoryStrip, LeaveToShell }
 
 /**
  * The rule BACK follows, in one place so a test can state it.
  *
- * Three rungs, and the ORDER is the whole content. Jumping back to now must
- * win while the viewer has wandered in time — it is the bigger undo, and
- * "first BACK returns to now" is behaviour this screen has documented since
- * the timeline could be paged. The strip is the rung under it, added because
- * UP only leaves the grid from its top row and UK holds 157 channels.
- * LeaveToShell is not a no-op: it is the handler standing DOWN, so the shell's
- * own BACK opens the nav rail exactly as it does on every other tab.
+ * Three rungs, and the ORDER is the whole content:
  *
- * Written as a function rather than an `if` inside the handler because the
- * order is the thing that breaks: composing two BackHandlers instead reverses
- * their priority, and nothing about that reads as wrong at the call site.
+ *  - **JumpToNow** while the viewer has wandered in time. The bigger undo, and
+ *    "first BACK returns to now" is behaviour this screen has had since the
+ *    timeline could be paged.
+ *  - **CategoryStrip** from inside the grid. Added 2026-09-05, reported as "am
+ *    in locals and want to go to news": UP leaves the grid only from its TOP
+ *    ROW, which was a fine rule at twelve channels a category and a bad one at
+ *    157. The grid's two shortcuts past that walk — channel paging and the
+ *    number-key jump — are both absent from a Chromecast with Google TV
+ *    remote, so BACK is the only key left that every remote carries.
+ *  - **LeaveToShell**, which is not a no-op: it is this handler standing DOWN
+ *    so the shell's own BACK opens the nav rail, as on every other tab. LEFT
+ *    out of the channel column still opens the rail directly, so the route was
+ *    never taken away — a rung was added under it.
+ *
+ * A function rather than an `if` inside the handler because the order is the
+ * thing that breaks: two BackHandlers express it by composition order, which
+ * reverses their priority and reads as nothing at all at the call site.
  */
-internal fun guideBackAction(awayFromNow: Boolean, gridHoldsFocus: Boolean): GuideBackAction =
+internal fun guideBackAction(
+    awayFromNow: Boolean,
+    gridHoldsFocus: Boolean,
+    /**
+     * The nav rail is open over this guide. Every rung stands down, including
+     * JumpToNow — this handler is composed after the shell's, so it is offered
+     * BACK first, and a guide that answers from behind an open drawer eats the
+     * press that should have closed it. A viewer who had wandered in time
+     * could not leave the Live tab at all. That rung predates the strip route;
+     * the bug came with it, and it is fixed here rather than beside it so a
+     * test can state it.
+     */
+    shellOwnsFocus: Boolean,
+): GuideBackAction =
     when {
+        shellOwnsFocus -> GuideBackAction.LeaveToShell
         awayFromNow -> GuideBackAction.JumpToNow
         gridHoldsFocus -> GuideBackAction.CategoryStrip
         else -> GuideBackAction.LeaveToShell
     }
 
+/**
+ * BACK for the guide, in a composable of its own.
+ *
+ * Of its own for two reasons. It reads [GuideGridHandle.holdsFocusNow], which
+ * flips on every trip into and out of the grid — a menu, a PIN prompt, a
+ * schedule sheet, a walk to the rail — and read from the tab's own restart
+ * scope that re-runs the whole five-hundred-line body each time, on a 2GB box,
+ * exactly while a focus request is retrying. Here only this node invalidates.
+ *
+ * And it holds the refusal. [toCategoryStrip] answers whether the focus system
+ * took the request; ignoring that Boolean is this codebase's standing trap
+ * (see Focus.kt), and ignoring it HERE has a particular shape: BACK has
+ * already been consumed, the grid still holds focus, so the next BACK computes
+ * the same rung and is consumed the same way. BACK becomes a dead key, held
+ * BACK included. One refusal stands the rung down and the shell gets the key
+ * back; entering the grid again re-arms it.
+ */
+@Composable
+private fun GuideBackHandler(
+    awayFromNow: Boolean,
+    handle: GuideGridHandle,
+    onJumpToNow: () -> Unit,
+    toCategoryStrip: suspend () -> Boolean,
+) {
+    val scope = rememberCoroutineScope()
+    var stripRefused by remember { mutableStateOf(false) }
+    val gridHoldsFocus = handle.holdsFocusNow
+    LaunchedEffect(gridHoldsFocus) { if (!gridHoldsFocus) stripRefused = false }
+    val action = guideBackAction(
+        awayFromNow = awayFromNow,
+        gridHoldsFocus = gridHoldsFocus && !stripRefused,
+        // The shell publishes this as "a pane must not pull focus"; the rail
+        // being open is exactly what it means.
+        shellOwnsFocus = !LocalArrivalFocusAllowed.current,
+    )
+    BackHandler(enabled = action != GuideBackAction.LeaveToShell) {
+        when (action) {
+            GuideBackAction.JumpToNow -> onJumpToNow()
+            GuideBackAction.CategoryStrip ->
+                scope.launch { if (!toCategoryStrip()) stripRefused = true }
+            GuideBackAction.LeaveToShell -> Unit
+        }
+    }
+}
+
+/** One entry in the category strip: a territory's name, or a shelf. */
 internal sealed interface StripEntry {
     val key: String
     val label: String
