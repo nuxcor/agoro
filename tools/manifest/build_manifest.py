@@ -1396,28 +1396,33 @@ uk_locals_drop = [x for x in uk_locals_drop if x not in _uk_primaries]
 
 
 # ----------------------------------------------------------- AFR, shown as AFRICA
-# SuperSport, and nothing else.
+# The DStv bundle, the Ghanaian channels out of Africa VIP, and SuperSport.
 #
-# The shelf was the DStv bundle plus the Ghanaian channels out of Africa VIP —
-# 68 channels — until 2026-08-26, when the user asked for the sport on its own
-# and for the shelf to be named after it. They were shown exactly what that
-# costs before it was done: 31 other DStv channels (Africa Magic, AIT,
-# Soundcity, ROK, TV47, ZNBC2, Akwaaba Magic, GTV, Prime TV) and all 14
-# Ghanaian ones (Adom TV, GH One, Metro TV, Ghana Broadcasting, GTV Gov,
-# Kessben, Rock TV, Royal TV, Studio1), and chose it.
+# Three keep terms, and the history of this shelf is the history of that list.
+# It was all three until 2026-08-26, when the user asked for the sport on its
+# own and for the shelf to be named after it: SuperSport alone, 23 channels,
+# with 31 other DStv channels and all 14 Ghanaian ones shown as the cost and
+# accepted. Both came back on 2026-09-05, in the same breath as the territory
+# becoming a tile of its own — a row called "Africa" that holds one sports
+# brand answers a different question from the one its name asks.
 #
-# To bring either group back, add its term to `keep` below:
-#   the DStv bundle   re.compile(r'DSTV', re.I)      against the CATEGORY name
-#   Ghana             re.compile(r'^GHA\s*:', re.I)  against the stream name
-# Everything else those two used to admit still falls to the same passes it
-# always did, so restoring one term restores that group and nothing more.
+# Everything else these terms used to admit still falls to the same passes it
+# always did, so each term restores its group and nothing more:
+#   - AFR_DROP_NAMES below still names what the bundle does not carry (the
+#     international pass-throughs, the South African lineup, horse racing).
+#   - AFR_DROP_GENRE still takes the news, deliberately: those ten are global
+#     feeds and parliament channels beside SABC News and eTV News, and the
+#     News row this package leads with is where a viewer looks for them.
+# To narrow the shelf again, drop a term from `keep`.
 # The chip renders this verbatim. It read "SuperSport" — the brand, because
 # the row was the brand — until the territory became a shelf of its own on
 # 2026-09-05 and the question the chip answers changed from "which sports
-# package" to "which place". What it holds is still SuperSport and nothing
-# else; see the trim below for what widening it back would cost.
+# package" to "which place". The roster widened back to match the name in the
+# same change; see `keep` below for the three terms that decide it.
 AFR_LABEL = "Africa"
 AFR_KEEP_NAME     = re.compile(r'SUPER\s?SPORT', re.I)  # SuperSport, wherever it sits
+AFR_KEEP_CATEGORY = re.compile(r'DSTV', re.I)          # the DStv bundle, by CATEGORY
+AFR_KEEP_GHANA    = re.compile(r'^GHA\s*:', re.I)      # Africa VIP's Ghanaian run
 AFR_GENRE = [
     ('NEWS',        r'\bNEWS\b|\bAL ?JAZEERA\b|\bBLOOMBERG\b|\bCGTN\b|\bCNBC\b'
                     r'|\bSABC NEWS\b|\bNEWZROOM\b|\bRUSSIA TODAY\b|\bNDTV\b|\bPARLIAMENT'),
@@ -1534,7 +1539,16 @@ afr_drop, afr_assign, afr_dupes, afr_news, afr_named = [], {}, [], [], []
 for st in ls:
     c = cat_live.get(str(st.get('category_id')))
     if not c or c['region'] != 'AFR': continue
-    keep = bool(AFR_KEEP_NAME.search(asc(st['name'])))
+    # By category for the bundle, by name for the other two: DStv's channels
+    # are only recognisable as a group by the shelf they arrive on, while
+    # SuperSport travels between bundles and Ghana wears its own prefix.
+    # _afr_nm, not _nm: that name is taken by the stream-id -> name map built
+    # for the whole line-up above, and a loop variable shadowing it here left
+    # the passes 400 lines down calling .get() on a string.
+    _afr_nm = asc(st['name'])
+    keep = bool(AFR_KEEP_NAME.search(_afr_nm)
+                or AFR_KEEP_GHANA.search(_afr_nm)
+                or AFR_KEEP_CATEGORY.search(_catname.get(str(st.get('category_id')), '')))
     if not keep:
         afr_drop.append(st['stream_id']); continue
     if channel_key(st['name']) in _usuk_keys:
