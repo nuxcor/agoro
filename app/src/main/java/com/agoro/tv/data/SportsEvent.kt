@@ -406,6 +406,10 @@ object SportsParser {
         // fixture. The competition a slot names is the strongest thing it says
         // about itself and it belongs at the top, not in the fallback.
         if (!allowForeign && notOurCompetition.containsMatchIn(name)) return null
+        // A sport this app has no competition for. Beside [notOurCompetition],
+        // and for the same reason: what a slot says about ITSELF outranks what
+        // a roster can be made to say about two of its words.
+        if (!allowForeign && namedSport(name) in unservedSports) return null
 
         val (rawHome, rawAway) = readFixture(name) ?: return null
         // "Los Angeles FC 2 vs. Sporting Kansas City II" is MLS Next Pro, the
@@ -521,7 +525,20 @@ object SportsParser {
             // Bundesliga, which is the men's fixture under the women's name —
             // the report was "there is a bundesliga hoffenheim vs bayern but
             // it's the women". NWSL and the WSL are named for nothing else.
-            """|Frauen|Damen|Femenin[ao]|Feminin[ae]|Feminil|Feminile|Feminina|Kvinner|Kvinnor|NWSL|WSL)\b"""
+            """|Frauen|Damen|Femenin[ao]|Feminin[ae]|Feminil|Feminile|Feminina|Kvinner|Kvinnor|NWSL|WSL)\b""" +
+            // A competition somewhere else that BORROWS one of our league's
+            // names. "Niger Super Ligue 1 - Niger" contains "Ligue 1", so the
+            // billing read it as the French top flight and put JS Tahoua v AS
+            // GNN on the screen as a Ligue 1 fixture.
+            //
+            // Matched on the qualifier in front of the name, because that is
+            // what makes it a different competition — France's is "Ligue 1"
+            // with nothing before it. Spelled out one country at a time rather
+            // than as "any word before Ligue": "French Ligue 1", "Spanish
+            // LaLiga" and "Italian Serie A" are all how the packs bill OUR
+            // competitions, and a general rule would have refused those.
+            """|\b(Niger|Senegal|Gabon|Congo|Ivorian|Algerian|Tunisian|Moroccan|Belgian|Swiss|""" +
+            """Luxembourg|Haitian|Quebec)\s+(Super\s+)?Ligue\b"""
     )
 
     /**
@@ -802,8 +819,44 @@ object SportsParser {
         .replace(languageFeedWords, " ")
         .replace(noiseTier, " ")
         .replace(leadingSlotNumber, " ")
+        .let(::stripParenNotes)
         .replace(runsOfSpace, " ")
         .trim()
+
+    /**
+     * Whatever a pack put in brackets, gone — three passes, innermost first.
+     *
+     * The ESPN+ pack ends a slot with a note about the FEED, and the note
+     * routinely repeats a club:
+     *
+     *     Baseball: Cardinals vs. Rockies (Cardinals Broadcast)
+     *     Soccer: Ajax vs. PSV (Ajax vs. PSV (ESP))
+     *
+     * The away side is read as everything after the "vs.", note included, and
+     * [resolveSides] then scans it for a club and finds the one the note names
+     * — so the screen said "Cardinals v Cardinals" and "Ajax v Ajax", one
+     * fixture with the same club on both sides, which is not a thing that can
+     * happen. Reported 2026-09-05 as "saw cardinal vs cardnal today".
+     *
+     * Brackets were already noise here in two narrower forms — [noiseDateOrCode]
+     * takes "(ESP)" and [sideAbbreviation] takes "(NYK)" — so this generalises
+     * a rule the parser already had rather than introducing one. Nothing in
+     * these packs puts a club's own name in brackets and nothing else.
+     *
+     * Innermost-first, because "(Giants vs. Mets (ESP))" is nested and one
+     * greedy pass over `\(.*\)` would eat a fixture that follows it.
+     */
+    private val parenGroup = Regex("""\([^()]*\)""")
+
+    private fun stripParenNotes(field: String): String {
+        var t = field
+        repeat(3) {
+            val next = t.replace(parenGroup, " ")
+            if (next == t) return t
+            t = next
+        }
+        return t
+    }
 
     private fun clean(side: String): String = side
         .replace(leadingSlotNumber, "")
@@ -1266,11 +1319,36 @@ object SportsParser {
         Regex("""(?i)\bSOCCER\b""") to "soccer",
         Regex("""(?i)\bNFL\b""") to "gridiron",
         Regex("""(?i)\bNBA\b""") to "basketball",
-        Regex("""(?i)\b(MLB|MiLB)\b""") to "baseball",
-        Regex("""(?i)\bNHL\b""") to "hockey",
+        // The league codes AND the plain word. ESPN+ writes the sport, not the
+        // league — "Baseball: Cardinals vs. Rockies" — so a rule that knew
+        // only MLB and MiLB read that slot as naming no sport at all, and the
+        // NFL roster answered for "Cardinals".
+        Regex("""(?i)\b(MLB|MiLB|BASEBALL|SOFTBALL)\b""") to "baseball",
+        Regex("""(?i)\b(NHL|HOCKEY)\b""") to "hockey",
         Regex("""(?i)\bRUGBY\b""") to "rugby",
         Regex("""(?i)\bCRICKET\b""") to "cricket",
+        Regex("""(?i)\bTENNIS\b""") to "tennis",
+        Regex("""(?i)\bGOLF\b""") to "golf",
     )
+
+    /**
+     * Sports this app carries no competition for, and therefore no fixture.
+     *
+     * A slot naming one of these is REFUSED outright rather than demoted. The
+     * demotion [isWrongSport] applies is the right answer for a pack that files
+     * American football under a shelf called SOCCER — the fixture is real, the
+     * shelf is misnamed — but there is no reading under which a baseball game
+     * is a row on this screen, and the rosters are full of names that baseball
+     * and gridiron share: Cardinals, Giants, Rangers, Panthers.
+     *
+     * That is not hypothetical. "Baseball: Cardinals vs. Rockies" and
+     * "Baseball: Giants vs. Mets" were both on screen as NFL fixtures, with
+     * the same club on both sides.
+     *
+     * Deliberately NOT here: soccer, gridiron and basketball, the three this
+     * app has leagues for. A disagreement among those three stays a demotion.
+     */
+    private val unservedSports = setOf("baseball", "hockey", "cricket", "rugby", "tennis", "golf")
 
     /** The sport a slot's own name claims, or null when it names none. */
     internal fun namedSport(name: String): String? =
@@ -1488,14 +1566,34 @@ object SportsParser {
             }
         }
         if (byToken.isEmpty()) return events
-        return events.map { event ->
+        // When each competition is actually playing. A club roster can only
+        // say which competition a club BELONGS to, so two Champions League
+        // entrants meeting in their own domestic league are billed Champions
+        // League — "Ajax v PSV" stood on the screen as a Champions League tie
+        // on a Saturday, three days before the competition's first match of
+        // the week. The schedule knows the matchdays, and a competition that
+        // is not playing is not the competition in front of you.
+        //
+        // The DAY, deliberately, and not the fixture. Gating on "this exact
+        // pairing is in the schedule" would delete real matches over spelling:
+        // ESPN writes Internazionale where a pack writes Inter, and RB Leipzig
+        // where a pack writes RasenBallsport — six of the ten unmatched rows
+        // measured on 2026-09-05 were genuine fixtures whose names simply did
+        // not line up. A real tie is always on its competition's matchday,
+        // whatever either side calls the clubs.
+        val playingDays = HashMap<String, MutableList<Long>>()
+        for (f in fixtures) {
+            val start = f.startMs ?: continue
+            if (f.league.isNotBlank()) playingDays.getOrPut(f.league) { ArrayList() }.add(start)
+        }
+        return events.mapNotNull { event ->
             val home = tokens(event.home)
             val away = tokens(event.away)
             val seen = HashSet<Indexed>()
             for (t in home + away) byToken[t]?.let(seen::addAll)
-            if (seen.isEmpty()) return@map event
+            if (seen.isEmpty()) return@mapNotNull onMatchday(event, playingDays, nowMs)
             val hits = seen.filter { pairs(home, away, it) }
-            if (hits.isEmpty()) return@map event
+            if (hits.isEmpty()) return@mapNotNull onMatchday(event, playingDays, nowMs)
             // An exact pair beats a subset pair, and that is what keeps Paris
             // Saint-Germain away from Paris FC: "Paris FC" reduces to {PARIS},
             // which IS a subset of {PARIS, SAINT, GERMAIN}, and both clubs
@@ -1507,14 +1605,17 @@ object SportsParser {
             // nothing: two legs of one tie a week apart are both matches
             // between the same clubs, and the row is about one of them.
             val anchor = event.startMs ?: nowMs
-            val best = pool.minByOrNull { kotlin.math.abs(it.start - anchor) } ?: return@map event
+            val best = pool.minByOrNull { kotlin.math.abs(it.start - anchor) }
+                ?: return@mapNotNull onMatchday(event, playingDays, nowMs)
             // And never further than a match away from where the slot said it
             // was. Without this a clockless slot admitted on the word LIVE —
             // anchored on now — can be moved to a meeting between the same two
             // clubs NEXT WEEK, which takes it out of the window and off the
             // screen: a match being played that shows nowhere. [parseIndexed]
             // guards its own clocks the same way, with SANE_WINDOW_MS.
-            if (kotlin.math.abs(best.start - anchor) > SCHEDULE_MAX_SHIFT_MS) return@map event
+            if (kotlin.math.abs(best.start - anchor) > SCHEDULE_MAX_SHIFT_MS) {
+                return@mapNotNull onMatchday(event, playingDays, nowMs)
+            }
             event.copy(
                 league = best.fixture.league.ifBlank { event.league },
                 scheduleKey = sideKey(best.fixture.home) + "|" + sideKey(best.fixture.away),
@@ -1523,6 +1624,38 @@ object SportsParser {
             )
         }
     }
+
+    /**
+     * An unconfirmed row, kept only if its competition is playing around then.
+     *
+     * Reached when the schedule could not match this fixture — which is
+     * usually innocent, since the packs and ESPN spell clubs differently. What
+     * is not innocent is a row claiming a competition on a date that
+     * competition has no fixtures at all: the roster inferred the league from
+     * a club's membership, and the club was playing something else.
+     *
+     * Only for competitions the schedule actually carries. A league with no
+     * fixtures in the window — an off-season, or one ESPN returned nothing for
+     * — cannot say anything about a matchday, and silence is not evidence.
+     */
+    private fun onMatchday(
+        event: SportsEvent,
+        playingDays: Map<String, List<Long>>,
+        nowMs: Long,
+    ): SportsEvent? {
+        val days = playingDays[event.league] ?: return event
+        val anchor = event.startMs ?: nowMs
+        val near = days.any { kotlin.math.abs(it - anchor) <= MATCHDAY_WINDOW_MS }
+        return if (near) event else null
+    }
+
+    /**
+     * How far from a competition's nearest fixture a row may sit and still be
+     * that competition. A day: kick-offs inside one matchday span it, and the
+     * gap this exists to catch — a domestic fixture billed as Champions League
+     * — is measured in days, not hours.
+     */
+    private const val MATCHDAY_WINDOW_MS = 24 * 60 * 60 * 1000L
 
     private class Indexed(
         val home: Set<String>,
