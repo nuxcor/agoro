@@ -41,6 +41,7 @@ class DisplayModeChoiceTest {
         modes: List<OutputMode> = uhdPanel,
         allowResolutionChange: Boolean = true,
         pinned: Int = 0,
+        displaySupportsHdr: Boolean = true,
     ) = chooseMode(
         modes = modes,
         current = modes.first { it.modeId == current },
@@ -49,7 +50,16 @@ class DisplayModeChoiceTest {
         hdr = hdr,
         allowResolutionChange = allowResolutionChange,
         pinned = pinned,
+        displaySupportsHdr = displaySupportsHdr,
     )
+
+    /**
+     * The same 4K box as seen from Android 12, which is what a Chromecast with
+     * Google TV 4K actually runs: per-mode HDR types arrived in Android 14, so
+     * every mode reports an empty list and the platform is saying nothing
+     * rather than saying no.
+     */
+    private val uhdPanelPre14 = uhdPanel.map { it.copy(hdrTypes = emptyList()) }
 
     @Test
     fun `no frame rate is no reason to change the refresh`() {
@@ -177,5 +187,71 @@ class DisplayModeChoiceTest {
         }
         assertNull(HdrType.byName(null))
         assertNull(HdrType.byName("HDR10+"))
+    }
+
+    /**
+     * The gap the 2026-08-23 HDR fix left open, and the only case that exists
+     * on the hardware this ships to.
+     *
+     * A 4K HDR film, a display parked at 1080p, and no mode willing to say
+     * whether it carries HDR. Before this the HDR consideration was skipped
+     * entirely — "nobody answered" read as "no question here" — and a mode was
+     * pinned on size and refresh alone. Pinning an SDR mode is how the app
+     * takes away HDR the box had negotiated for itself, which is the
+     * washed-out picture the whole exercise was about.
+     */
+    @Test
+    fun `a display that cannot list its HDR modes keeps its resolution`() {
+        // 4K24 is where the SDR rule would go, and on this panel the 4K modes
+        // are exactly the ones whose HDR is unknown. Staying at 1080 keeps
+        // whatever the box negotiated; the refresh still moves to 50, which
+        // shows 24fps far better than 60 does.
+        assertEquals(
+            2,
+            choose(
+                current = 1, height = 2160, frameRate = 24f,
+                hdr = HdrType.HDR10, modes = uhdPanelPre14,
+            ),
+        )
+    }
+
+    /** The same display, the same silence, an SDR stream: the old rule stands. */
+    @Test
+    fun `an SDR stream still gets its resolution on that display`() {
+        assertEquals(
+            "4K24 for a 4K film, exactly as before",
+            5,
+            choose(
+                current = 1, height = 2160, frameRate = 24f,
+                hdr = null, modes = uhdPanelPre14,
+            ),
+        )
+    }
+
+    /**
+     * And the narrowing that keeps this from costing resolution: a display
+     * with no HDR at all cannot show the stream in HDR however the output is
+     * pinned, so a better mode is still worth having.
+     */
+    @Test
+    fun `a panel with no HDR is not protected from itself`() {
+        assertEquals(
+            5,
+            choose(
+                current = 1, height = 2160, frameRate = 24f,
+                hdr = HdrType.HDR10, modes = uhdPanelPre14,
+                displaySupportsHdr = false,
+            ),
+        )
+    }
+
+    /** Android 14's answer is unchanged: it knows, so it chooses. */
+    @Test
+    fun `a display that does list its HDR modes still picks a carrier`() {
+        assertEquals(
+            "4K24 carries HDR10; 4K60 does not",
+            5,
+            choose(current = 1, height = 2160, frameRate = 24f, hdr = HdrType.HDR10),
+        )
     }
 }

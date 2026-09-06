@@ -98,6 +98,7 @@ class DisplayModeSwitcher(private val activity: Activity) {
             hdr = hdr,
             allowResolutionChange = allowResolutionChange,
             pinned = requestedModeId,
+            displaySupportsHdr = display.isHdr,
         ) ?: return
 
         requestedModeId = chosen
@@ -170,8 +171,42 @@ internal fun chooseMode(
     hdr: HdrType?,
     allowResolutionChange: Boolean,
     pinned: Int,
+    /**
+     * Whether the display itself claims HDR, whatever its modes say.
+     *
+     * `Display.isHdr` answers from API 24; per-mode HDR types only from 34.
+     * That gap is this parameter's whole reason for existing — see the guard
+     * below, which is what a box that cannot list its HDR modes needs.
+     */
+    displaySupportsHdr: Boolean,
 ): Int? {
     if (modes.size < 2) return null
+    // An HDR stream, a display that says it does HDR, and no mode willing to
+    // say whether it carries any: do not change the RESOLUTION.
+    //
+    // This is the case the 2026-08-23 HDR work left open, and on the hardware
+    // this ships to it is the only case there is. Per-mode HDR types arrived
+    // in Android 14; a Chromecast with Google TV 4K runs 12, so every mode
+    // reports an empty list, `carry` below resolves to null, and the HDR
+    // consideration is skipped entirely — after which a 4K film still pins a
+    // mode picked on size and rate alone. The mode most likely to be picked is
+    // the one least likely to carry HDR: at 4K it is the top refresh that has
+    // spent its HDMI budget on resolution, which is the SDR mode in the test
+    // panel below and the real shape of HDMI 2.0. Pinning it takes away the
+    // HDR the box had negotiated for itself.
+    //
+    // A resolution change and not the whole rule, deliberately. Refresh rate
+    // at the resolution already running still moves — that is a judder fix
+    // with a documented test behind it, and 25fps on a 60Hz output is as
+    // visible a fault as a flat picture. What is removed is only the blind
+    // JUMP, where the choice is widest and the evidence is nil.
+    //
+    // A display with no HDR at all keeps the old rule intact: the stream
+    // cannot be shown in HDR there however the output is pinned, so the
+    // resolution is worth having.
+    val hdrUnknowable = hdr != null && displaySupportsHdr && modes.none { it.hdrTypes.isNotEmpty() }
+    @Suppress("NAME_SHADOWING")
+    val allowResolutionChange = allowResolutionChange && !hdrUnknowable
 
     // Resolution: only ever upward, and only to the smallest mode that
     // actually covers the stream — a 1080p feed has nothing to gain from a
