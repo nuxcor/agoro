@@ -43,8 +43,12 @@ object ManifestCuration {
             // fold that sectionFor applies.
             val section = tile?.section?.let(manifest::foldSection)
                 ?: manifest.sectionFor(id, channel.categoryId)
-            val region = tile?.region
-                ?: section?.let { manifest.regionFor(id, channel.categoryId) }
+            // Resolved whether or not a section was, because a territory shelf
+            // is named by the place: a channel whose genre the manifest cannot
+            // place still belongs on its country's row. The kept-region gate
+            // below stays behind a resolved section, where it has always been
+            // — widening what that gate can reach is what deletes channels.
+            val region = tile?.region ?: manifest.regionFor(id, channel.categoryId)
             if (section != null) {
                 // A hidden section opens no shelf. PPV is kept anyway, on its
                 // own list, because the Sport destination reads the fixtures
@@ -70,14 +74,20 @@ object ManifestCuration {
             // the strip beside "Sports · DSTV", which reads as two different
             // things and sorts between the shelves it duplicates.
             val shelfId = when {
+                // A territory that shelves whole, ahead of every genre rule:
+                // one row for the place, holding whatever genres it carries.
+                // UK's 337 channels used to sit across News, Sports,
+                // Entertainment and Locals, so "the British channels" was the
+                // one thing this strip could not be asked for.
+                region != null && region in manifest.soloRegionSet -> region
                 section == null -> null
                 // The merged territories share one shelf per genre. Four of
                 // them each opening a News and a Sports put fourteen chips in
                 // the strip, most of them the same word twice, and the same
                 // channel sat on several of those rows at once. The build
                 // folded those duplicates into one tile; this puts them on one
-                // row. A territory outside the merge — DSTV — still opens its
-                // own, because what it carries is genuinely its own.
+                // row. A territory in neither list still opens a shelf per
+                // genre below, suffixed with its name.
                 region != null && region in manifest.mergedRegions -> section
                 region != null -> "$region|$section"
                 manifest.keptRegions.isEmpty() -> section
@@ -86,10 +96,16 @@ object ManifestCuration {
             val catId = shelfId ?: channel.categoryId
             if (shelfId != null) {
                 liveCats.getOrPut(shelfId) {
-                    // A merged shelf names the genre and nothing else — the
-                    // territory stopped being what the row is about.
-                    val shelfRegion = region.takeIf { shelfId != section }
-                    Category(id = shelfId, name = shelfLabel(manifest, section!!, shelfRegion))
+                    if (shelfId in manifest.soloRegionSet) {
+                        // Named by the place and only the place: the row holds
+                        // several genres, so no genre can name it.
+                        Category(id = shelfId, name = manifest.regionLabels[shelfId] ?: shelfId)
+                    } else {
+                        // A merged shelf names the genre and nothing else — the
+                        // territory stopped being what the row is about.
+                        val shelfRegion = region.takeIf { shelfId != section }
+                        Category(id = shelfId, name = shelfLabel(manifest, section!!, shelfRegion))
+                    }
                 }
             }
             // Manifest artwork wins over the provider's: it was matched against
@@ -199,7 +215,7 @@ object ManifestCuration {
         // than the top-level grouping.
         val ordered = liveCats.values.sortedWith(
             compareBy(
-                { manifest.sectionOrder.indexOf(it.id.substringAfter('|')).takeIf { i -> i >= 0 } ?: 99 },
+                { cat -> shelfRank(manifest, cat.id) },
                 { cat ->
                     val region = cat.id.substringBefore('|').takeIf { cat.id.contains('|') }
                     if (region == null) 0 else manifest.keptRegions.indexOf(region)
@@ -218,7 +234,11 @@ object ManifestCuration {
         // A merged shelf carries no territory in its id. Where one exists, the
         // territories that kept their own shelf must keep their suffix too —
         // stripping it would put a bare "Sports" beside the merged "Sports".
-        val hasMergedShelf = liveCats.keys.any { !it.contains('|') }
+        // A territory shelf carries no '|' either, and is not what this asks
+        // about: it is the reason the suffix is needed, not a case of it.
+        val hasMergedShelf = liveCats.keys.any {
+            !it.contains('|') && it !in manifest.soloRegionSet
+        }
         // The other half of the same rule, from the other end. A territory
         // that opens exactly ONE shelf is named by the territory alone: the
         // genre half of "Entertainment · DSTV" distinguishes it from nothing,
@@ -244,7 +264,10 @@ object ManifestCuration {
                 }
             }
         } else ordered.map { cat ->
-            cat.copy(name = manifest.label(cat.id.substringAfter('|')))
+            // A territory shelf was named at creation and has no section to be
+            // renamed after; asking for its label would hand back "AFR".
+            if (cat.id in manifest.soloRegionSet) cat
+            else cat.copy(name = manifest.label(cat.id.substringAfter('|')))
         }
         return bundle.copy(
             liveCategories = labelled,
@@ -261,6 +284,24 @@ object ManifestCuration {
 
     private val SERIES_LABELS = mapOf("NEW" to "Recently added", "TOP" to "Top rated", "ALL" to "All series")
     private val SERIES_ORDER = listOf("NEW", "TOP", "ALL")
+
+    /**
+     * Where a shelf sits in the strip, by genre.
+     *
+     * A territory shelf holds every genre it carries, so no position among the
+     * genres is its own: it sorts after all of them, in kept_regions order.
+     * Past [CatalogueManifest.sectionOrder]'s end rather than at the 99 an
+     * unknown key gets, so a shelf whose section the manifest declares but
+     * does not order still trails the territories rather than leading them.
+     */
+    private fun shelfRank(manifest: CatalogueManifest, shelfId: String): Int {
+        if (shelfId in manifest.soloRegionSet) {
+            val place = manifest.keptRegions.indexOf(shelfId).takeIf { it >= 0 } ?: 99
+            return manifest.sectionOrder.size + 1 + place
+        }
+        return manifest.sectionOrder.indexOf(shelfId.substringAfter('|'))
+            .takeIf { it >= 0 } ?: 99
+    }
 
     /** "Sports" alone is ambiguous across four territories; "Sports · UK" is not. */
     private fun shelfLabel(manifest: CatalogueManifest, section: String, region: String?): String {

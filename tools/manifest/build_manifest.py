@@ -77,6 +77,24 @@ def asc(s):
 # twelve numbered slots — so it comes across and the slots are dropped by name
 # below; leaving it behind would have kept Celtic and Rangers hidden to avoid
 # a dozen junk entries.
+#
+# ---------------------------------------------------------------------------
+# DROPPED AGAIN 2026-09-05, and the measurement is why. A club channel carries
+# a picture only while that club is playing: 133 of these 158 answered the
+# tune with the panel's black filler when the line-up was swept, and on a
+# browsable row that is 133 chips a viewer opens onto a blank screen. They
+# were 47% of the UK tile.
+#
+# Shown that count and asked what to do with them, the user chose to drop
+# them outright over keeping them or giving them a tile of their own. So the
+# September fix is deliberately reversed: it put the clubs somewhere a viewer
+# could find them, and what a viewer finds there is mostly nothing.
+#
+# To bring them back, delete CLUB_ROSTER_DROP below — this mapping is left
+# intact so the shelves are still named, sectioned and out of PPV, and the
+# drop is one list that can be removed in one line. The fixture parser is
+# untouched either way: it reads the numbered event shelves, and these are
+# rosters.
 FOOTBALL_CLUB_SHELVES = {
     "769": ("SPORTS", "UK"),  # UK| CHAMPIONSHIP PPV       — CHAMP: BURNLEY, 24 clubs
     "766": ("SPORTS", "UK"),  # UK| LEAGUE ONE PPV         — L1: WIGAN ATHLETIC, 24
@@ -519,6 +537,25 @@ _probed = {}
 if os.path.exists('probed_tiers.json'):
     _probed = {str(k): v for k, v in json.load(open('probed_tiers.json')).items() if v}
 
+# Streams that answer a tune with the panel's black-screen filler, from
+# black_check.py. A dead stream on this provider does not fail: the front
+# redirects to /video/black.ts, a real decodable silent black video, so the
+# player never errors and never reaches the tile's backups — the viewer just
+# sits looking at a blank screen. 249 of the 691 browsable channels answered
+# that way on 2026-09-05, and 17 tiles were leading with one while holding a
+# source that plays.
+#
+# It only ever DEMOTES. A club channel is legitimately black between matches,
+# and a stream absent from a measuring line's package is not absent from the
+# viewer's — so a black source sinks to the bottom of its tile's ladder and
+# stays reachable, and a channel with nowhere better to go is left alone.
+_black = {}
+if os.path.exists('black_streams.json'):
+    _black = {str(k): v for k, v in json.load(open('black_streams.json')).items()}
+
+def is_black(sid):
+    return 1 if _black.get(str(sid)) else 0
+
 def measured_tier(sid):
     h = _probed.get(str(sid))
     # A zero is a FAILED probe, not a dead channel: re-probing the fourteen
@@ -750,7 +787,37 @@ NAMED_REMOVAL = re.compile(
     # (DSTV's Zambian, Nigerian and South African services) which a bare
     # \bPARL rule would take as well; they are already dropped for their
     # territory, and taking them here would hide that if it ever changed.
-    r'|\bBBC\s+PARLI?AMENT\b',
+    r'|\bBBC\s+PARLI?AMENT\b'
+    # ---- the Sports shelf trim, 2026-09-05 at the user's request ----------
+    # "in sports there are a lot of channels we probably dont need". Four
+    # groups, all of them one service wearing several rows, and each pattern
+    # was run over the whole line-up before it went in — the counts are what
+    # it takes, not what it was meant to take.
+    #
+    # Tournament overflow: twelve numbered courts for one service, nine of
+    # them answering with the black filler when this was measured. Takes 12
+    # and leaves TENNIS CHANNEL itself, which carries the tournament.
+    r'|\bTENNIS\s*CHANNEL\s*PLUS\b'
+    # Fubo's numbered feeds (5) and Stadium's (3). FUBO SPORTS NETWORK and
+    # STADIUM stay: the numbers are the same service's spillover.
+    r'|\bFUBO\s*SPORTS\s*[1-5]\b'
+    r'|\bSTADIUM\s*[123]\b'
+    # MSG Sportsnet's three zone feeds. Regional sports networks are dropped
+    # everywhere else in this build for being blackout-locked to a territory
+    # this package does not sell; these three arrived under a name the RSN
+    # rule does not read.
+    r'|\bMSGSN\b.*\bZONE'
+    # beIN's overflow, ANCHORED TO THE US SHELF and to "HD" — the bare form
+    # `BEIN SPORTS [4-8]` matches 176 streams across the 8K bundles and the
+    # Arabic and French lineups, which is exactly the over-reach the rules
+    # above are written to avoid. beIN SPORTS and beIN SPORTS 2 stay.
+    r'|^US:\s*BEIN\s*SPORTS\s*[4-8]\s*HD\b'
+    # Ten single-interest channels, asked for as a group. Each takes its own
+    # US feed; the copies in territories this package does not serve (IT, CA,
+    # GR, RK and the GO: bundle) are already dropped and cost nothing here.
+    r'|\bPADEL|\bMOTO\s*AMERICA\b|\bBILLIARD\b|\bPICKLEBALL\b'
+    r'|\bFANTASY\s*SPORTS\b|\bGINX\b|\bFITE\s*TV\b|\bSPORTSMAN\s*CHANNEL\b'
+    r'|\bAFN\s*SPORT\b|\bYAHOO\s*SPORTS\b',
     re.I)
 
 # Ids NAMED_REMOVAL must not take, whatever the provider called them.
@@ -777,6 +844,44 @@ telemundo_drop, rsn_drop, ca_drop, us_news_drop = [], [], [], []
 misfiled_territory = []
 named_drop = []
 defunct_drop = []
+# The club rosters go, 2026-09-05; see FOOTBALL_CLUB_SHELVES. Set False to
+# put all 158 back on the UK tile exactly as they were.
+CLUB_ROSTER_DROP = True
+club_drop = []
+# UK music channels measured answering with the black filler on 2026-09-05,
+# dropped at the user's request after the sweep. By id and not by name,
+# because what these have in common is that they are DEAD, not anything about
+# what they are called — MTV Dance sits beside "80'S - DIRECT" in this list.
+#
+# The caveat, recorded because it decides whether this list is right: the
+# measurement came from a second line on the same upstream catalogue, and
+# these are single-source channels with no sibling to cross-check. A stream
+# absent from that line's package would look identical. Every one is one line
+# from coming back.
+UK_MUSIC_DEAD = {
+    162406,   # UK: MTV DANCE
+    162407,   # UK: MTV HITS
+    162421,   # UK: TRACE URBAN
+    162424,   # UK: 4 MUSIC
+    162519,   # UK: RMTV
+    405517,   # UK: SON LIFE
+    739287,   # UK: That's 80s
+    739288,   # UK: That's 60s
+    771040,   # UK: Ayozat TV
+    783785,   # UK: MTV 90s
+    1290973,  # UK: ALTERNATIVE - DIRECT
+    1290975,  # UK: DANCE/ EDM - DIRECT
+    1290977,  # UK: HIT LIST - DIRECT
+    1290979,  # UK: KIDZ BOP - DIRECT
+    1290981,  # UK: 80'S - DIRECT
+    1290982,  # UK: MUSIC CHOICE MAX - DIRECT
+    1290986,  # UK: POP LATINO - DIRECT
+    1290987,  # UK: R&B SOUL - DIRECT
+    1290988,  # UK: RAP - DIRECT
+    1290990,  # UK: TEEN BEATS - DIRECT
+    1290992,  # UK: TODAY'S COUNTRY: CMA AWARDS - DIRECT
+}
+dead_music_drop = []
 for s in ls:
     if s['stream_id'] in junkset: continue
     c = cat_live.get(str(s.get('category_id')))
@@ -811,6 +916,15 @@ for s in ls:
     if (NAMED_REMOVAL.search(asc(s['name']))
             and s['stream_id'] not in NAMED_REMOVAL_KEEP):
         named_drop.append(s['stream_id']); continue
+    # The club rosters, whole. One line to delete if they are ever wanted
+    # back; see FOOTBALL_CLUB_SHELVES for what was measured and decided.
+    # Ahead of ROSTER_SLOT_JUNK, which this makes redundant while it stands —
+    # the slot rule is left in place because it is what keeps "SPFL 07:" off
+    # the shelf on the day the rosters return.
+    if CLUB_ROSTER_DROP and str(s.get('category_id')) in FOOTBALL_CLUB_SHELVES:
+        club_drop.append(s['stream_id']); continue
+    if s['stream_id'] in UK_MUSIC_DEAD:
+        dead_music_drop.append(s['stream_id']); continue
     # A numbered event slot riding along inside a club-roster shelf; see
     # ROSTER_SLOT_JUNK. Anchored to those categories, so the identically
     # shaped slots on the shelves that STAY on PPV — the EPL VIP shelf, Live
@@ -976,20 +1090,35 @@ DIRECT_FEED = {
 # line-up entirely, which is nobody's idea of merging a sports shelf.
 MERGED_REGIONS = ('US', 'UK')
 
-# Territories that share one SHELF per genre — what the app reads to decide
-# whether a territory opens a chip of its own.
+# Territories that share one SHELF per genre — their channels pour into the
+# genre rows and they open no chip of their own.
 #
-# AFR is here and not above, asked for as "merge supersport channels into
-# sports then delete its chip" — which is one thing, not two: a territory
-# outside the shelf merge opens its own row, so folding it in is what removes
-# the row. Its channels keep their own tiles, so nothing collapses and nothing
-# is dropped; they simply land on Sports.
+# US alone, since 2026-09-05. UK and AFR were both here and both moved to
+# SHELF_SOLO_REGIONS below; what is left is the territory the genre rows are
+# now made of, so "News" means US news and needs no suffix to say so.
+SHELF_MERGED_REGIONS = ('US',)
+
+# Territories that shelve WHOLE: one row per territory, holding every genre it
+# carries, named by the place.
 #
-# It earns this now in a way it did not before. The shelf was 110 mixed DStv
-# and Ghanaian channels when it was its own thing; since the SuperSport-only
-# trim it is 23 sports channels, which is a subset of what Sports is for
-# rather than a territory with its own News, Kids and Music.
-SHELF_MERGED_REGIONS = ('US', 'UK', 'AFR')
+# The opposite instrument to the line above, and the third of the three shapes
+# a territory can take — merged into the genre rows, a row per genre of its
+# own, or one row for the lot. Asked for on 2026-09-05 as "move all the uk
+# channels to a new tile UK, then also african ones to Africa": UK's channels
+# were spread across News, Sports, Entertainment and Locals, so a viewer
+# looking for the British channels had to already know which genre each one
+# had been filed under, and the two territories a viewer picks BY PLACE were
+# the only two with no place to pick.
+#
+# What it costs, measured against the shipped line-up: Sports drops from 267
+# to 41, Entertainment from 201 to 93, Locals from 89 to 71 and News from 33
+# to 25, because a channel sits on exactly one row and the UK copies leave.
+# UK opens at 337 and Africa at 23.
+#
+# The app checks this before SHELF_MERGED_REGIONS, so a territory named in
+# both would still shelve whole — but nothing is, and nothing should be: the
+# two lists say opposite things about the same territory.
+SHELF_SOLO_REGIONS = ('UK', 'AFR')
 # One stream, by id, where a name rule would be too broad.
 #
 # 1536959 is "PRIME: BBC NEWS", a US-shelf restream — and the only source in
@@ -1060,7 +1189,11 @@ for (k, reg), srcs in tiles.items():
     # whichever landed first — and a feed that failed to decode (recorded 0)
     # beat one measured at 720p that way. A number we took beats a word the
     # provider chose; 0 sorts last because it means "we could not tell".
-    srcs.sort(key=lambda x: (_swept_source(x), TIER_RANK.get(x["tier"], 8),
+    # Black first of all: a source that answers with the filler is not a
+    # picture at any tier, and the whole point of measuring one is to stop it
+    # leading a tile that holds something playable.
+    srcs.sort(key=lambda x: (is_black(x["id"]), _swept_source(x),
+                             TIER_RANK.get(x["tier"], 8),
                              -_probed.get(str(x["id"]), 0)))
     # A pinned source leads, and the rest keep the order measurement gave
     # them — the pin decides the primary, not the whole fallback ladder.
@@ -1109,8 +1242,18 @@ dropped_region = [sid for sid in dropped_region if sid not in _tile_member_ids]
 # ---------------------------------------------------------------- US locals
 # 1,394 affiliate feeds is noise. Keep the major markets only, resolving the
 # market from the city in the name, a suburb alias, or the call sign.
+# Ordered by market size, and the app renders the Locals shelf in this order
+# (CatalogueManifest.metroRank), so the order is a decision too.
+#
+# Phoenix, Seattle, Denver and Miami joined on 2026-09-05. The line-up carried
+# them all along — 274 local stations exist, 122 in the ten markets above and
+# 152 dropped for no reason but the market not being on this list — and these
+# four were the largest runs going to waste: Seattle is a complete market
+# (KOMO, KIRO, KING, KCPQ, KZJO, KONG, KSTW, KBTC, KCTS), Miami 11 streams,
+# Denver 10, Phoenix 8.
 TOP_METROS = ['NEW YORK','LOS ANGELES','CHICAGO','PHILADELPHIA','DALLAS',
-              'SAN FRANCISCO','WASHINGTON','HOUSTON','BOSTON','ATLANTA']
+              'SAN FRANCISCO','WASHINGTON','HOUSTON','BOSTON','ATLANTA',
+              'PHOENIX','SEATTLE','DENVER','MIAMI']
 MAJOR_MARKETS = {
  'NEW YORK','LOS ANGELES','CHICAGO','PHILADELPHIA','DALLAS','SAN FRANCISCO','WASHINGTON',
  'HOUSTON','BOSTON','ATLANTA','PHOENIX','SEATTLE','TAMPA','DETROIT','MINNEAPOLIS','DENVER',
@@ -1126,9 +1269,36 @@ SUBURB_ALIAS = {
  'ST PETERSBURG':'TAMPA','ST. PETERSBURG':'TAMPA','CLEARWATER':'TAMPA',
  'OAKLAND':'SAN FRANCISCO','SAN JOSE':'SAN FRANCISCO','CONCORD':'SAN FRANCISCO',
  'PEARLAND':'HOUSTON','GARDEN GROVE':'LOS ANGELES','CORONA':'LOS ANGELES',
- 'PARKER':'DENVER','CHULA VISTA':'SAN DIEGO','MARANA':'PHOENIX','WORCESTER':'BOSTON',
+ # MARANA is NOT a Phoenix suburb — it is a Tucson one, and the only stream
+ # it named was "NBC 4 (KVOA) MARANA", KVOA being Tucson's NBC. The alias put
+ # Tucson's station at the head of the Phoenix NBC tile, above the four KPNX
+ # feeds that are the actual Phoenix NBC. Removed 2026-09-05 with the market.
+ 'PARKER':'DENVER','CHULA VISTA':'SAN DIEGO','WORCESTER':'BOSTON',
  'FORT LAUDERDALE':'MIAMI','HOLLYWOOD':'MIAMI','ARLINGTON HEIGHTS':'CHICAGO',
  'GARY':'CHICAGO','SILVER SPRING':'WASHINGTON','ARLINGTON VA':'WASHINGTON',
+}
+# The call sign is the station's identity; the city in the name is the
+# provider's claim about it, and on the CITY: bundle that claim is often
+# wrong. These are the ones caught with the four markets added on 2026-09-05,
+# each verified against the station itself:
+#
+#   WKYT / WKLE  Lexington, Kentucky — shipped stamped "PHOENIX"
+#   KERA         Dallas PBS          — shipped stamped "MIAMI"
+#
+# Checked BEFORE the city text, which is the whole point: local_market reads
+# the city first, so a name carrying both can only be corrected from here.
+# A market outside TOP_METROS drops the station rather than moving it, which
+# is the right answer for a Kentucky station on a Phoenix shelf; KERA is
+# Dallas's real PBS and joins that market's shelf.
+#
+# Not exhaustive. The same defect is visible on shelves this change did not
+# touch — Philadelphia's PBS is KUED (Salt Lake City) and its CW is KUCW (Salt
+# Lake City), Houston's PBS is KETS (Arkansas), Washington's CW is WFLI and
+# its PBS WTCI (both Chattanooga), Los Angeles's CW is KGCW (Quad Cities).
+# Left alone deliberately: correcting them moves channels off shelves a viewer
+# is using today, which is a decision, not a cleanup.
+CALLSIGN_FIX = {
+ 'WKYT': 'LEXINGTON', 'WKLE': 'LEXINGTON', 'KERA': 'DALLAS',
 }
 # flagships whose entry carries no city at all
 CALLSIGN_MARKET = {
@@ -1146,6 +1316,9 @@ CALLSIGN_MARKET = {
  'WXYZ':'DETROIT','WWJ':'DETROIT','WDIV':'DETROIT','WJBK':'DETROIT',
  'WPLG':'MIAMI','WFOR':'MIAMI','WTVJ':'MIAMI','WSVN':'MIAMI',
  'KNXV':'PHOENIX','KPHO':'PHOENIX','KPNX':'PHOENIX','KSAZ':'PHOENIX',
+ # Denver's flagships, added with the market itself. The others here were
+ # already listed for markets this list did not yet keep.
+ 'KMGH':'DENVER','KUSA':'DENVER','KCNC':'DENVER','KDVR':'DENVER',
 }
 LOCAL_CITY = re.compile(r'\(([WK][A-Z0-9\-]{2,6})\)\s*(.*)$')
 CALL_ONLY  = re.compile(r'\(([WK][A-Z0-9\-]{2,6})\)')
@@ -1160,6 +1333,14 @@ def _clean_city(c):
 def local_market(name):
     """Return the major market this affiliate serves, or None to drop it."""
     n = asc(name)
+    # A verified call sign outranks the city the provider typed beside it.
+    # Matched as a bare word, not through CALL_ONLY: that pattern wants
+    # parentheses, and the CITY: bundle — where this defect lives — writes the
+    # call sign loose ("CITY: PBS KERA MIAMI"). Scanning for the three known
+    # signs rather than for call-sign SHAPE keeps it from reading "KIDS" or
+    # "WWE" as a station.
+    for _call, _market in CALLSIGN_FIX.items():
+        if re.search(rf'\b{_call}\b', n.upper()): return _market
     mm = LOCAL_CITY.search(n)
     if mm and mm.group(2).strip():
         city = _clean_city(mm.group(2))
@@ -1380,24 +1561,34 @@ for _t in uk_collapse.values():
 uk_locals_drop = [x for x in uk_locals_drop if x not in _uk_primaries]
 
 
-# ------------------------------------------------------- AFR, shown as SUPERSPORT
-# SuperSport, and nothing else.
+# ----------------------------------------------------------- AFR, shown as AFRICA
+# The DStv bundle, the Ghanaian channels out of Africa VIP, and SuperSport.
 #
-# The shelf was the DStv bundle plus the Ghanaian channels out of Africa VIP —
-# 68 channels — until 2026-08-26, when the user asked for the sport on its own
-# and for the shelf to be named after it. They were shown exactly what that
-# costs before it was done: 31 other DStv channels (Africa Magic, AIT,
-# Soundcity, ROK, TV47, ZNBC2, Akwaaba Magic, GTV, Prime TV) and all 14
-# Ghanaian ones (Adom TV, GH One, Metro TV, Ghana Broadcasting, GTV Gov,
-# Kessben, Rock TV, Royal TV, Studio1), and chose it.
+# Three keep terms, and the history of this shelf is the history of that list.
+# It was all three until 2026-08-26, when the user asked for the sport on its
+# own and for the shelf to be named after it: SuperSport alone, 23 channels,
+# with 31 other DStv channels and all 14 Ghanaian ones shown as the cost and
+# accepted. Both came back on 2026-09-05, in the same breath as the territory
+# becoming a tile of its own — a row called "Africa" that holds one sports
+# brand answers a different question from the one its name asks.
 #
-# To bring either group back, add its term to `keep` below:
-#   the DStv bundle   re.compile(r'DSTV', re.I)      against the CATEGORY name
-#   Ghana             re.compile(r'^GHA\s*:', re.I)  against the stream name
-# Everything else those two used to admit still falls to the same passes it
-# always did, so restoring one term restores that group and nothing more.
-AFR_LABEL = "SuperSport"  # the brand's own casing; the shelf chip renders this verbatim
+# Everything else these terms used to admit still falls to the same passes it
+# always did, so each term restores its group and nothing more:
+#   - AFR_DROP_NAMES below still names what the bundle does not carry (the
+#     international pass-throughs, the South African lineup, horse racing).
+#   - AFR_DROP_GENRE still takes the news, deliberately: those ten are global
+#     feeds and parliament channels beside SABC News and eTV News, and the
+#     News row this package leads with is where a viewer looks for them.
+# To narrow the shelf again, drop a term from `keep`.
+# The chip renders this verbatim. It read "SuperSport" — the brand, because
+# the row was the brand — until the territory became a shelf of its own on
+# 2026-09-05 and the question the chip answers changed from "which sports
+# package" to "which place". The roster widened back to match the name in the
+# same change; see `keep` below for the three terms that decide it.
+AFR_LABEL = "Africa"
 AFR_KEEP_NAME     = re.compile(r'SUPER\s?SPORT', re.I)  # SuperSport, wherever it sits
+AFR_KEEP_CATEGORY = re.compile(r'DSTV', re.I)          # the DStv bundle, by CATEGORY
+AFR_KEEP_GHANA    = re.compile(r'^GHA\s*:', re.I)      # Africa VIP's Ghanaian run
 AFR_GENRE = [
     ('NEWS',        r'\bNEWS\b|\bAL ?JAZEERA\b|\bBLOOMBERG\b|\bCGTN\b|\bCNBC\b'
                     r'|\bSABC NEWS\b|\bNEWZROOM\b|\bRUSSIA TODAY\b|\bNDTV\b|\bPARLIAMENT'),
@@ -1514,7 +1705,16 @@ afr_drop, afr_assign, afr_dupes, afr_news, afr_named = [], {}, [], [], []
 for st in ls:
     c = cat_live.get(str(st.get('category_id')))
     if not c or c['region'] != 'AFR': continue
-    keep = bool(AFR_KEEP_NAME.search(asc(st['name'])))
+    # By category for the bundle, by name for the other two: DStv's channels
+    # are only recognisable as a group by the shelf they arrive on, while
+    # SuperSport travels between bundles and Ghana wears its own prefix.
+    # _afr_nm, not _nm: that name is taken by the stream-id -> name map built
+    # for the whole line-up above, and a loop variable shadowing it here left
+    # the passes 400 lines down calling .get() on a string.
+    _afr_nm = asc(st['name'])
+    keep = bool(AFR_KEEP_NAME.search(_afr_nm)
+                or AFR_KEEP_GHANA.search(_afr_nm)
+                or AFR_KEEP_CATEGORY.search(_catname.get(str(st.get('category_id')), '')))
     if not keep:
         afr_drop.append(st['stream_id']); continue
     if channel_key(st['name']) in _usuk_keys:
@@ -2919,6 +3119,7 @@ _drop_lists = [
     ('rsn_drop', rsn_drop), ('ca_drop', ca_drop), ('us_news_drop', us_news_drop),
     ('defunct_drop', defunct_drop), ('misfiled_territory', misfiled_territory),
     ('named_drop', named_drop),
+    ('club_drop', club_drop), ('dead_music_drop', dead_music_drop),
     ('tier_unshelved', tier_unshelved),
     ('cross_region_dupe', cross_region_dupe),
     ('exact_dupe_drop', exact_dupe_drop), ('junk_sweep', junk_sweep),
@@ -3216,6 +3417,7 @@ for _mkey, _t in metro_tiles.items():
         if sid not in _seen:
             _seen.add(sid); _srcs.append(sid)
     _srcs.sort(key=lambda sid: (
+        is_black(sid),
         -_probed.get(str(sid), 0),
         TIER_RANK.get(measured_tier(sid) or tier_of(_nm.get(sid, '')), 8),
         _quality_rank(asc(_nm.get(sid, '')), _t['metro'], _t['network']),
@@ -3445,8 +3647,9 @@ manifest = {
         "groups": {k: v for k, v in live_events.items()},
     },
     "name_section": name_section,
-    "region_labels": {"US": "United States", "UK": "United Kingdom",
-                      "AFR": AFR_LABEL},
+    # A territory that shelves whole is named by this and nothing else, so
+    # these are chips now, not suffixes: "UK", not "United Kingdom · Sports".
+    "region_labels": {"US": "United States", "UK": "UK", "AFR": AFR_LABEL},
     "uk_reassign": uk_reassign,
     "uk_collapse": uk_collapse,
     "local_market": locals_market,
@@ -3481,6 +3684,9 @@ manifest = {
     "kept_regions": list(KEEP_REGIONS),   # authored order — see KEEP_REGIONS
     # These share one shelf per genre; anything else keeps its own shelf.
     "merged_regions": list(SHELF_MERGED_REGIONS),
+    # These take one shelf each, holding every genre they carry. Read before
+    # merged_regions by the app.
+    "solo_regions": list(SHELF_SOLO_REGIONS),
     "sport": {"leagues": SPORT_LEAGUES, "cue_minutes": SPORT_CUE_MINUTES,
               "club_alias": SPORT_CLUB_ALIAS,
               "ambiguous": SPORT_AMBIGUOUS, "club_crest": _crest_map},

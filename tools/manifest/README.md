@@ -18,6 +18,14 @@ Two fields exist for exactly this and are easy to forget:
 - `region_fix` — a channel's real territory when its category says something
   else, including when the category says a quality tier (`4K`, `8K`) rather
   than a place.
+- `black_streams.json` (from `black_check.py`) — which streams answer a tune
+  with the panel's black-screen filler. A dead stream here does not fail: the
+  front redirects to `/video/black.ts`, a real decodable silent black video,
+  so the player never errors, never falls through to the tile's backups, and
+  the viewer sits looking at a blank screen. The build sinks those sources to
+  the bottom of their tile's ladder. It never drops on this evidence alone —
+  a club channel is legitimately black between matches, and a stream missing
+  from a measuring line's package is not missing from the viewer's.
 - `collapse[].section` / `.region` — the shelf a folded tile resolved for
   itself, which outranks the primary's own provider category.
 - `collapse[].direct` — the broadcaster's own public feeds for a tile, best
@@ -32,9 +40,20 @@ code, and that silently put AFR/DSTV at the head of the strip ahead of the
 markets this package is mostly made of.
 
 It is the tie-break *within* a genre, not the top-level grouping — the strip
-sorts by section order first, so a territory that keeps its own shelf renders
-beside the genre it holds rather than after every merged shelf. DStv sits
-directly after the merged Entertainment, not past Streaming Networks.
+sorts by section order first, so a territory that keeps a shelf PER GENRE
+renders beside the genre it holds rather than after every merged shelf.
+
+A territory can take three shapes, and two lists decide which:
+
+- in `merged_regions` — its channels pour into the shared genre rows and it
+  opens no chip of its own. US.
+- in `solo_regions` — it shelves **whole**: one row for the place, holding
+  every genre it carries, named by `region_labels` and sorted after all the
+  genre rows in `kept_regions` order. UK and Africa, since 2026-09-05.
+- in neither — a row per genre, each suffixed with the territory.
+
+`solo_regions` is read first, so the two lists must never name the same
+territory: they say opposite things about it.
 
 ## Credentials
 
@@ -231,9 +250,14 @@ The intermediates are large, machine-generated and deliberately untracked — se
 
 ## After a rebuild, check
 
-- `kept_regions` is the authored order, not alphabetical.
+- `kept_regions` is the authored order, not alphabetical, and no territory is
+  in both `merged_regions` and `solo_regions`.
 - Every surviving stream resolves to a section AND a territory. One that
   resolves to a section but no territory has no shelf: the app keeps it rather
   than deleting it, but only search will find it.
 - No per-channel table names a section absent from `sections.live` — an
   undeclared key has no label and no place in the order, and surfaces raw.
+- No tile leads with a stream `black_streams.json` marks black while holding
+  one it does not. Re-run `black_check.py --all` after a catalogue refresh:
+  which streams are dead moves with the provider, and the check costs one
+  redirect per stream, no bandwidth and no connection slot.

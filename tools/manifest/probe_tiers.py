@@ -103,8 +103,23 @@ if queue is None:
     print(f"{len(queue)} streams to probe ({len(done)} already recorded)", flush=True)
 
 
+# How a stream is addressed on this line.
+#
+# The user's panel serves https and a /live/ segment; a measuring line on the
+# same upstream catalogue need not. World 8K answers plain
+# http://host/USER/PASS/<id>.ts and nothing else, and the hardcoded shape
+# meant every probe against it timed out and recorded a 0 — a decode failure
+# is indistinguishable from "the URL was wrong", so the file filled with
+# zeros that then told the build not to probe those ids again.
+#
+# {host} {user} {pass} {id} are substituted. Set AGORO_STREAM_URL to point
+# this at a line whose front differs.
+URL_TEMPLATE = os.environ.get(
+    'AGORO_STREAM_URL', 'https://{host}/live/{user}/{pass}/{id}.ts')
+
+
 def probe(sid):
-    url = f"https://{HOST}/live/{USER}/{PASS}/{sid}.ts"
+    url = URL_TEMPLATE.format(host=HOST, user=USER, id=sid, **{'pass': PASS})
     try:
         r = subprocess.run(
             ['ffprobe', '-v', 'error', '-select_streams', 'v:0',

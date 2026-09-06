@@ -1290,4 +1290,154 @@ class SportsParserTest {
         )
         assertTrue("16:30 must not win 2-1 on a borrowed clock", rows.isEmpty())
     }
+
+    // ---- reported 2026-09-05: "saw cardinal vs cardnal today ans a weird
+    // champaigns league". Four separate defects, one screen. Every name below
+    // is the provider's, copied from that day's slot list.
+
+    /**
+     * The ESPN+ pack ends a slot with a note about the FEED, and the note
+     * repeats a club. Read as part of the away side, it made one fixture with
+     * the same club on both sides — which is not a thing that can happen.
+     */
+    @Test
+    fun `a feed note is not the away side`() {
+        val now = ms(2026, 9, 5, 19, 0, "UTC")
+        val e = SportsParser.parse(
+            1,
+            "US (ESPN+ 067) | Soccer: Ajax vs. PSV (Ajax vs. PSV) (2026-09-05 13:50:10)",
+            now, mapOf("Champions League" to listOf("Ajax", "PSV")),
+        )!!
+        assertEquals("Ajax", e.home)
+        assertEquals("the note said Ajax; the away side is PSV", "PSV", e.away)
+    }
+
+    /** The nested form, "(Giants vs. Mets (ESP))" — one greedy pass eats it wrong. */
+    @Test
+    fun `a nested feed note is not the away side`() {
+        val now = ms(2026, 9, 5, 15, 0, "UTC")
+        val e = SportsParser.parse(
+            1,
+            "US (ESPN+ 068) | Soccer: Ajax vs. PSV (Ajax vs. PSV (ESP)) (2026-09-05 13:50:15)",
+            now, mapOf("Champions League" to listOf("Ajax", "PSV")),
+        )!!
+        assertEquals("PSV", e.away)
+    }
+
+    /**
+     * "Baseball: Cardinals vs. Rockies" was on screen as an NFL fixture: the
+     * sport rule knew MLB and MiLB but not the word ESPN+ actually writes, and
+     * the NFL roster answered for "Cardinals". There is no reading under which
+     * a baseball game is a row on this screen.
+     */
+    @Test
+    fun `a sport this app carries no league for is refused`() {
+        val now = ms(2026, 9, 5, 19, 0, "UTC")
+        assertNull(SportsParser.parse(
+            1,
+            "US (ESPN+ 314) | Baseball: Cardinals vs. Rockies (Cardinals Broadcast) " +
+                "(2026-09-05 19:45:20)",
+            now, mapOf("NFL" to listOf("Cardinals", "Giants")),
+        ))
+        assertNull(SportsParser.parse(
+            2, "US (ESPN+ 130) | Baseball: Giants vs. Mets (Giants Broadcast) " +
+                "(2026-09-05 15:31:45)",
+            now, mapOf("NFL" to listOf("Cardinals", "Giants")),
+        ))
+    }
+
+    /** A pack that files gridiron under a shelf called SOCCER still gets a row. */
+    @Test
+    fun `a mislabelled shelf is demoted, not refused`() {
+        val now = ms(2026, 8, 27, 16, 0, "UTC")
+        val e = SportsParser.parse(
+            1,
+            "Next | Preseason: Steelers vs. Jets | 27-08-2026 | 16:00 (GMT) | US: SOCCER PPV 14",
+            now, leagues,
+        )
+        assertTrue("a real fixture on a misnamed shelf", e != null)
+        assertTrue("but the pack is not to be trusted with the clock", e!!.wrongSport)
+    }
+
+    /**
+     * A roster says which competition a club BELONGS to, not which one it is
+     * playing today. Two Champions League entrants meeting in their own
+     * domestic league were billed Champions League — three days before the
+     * competition's first match of the week.
+     */
+    @Test
+    fun `a competition that is not playing that day is not the competition`() {
+        val now = ms(2026, 9, 5, 17, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "US (ESPN+ 067) | Soccer: Ajax vs. PSV (2026-09-05 17:50:10)",
+            now, mapOf("Champions League" to listOf("Ajax", "PSV")),
+        )!!
+        val fixtures = listOf(
+            ScheduleFixture("Champions League", "Napoli", "Arsenal", "2026-09-09T19:00Z"),
+            ScheduleFixture("Champions League", "Liverpool", "Atlético Madrid", "2026-09-09T19:00Z"),
+        )
+        assertTrue(
+            "the Champions League is not playing on the 5th",
+            SportsParser.applySchedule(listOf(slot), fixtures, now).isEmpty(),
+        )
+    }
+
+    /**
+     * And the other half of that rule, which is the half that makes it safe.
+     * The packs and ESPN spell clubs differently — Inter against
+     * Internazionale, RasenBallsport against RB Leipzig — so six of the ten
+     * unmatched rows measured that day were REAL fixtures. A row is kept
+     * whenever its competition is playing around then, matched or not.
+     */
+    @Test
+    fun `an unmatched row survives on its own matchday`() {
+        val now = ms(2026, 9, 5, 14, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "Serie A | Inter vs. Napoli | 05-09-2026 | 15:00 (GMT)",
+            now, mapOf("Serie A" to listOf("Inter", "Napoli")),
+        )!!
+        val fixtures = listOf(
+            // The same fixture as ESPN spells it, which does not match, and a
+            // second Serie A tie the same day, which is what saves the row.
+            ScheduleFixture("Serie A", "Internazionale", "Napoli", "2026-09-05T15:00Z"),
+            ScheduleFixture("Serie A", "Roma", "Atalanta", "2026-09-05T18:45Z"),
+        )
+        assertEquals(1, SportsParser.applySchedule(listOf(slot), fixtures, now).size)
+    }
+
+    /** A league with no fixtures in the window cannot testify about a matchday. */
+    @Test
+    fun `a competition the schedule does not carry is left alone`() {
+        val now = ms(2026, 9, 5, 14, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "NFL  | 01 - 9/5 8pm Raiders at Texans", now, leagues,
+        )!!
+        val fixtures = listOf(
+            ScheduleFixture("MLS", "Inter Miami", "Atlanta United", "2026-09-05T23:30Z"),
+        )
+        assertEquals(1, SportsParser.applySchedule(listOf(slot), fixtures, now).size)
+    }
+
+    /** "Niger Super Ligue 1 - Niger" contains "Ligue 1" and is not Ligue 1. */
+    @Test
+    fun `a competition elsewhere that borrows our league's name is refused`() {
+        val now = ms(2026, 9, 6, 14, 0, "UTC")
+        assertNull(SportsParser.parse(
+            1,
+            "Next | JS TAHOUA vs. AS GNN | Niger Super Ligue 1 - Niger | 2026-09-06 | " +
+                "15:00 (GMT) | 8K EXCLUSIVE | GB: DAZN PPV 68",
+            now, mapOf("Ligue 1" to listOf("Lens", "Lorient")),
+        ))
+    }
+
+    /** And France's own, which the packs bill with a country word too. */
+    @Test
+    fun `the French league is still the French league`() {
+        val now = ms(2026, 9, 5, 15, 0, "UTC")
+        val e = SportsParser.parse(
+            1, "Next | Lens vs. Lorient | French Ligue 1 | 05-09-2026 | 15:15 (GMT)",
+            now, mapOf("Ligue 1" to listOf("Lens", "Lorient")),
+        )
+        assertEquals("Ligue 1", e?.league)
+    }
 }
