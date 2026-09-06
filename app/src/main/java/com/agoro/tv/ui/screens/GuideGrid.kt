@@ -292,9 +292,6 @@ internal class GuideGridFocus(anchorMs: Long) {
     /** False while focus is in the channel column, where default (index-wise)
      *  vertical movement is already the right thing. */
     var focusedIsCell = false
-    /** Whether anything in the grid has focus right now — the registry
-     *  otherwise only knows where focus last WAS. */
-    var holdsFocus = false
     var anchorMs = anchorMs
 
     /** Set when a vertical move had to fall back to the geometric focus search
@@ -348,16 +345,26 @@ internal class GuideGridFocus(anchorMs: Long) {
 class GuideGridHandle {
     internal var focusAnchorImpl: (suspend () -> Boolean)? = null
     internal var focusAtImpl: (suspend (Long) -> Boolean)? = null
-    internal var holdsFocusImpl: (() -> Boolean)? = null
     internal var beforePlayImpl: (() -> Unit)? = null
 
     /**
-     * Whether a cell or channel in the grid holds focus RIGHT NOW. Read it
-     * before scrolling the timeline: a scroll that carries the focused cell
-     * out of the composed window disposes it, focus falls to the strip, and
-     * the answer afterwards is always no.
+     * Whether a cell or channel in the grid holds focus RIGHT NOW.
+     *
+     * Read it before scrolling the timeline: a scroll that carries the focused
+     * cell out of the composed window disposes it, focus falls to the strip,
+     * and the answer afterwards is always no.
+     *
+     * STATE, and on the handle — which both sides hold before either composes
+     * — so that composition may read it too. It used to reach here through a
+     * lambda the grid installed while composing, and a host reading that on
+     * its first pass got `false` from a null lambda WITHOUT touching any
+     * state: a read that touches no state is never told it changed, so a BACK
+     * handler armed on it stayed disabled for the life of the screen.
      */
-    fun holdsFocus(): Boolean = holdsFocusImpl?.invoke() ?: false
+    var holdsFocusNow by mutableStateOf(false)
+        internal set
+
+    fun holdsFocus(): Boolean = holdsFocusNow
 
     /** Land focus on the anchored cell of the last-focused row (else the first
      *  row), verified — not merely requested. False when the grid is empty or
@@ -553,7 +560,23 @@ internal fun GuideGrid(
         val id = gridFocus.focusedChannelId ?: return@LaunchedEffect
         if (channels.getOrNull(gridFocus.focusedRow)?.id == id) return@LaunchedEffect
         gridFocus.focusedRow = channels.indexOfFirst { it.id == id }
-        if (gridFocus.focusedRow < 0) gridFocus.focusedChannelId = null
+        if (gridFocus.focusedRow < 0) {
+            gridFocus.focusedChannelId = null
+            // The channel we were on is not in this list, which is what a
+            // category switch looks like from here — and the list must open at
+            // its top. LazyColumn keeps its scroll across a content swap, so
+            // picking News from row 60 of Locals showed News's LAST rows,
+            // clamped, under the strip.
+            //
+            // This was harmless until BACK could reach the strip: every route
+            // there ran UP through row 0, which had already scrolled the list
+            // home. Removing the walk removed the invariant with it.
+            //
+            // Only on a channel that has GONE. A refresh keeps it — the merge
+            // re-emits this list whenever a stream's quality is learned — and
+            // scrolling on those would yank the viewer's place for nothing.
+            listState.scrollToItem(0)
+        }
     }
 
     fun focusRow(rowIndex: Int): Boolean {
@@ -732,13 +755,16 @@ internal fun GuideGrid(
         onDispose {
             handle?.focusAnchorImpl = null
             handle?.focusAtImpl = null
-            handle?.holdsFocusImpl = null
+            // A grid that has left composition holds nothing. Left true, the
+            // host's BACK handler stays armed over a screen with no grid
+            // under it — the player is up, or another tab is — and swallows
+            // the press that should have left.
+            handle?.holdsFocusNow = false
         }
     }
     handle?.focusAnchorImpl = {
         landOnRow(gridFocus.focusedRow.takeIf { it in channels.indices } ?: 0)
     }
-    handle?.holdsFocusImpl = { gridFocus.holdsFocus }
     handle?.focusAtImpl = { timeMs ->
         // The host decides whether the grid should take focus (it asks
         // holdsFocus() BEFORE it scrolls — by the time the timeline has
@@ -766,7 +792,7 @@ internal fun GuideGrid(
             // descendant holds it, which is the one thing the per-cell
             // callbacks cannot tell the registry — they only ever say who
             // arrived, never that everyone has left.
-            .onFocusChanged { gridFocus.holdsFocus = it.hasFocus }
+            .onFocusChanged { handle?.holdsFocusNow = it.hasFocus }
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key.nativeKeyCode) {
