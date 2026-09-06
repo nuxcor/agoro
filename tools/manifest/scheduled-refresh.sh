@@ -148,21 +148,31 @@ if [ "${1:-}" = "--check" ]; then
     exit 1
 fi
 
+# The panel half of this job needs credentials. The SCHEDULE half does not,
+# and that distinction is the whole of this block.
+#
+# It used to be one gate at the top: no credentials, nothing done. The
+# credentials have been blank since this was installed, so the job has never
+# run once — and it was also the only thing refreshing fixtures.json, which
+# expires after eight days and takes SportsParser's matchday gate down with
+# it. A public ESPN scoreboard was being held hostage to a panel login it does
+# not use.
+#
+# So HAVE_PANEL decides how much of the run happens, and the run happens
+# either way.
+HAVE_PANEL=1
 if ! load_credentials; then
-    log "no credentials found — see INSTALL in this script; nothing done"
-    exit 0    # not a failure: an uninstalled job should be quiet, not noisy
+    log "no credentials found — see INSTALL in this script; fixtures only"
+    HAVE_PANEL=0
+elif [ -z "${AGORO_HOST:-}" ] || [ -z "${AGORO_USER:-}" ] || [ -z "${AGORO_PASS:-}" ]; then
+    # Installed with the keys present and the values blank, so it can be
+    # filled in without looking anything up. Blank means NOT CONFIGURED YET,
+    # which is not an error to shout about every week.
+    log "credentials from $CRED_SOURCE are blank; fixtures only until they are filled in"
+    HAVE_PANEL=0
+else
+    log "credentials from $CRED_SOURCE"
 fi
-
-# The file is installed with the keys present and the values blank, so it can
-# be filled in without looking anything up. Blank means NOT CONFIGURED YET,
-# and that must exit quietly too — running on empty credentials would fail
-# against the panel every week and fill the log with an error that is really
-# just "you have not finished installing this".
-if [ -z "${AGORO_HOST:-}" ] || [ -z "${AGORO_USER:-}" ] || [ -z "${AGORO_PASS:-}" ]; then
-    log "credentials from $CRED_SOURCE are blank; fill them in to start the weekly rebuild"
-    exit 0
-fi
-log "credentials from $CRED_SOURCE"
 
 # The template carries its own X's: BSD mktemp appends them to a -t name and
 # GNU mktemp refuses a template without them, so spelling them out is the one
@@ -177,10 +187,12 @@ log "cloning into $WORK"
 git clone --depth 1 --quiet "$REPO" "$WORK/agoro"
 cd "$WORK/agoro"
 
-log "fetching and rebuilding"
-if ! python3 tools/manifest/refresh.py --write >>"$LOG" 2>&1; then
-    log "refresh failed — see $LOG; the working tree is untouched"
-    exit 1
+if [ "$HAVE_PANEL" = 1 ]; then
+    log "fetching and rebuilding"
+    if ! python3 tools/manifest/refresh.py --write >>"$LOG" 2>&1; then
+        log "refresh failed — see $LOG; the working tree is untouched"
+        exit 1
+    fi
 fi
 
 # The fixtures, which EXPIRE. fetch_fixtures.py publishes eight days of ESPN
@@ -209,11 +221,11 @@ fi
 # It runs AFTER refresh.py, because it reads the line-up that build wrote, and
 # the build then runs once more to fold the result in.
 log "checking for black streams"
-if python3 tools/manifest/black_check.py --all >>"$LOG" 2>&1; then
+if [ "$HAVE_PANEL" = 1 ] && python3 tools/manifest/black_check.py --all >>"$LOG" 2>&1; then
     (cd tools/manifest && python3 build_manifest.py manifest.json >>"$LOG" 2>&1 \
         && cp manifest.json ../../app/src/main/assets/catalogue-manifest.json) \
         || log "rebuild after black_check failed; keeping the first build"
-else
+elif [ "$HAVE_PANEL" = 1 ]; then
     log "black_check failed — see $LOG; keeping the previous measurements"
 fi
 
@@ -223,9 +235,9 @@ if git diff --quiet -- app/src/main/assets/catalogue-manifest.json \
     exit 0
 fi
 
-# The manifest lives under app/, so CI's version-guard wants a bump even
-# though the app does not need a release to pick this up — it reads the
-# manifest off main and prefers the newer `generated` stamp. Patch only.
+# Both files live under app/, so CI's version-guard wants a bump even though
+# the app needs no release to pick either up — it reads them off main and
+# prefers the newer `generated` stamp. Patch only.
 VERSION=$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | head -1 | cut -d'"' -f2)
 CODE=$(grep -o 'versionCode = [0-9]*' app/build.gradle.kts | head -1 | awk '{print $3}')
 NEXT="${VERSION%.*}.$(( ${VERSION##*.} + 1 ))"
@@ -241,19 +253,29 @@ BRANCH="manifest-refresh-$(date +%Y%m%d)"
 git checkout -q -b "$BRANCH"
 git add app/build.gradle.kts app/src/main/assets/catalogue-manifest.json \
         app/src/main/assets/fixtures.json
-git commit -q -m "Catalogue refresh $(date +%Y-%m-%d)
-
-Scheduled rebuild: the provider's line-up moved, so the curation keyed to it
+if [ "$HAVE_PANEL" = 1 ]; then
+    SUBJECT="Catalogue refresh $(date +%Y-%m-%d)"
+    BODY="Scheduled rebuild: the provider's line-up moved, so the curation keyed to it
 was re-applied. Duplicate folding, drop lists and series shelving are all
 keyed by stream or series id and cover nothing the provider added since the
-last build; this is what re-applies them.
+last build; this is what re-applies them. The black-stream measurements were
+re-taken in the same run, because which streams are dead moves with the
+provider."
+else
+    SUBJECT="Fixtures $(date +%Y-%m-%d)"
+    BODY="Schedule only: the panel credentials are not filled in, so the catalogue was
+left alone. The fixtures need no login and expire after eight days, and an
+empty schedule silently disables the matchday gate that keeps a domestic
+fixture from being billed as a European tie."
+fi
 
-Version bumped only to satisfy the version guard — the app reads the manifest
-off main and prefers the newer generated stamp, so it does not need a release
-to pick this up.
+git commit -q -m "$SUBJECT
 
-The fixtures are refreshed in the same commit: they cover eight days and this
-job runs weekly, so they have to travel together."
+$BODY
+
+Version bumped only to satisfy the version guard — the app reads both files
+off main and prefers the newer generated stamp, so it needs no release to
+pick this up."
 git push -q -u origin "$BRANCH"
 
 gh pr create --base main --head "$BRANCH" \
