@@ -88,9 +88,25 @@ data class CatalogueManifest(
      * Sports — rather than opening a shelf each. Their duplicates were folded
      * into one tile at build time, so the row holds one copy of a channel at
      * the best measured quality of any territory's feed. Anything not listed
-     * here keeps its own shelf: DSTV does, holding only what is unique to it.
+     * here keeps its own shelf.
      */
     @SerialName("merged_regions") val mergedRegions: List<String> = emptyList(),
+    /**
+     * Territories that shelve WHOLE: one row for the territory, holding every
+     * genre it carries, named by the place rather than by any genre.
+     *
+     * The opposite instrument to [mergedRegions] — a merged territory pours
+     * its channels into the shared genre rows, a solo one takes all of its own
+     * out of them — and the third of the three shapes a territory can have,
+     * beside those two and the row-per-genre a territory in neither list gets.
+     *
+     * UK and AFR are the ones that earn it: what a viewer reaches for there is
+     * a PLACE, and spread across News, Sports, Entertainment and Locals the
+     * place was the one thing the strip could not be asked for. Checked ahead
+     * of [mergedRegions], which is the only thing that would matter if a
+     * manifest ever named a territory in both.
+     */
+    @SerialName("solo_regions") val soloRegions: List<String> = emptyList(),
     /**
      * Sections folded into another wherever they appear — Kids, Documentary and
      * Music all read as Entertainment. Applied to whatever section a channel
@@ -248,6 +264,7 @@ data class CatalogueManifest(
     val vodDropped: Set<Int> by lazy { vodDrop.toSet() }
     val seriesDropped: Set<Int> by lazy { seriesDrop.toSet() }
     val keptRegionSet: Set<String> by lazy { keptRegions.toSet() }
+    val soloRegionSet: Set<String> by lazy { soloRegions.toSet() }
     val hiddenSections: Set<String> by lazy {
         sections.live.filter { it.hidden }.map { it.key }.toSet()
     }

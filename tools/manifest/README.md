@@ -32,9 +32,20 @@ code, and that silently put AFR/DSTV at the head of the strip ahead of the
 markets this package is mostly made of.
 
 It is the tie-break *within* a genre, not the top-level grouping — the strip
-sorts by section order first, so a territory that keeps its own shelf renders
-beside the genre it holds rather than after every merged shelf. DStv sits
-directly after the merged Entertainment, not past Streaming Networks.
+sorts by section order first, so a territory that keeps a shelf PER GENRE
+renders beside the genre it holds rather than after every merged shelf.
+
+A territory can take three shapes, and two lists decide which:
+
+- in `merged_regions` — its channels pour into the shared genre rows and it
+  opens no chip of its own. US.
+- in `solo_regions` — it shelves **whole**: one row for the place, holding
+  every genre it carries, named by `region_labels` and sorted after all the
+  genre rows in `kept_regions` order. UK and Africa, since 2026-09-05.
+- in neither — a row per genre, each suffixed with the territory.
+
+`solo_regions` is read first, so the two lists must never name the same
+territory: they say opposite things about it.
 
 ## Credentials
 
@@ -231,7 +242,8 @@ The intermediates are large, machine-generated and deliberately untracked — se
 
 ## After a rebuild, check
 
-- `kept_regions` is the authored order, not alphabetical.
+- `kept_regions` is the authored order, not alphabetical, and no territory is
+  in both `merged_regions` and `solo_regions`.
 - Every surviving stream resolves to a section AND a territory. One that
   resolves to a section but no territory has no shelf: the app keeps it rather
   than deleting it, but only search will find it.

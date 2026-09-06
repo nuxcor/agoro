@@ -469,4 +469,98 @@ class ManifestCurationTest {
         assertEquals(null, manifest.borrowedLogo(1))
     }
 
+    /**
+     * The shape asked for on 2026-09-05: "move all the uk channels to a new
+     * tile UK, then also african ones to Africa". A territory in
+     * `solo_regions` shelves whole — every genre it carries on one row, named
+     * by the place — and leaves the genre rows to the territories that share
+     * them.
+     */
+    private fun soloManifest() = CatalogueManifest(
+        sections = CatalogueManifest.Sections(
+            live = listOf(
+                CatalogueManifest.Section(key = "NEWS", label = "News"),
+                CatalogueManifest.Section(key = "SPORTS", label = "Sports"),
+                CatalogueManifest.Section(key = "LOCALS", label = "Locals"),
+            ),
+        ),
+        categories = CatalogueManifest.Categories(
+            live = mapOf(
+                "10" to CatalogueManifest.CategoryRule("NEWS", "US"),
+                "11" to CatalogueManifest.CategoryRule("SPORTS", "US"),
+                "20" to CatalogueManifest.CategoryRule("NEWS", "UK"),
+                "21" to CatalogueManifest.CategoryRule("SPORTS", "UK"),
+                "30" to CatalogueManifest.CategoryRule("SPORTS", "AFR"),
+            ),
+        ),
+        keptRegions = listOf("US", "UK", "AFR"),
+        mergedRegions = listOf("US"),
+        soloRegions = listOf("UK", "AFR"),
+        regionLabels = mapOf("US" to "United States", "UK" to "UK", "AFR" to "Africa"),
+    )
+
+    @Test
+    fun `a solo territory puts every genre it holds on one row`() {
+        val bundle = ContentBundle(
+            channels = listOf(
+                channel(1, "10"), channel(2, "11"),
+                channel(3, "20"), channel(4, "21"), channel(5, "30"),
+            ),
+        )
+        val out = ManifestCuration.apply(bundle, soloManifest())
+        // The genre rows are what the merged territory holds, and nothing else.
+        // The place rows come after them, in kept_regions order.
+        assertEquals(
+            listOf("News", "Sports", "UK", "Africa"),
+            out.liveCategories.map { it.name },
+        )
+        // The British news and the British sport land on the same row — the
+        // one thing this strip could not be asked for before.
+        assertEquals(listOf("UK", "UK"), out.channels.filter { it.xtreamId in listOf(3, 4) }
+            .map { it.categoryId })
+        assertEquals("AFR", out.channels.first { it.xtreamId == 5 }.categoryId)
+    }
+
+    @Test
+    fun `a solo territory keeps a channel no genre pass could place`() {
+        // The genre rows drop such a channel back to its provider category,
+        // where only search finds it. A place row does not need the genre:
+        // region_fix says where the channel is, and that is the whole question
+        // the row answers.
+        val m = soloManifest().copy(regionFix = mapOf("9" to "UK"))
+        val out = ManifestCuration.apply(
+            ContentBundle(channels = listOf(channel(9, "no-rule"))), m,
+        )
+        assertEquals("UK", out.channels[0].categoryId)
+        assertEquals(listOf("UK"), out.liveCategories.map { it.name })
+    }
+
+    @Test
+    fun `a solo territory outside kept_regions is still filtered out`() {
+        // solo_regions decides the SHAPE of a shelf, never whether a territory
+        // is carried at all — that is kept_regions', and it still runs first.
+        val m = soloManifest().copy(
+            keptRegions = listOf("US", "UK"),
+            categories = CatalogueManifest.Categories(
+                live = mapOf("30" to CatalogueManifest.CategoryRule("SPORTS", "AFR")),
+            ),
+        )
+        val out = ManifestCuration.apply(ContentBundle(channels = listOf(channel(5, "30"))), m)
+        assertTrue(out.channels.isEmpty())
+    }
+
+    @Test
+    fun `a solo territory alone in the catalogue is still named by its place`() {
+        // No merged shelf and one territory present: the branch that strips a
+        // now-pointless region suffix used to relabel every shelf through
+        // manifest.label(), which for a place row hands back the raw key.
+        val m = soloManifest().copy(
+            categories = CatalogueManifest.Categories(
+                live = mapOf("30" to CatalogueManifest.CategoryRule("SPORTS", "AFR")),
+            ),
+        )
+        val out = ManifestCuration.apply(ContentBundle(channels = listOf(channel(5, "30"))), m)
+        assertEquals(listOf("Africa"), out.liveCategories.map { it.name })
+    }
+
 }

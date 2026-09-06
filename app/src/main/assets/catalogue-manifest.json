@@ -1,6 +1,6 @@
 {
  "manifest_version": 1,
- "generated": "2026-09-04T21:55:26+00:00",
+ "generated": "2026-09-06T01:52:16+00:00",
  "provider": {
   "host": "pro.dzidzi.online",
   "protocol": "xtream"
@@ -36510,8 +36510,8 @@
  },
  "region_labels": {
   "US": "United States",
-  "UK": "United Kingdom",
-  "AFR": "SuperSport"
+  "UK": "UK",
+  "AFR": "Africa"
  },
  "uk_reassign": {
   "1525694": "ENTERTAINMENT",
@@ -64078,7 +64078,9 @@
   "AFR"
  ],
  "merged_regions": [
-  "US",
+  "US"
+ ],
+ "solo_regions": [
   "UK",
   "AFR"
  ],

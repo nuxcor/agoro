@@ -976,20 +976,35 @@ DIRECT_FEED = {
 # line-up entirely, which is nobody's idea of merging a sports shelf.
 MERGED_REGIONS = ('US', 'UK')
 
-# Territories that share one SHELF per genre — what the app reads to decide
-# whether a territory opens a chip of its own.
+# Territories that share one SHELF per genre — their channels pour into the
+# genre rows and they open no chip of their own.
 #
-# AFR is here and not above, asked for as "merge supersport channels into
-# sports then delete its chip" — which is one thing, not two: a territory
-# outside the shelf merge opens its own row, so folding it in is what removes
-# the row. Its channels keep their own tiles, so nothing collapses and nothing
-# is dropped; they simply land on Sports.
+# US alone, since 2026-09-05. UK and AFR were both here and both moved to
+# SHELF_SOLO_REGIONS below; what is left is the territory the genre rows are
+# now made of, so "News" means US news and needs no suffix to say so.
+SHELF_MERGED_REGIONS = ('US',)
+
+# Territories that shelve WHOLE: one row per territory, holding every genre it
+# carries, named by the place.
 #
-# It earns this now in a way it did not before. The shelf was 110 mixed DStv
-# and Ghanaian channels when it was its own thing; since the SuperSport-only
-# trim it is 23 sports channels, which is a subset of what Sports is for
-# rather than a territory with its own News, Kids and Music.
-SHELF_MERGED_REGIONS = ('US', 'UK', 'AFR')
+# The opposite instrument to the line above, and the third of the three shapes
+# a territory can take — merged into the genre rows, a row per genre of its
+# own, or one row for the lot. Asked for on 2026-09-05 as "move all the uk
+# channels to a new tile UK, then also african ones to Africa": UK's channels
+# were spread across News, Sports, Entertainment and Locals, so a viewer
+# looking for the British channels had to already know which genre each one
+# had been filed under, and the two territories a viewer picks BY PLACE were
+# the only two with no place to pick.
+#
+# What it costs, measured against the shipped line-up: Sports drops from 267
+# to 41, Entertainment from 201 to 93, Locals from 89 to 71 and News from 33
+# to 25, because a channel sits on exactly one row and the UK copies leave.
+# UK opens at 337 and Africa at 23.
+#
+# The app checks this before SHELF_MERGED_REGIONS, so a territory named in
+# both would still shelve whole — but nothing is, and nothing should be: the
+# two lists say opposite things about the same territory.
+SHELF_SOLO_REGIONS = ('UK', 'AFR')
 # One stream, by id, where a name rule would be too broad.
 #
 # 1536959 is "PRIME: BBC NEWS", a US-shelf restream — and the only source in
@@ -1380,7 +1395,7 @@ for _t in uk_collapse.values():
 uk_locals_drop = [x for x in uk_locals_drop if x not in _uk_primaries]
 
 
-# ------------------------------------------------------- AFR, shown as SUPERSPORT
+# ----------------------------------------------------------- AFR, shown as AFRICA
 # SuperSport, and nothing else.
 #
 # The shelf was the DStv bundle plus the Ghanaian channels out of Africa VIP —
@@ -1396,7 +1411,12 @@ uk_locals_drop = [x for x in uk_locals_drop if x not in _uk_primaries]
 #   Ghana             re.compile(r'^GHA\s*:', re.I)  against the stream name
 # Everything else those two used to admit still falls to the same passes it
 # always did, so restoring one term restores that group and nothing more.
-AFR_LABEL = "SuperSport"  # the brand's own casing; the shelf chip renders this verbatim
+# The chip renders this verbatim. It read "SuperSport" — the brand, because
+# the row was the brand — until the territory became a shelf of its own on
+# 2026-09-05 and the question the chip answers changed from "which sports
+# package" to "which place". What it holds is still SuperSport and nothing
+# else; see the trim below for what widening it back would cost.
+AFR_LABEL = "Africa"
 AFR_KEEP_NAME     = re.compile(r'SUPER\s?SPORT', re.I)  # SuperSport, wherever it sits
 AFR_GENRE = [
     ('NEWS',        r'\bNEWS\b|\bAL ?JAZEERA\b|\bBLOOMBERG\b|\bCGTN\b|\bCNBC\b'
@@ -3445,8 +3465,9 @@ manifest = {
         "groups": {k: v for k, v in live_events.items()},
     },
     "name_section": name_section,
-    "region_labels": {"US": "United States", "UK": "United Kingdom",
-                      "AFR": AFR_LABEL},
+    # A territory that shelves whole is named by this and nothing else, so
+    # these are chips now, not suffixes: "UK", not "United Kingdom · Sports".
+    "region_labels": {"US": "United States", "UK": "UK", "AFR": AFR_LABEL},
     "uk_reassign": uk_reassign,
     "uk_collapse": uk_collapse,
     "local_market": locals_market,
@@ -3481,6 +3502,9 @@ manifest = {
     "kept_regions": list(KEEP_REGIONS),   # authored order — see KEEP_REGIONS
     # These share one shelf per genre; anything else keeps its own shelf.
     "merged_regions": list(SHELF_MERGED_REGIONS),
+    # These take one shelf each, holding every genre they carry. Read before
+    # merged_regions by the app.
+    "solo_regions": list(SHELF_SOLO_REGIONS),
     "sport": {"leagues": SPORT_LEAGUES, "cue_minutes": SPORT_CUE_MINUTES,
               "club_alias": SPORT_CLUB_ALIAS,
               "ambiguous": SPORT_AMBIGUOUS, "club_crest": _crest_map},
