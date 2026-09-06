@@ -18,6 +18,14 @@ Two fields exist for exactly this and are easy to forget:
 - `region_fix` — a channel's real territory when its category says something
   else, including when the category says a quality tier (`4K`, `8K`) rather
   than a place.
+- `black_streams.json` (from `black_check.py`) — which streams answer a tune
+  with the panel's black-screen filler. A dead stream here does not fail: the
+  front redirects to `/video/black.ts`, a real decodable silent black video,
+  so the player never errors, never falls through to the tile's backups, and
+  the viewer sits looking at a blank screen. The build sinks those sources to
+  the bottom of their tile's ladder. It never drops on this evidence alone —
+  a club channel is legitimately black between matches, and a stream missing
+  from a measuring line's package is not missing from the viewer's.
 - `collapse[].section` / `.region` — the shelf a folded tile resolved for
   itself, which outranks the primary's own provider category.
 - `collapse[].direct` — the broadcaster's own public feeds for a tile, best
@@ -249,3 +257,7 @@ The intermediates are large, machine-generated and deliberately untracked — se
   than deleting it, but only search will find it.
 - No per-channel table names a section absent from `sections.live` — an
   undeclared key has no label and no place in the order, and surfaces raw.
+- No tile leads with a stream `black_streams.json` marks black while holding
+  one it does not. Re-run `black_check.py --all` after a catalogue refresh:
+  which streams are dead moves with the provider, and the check costs one
+  redirect per stream, no bandwidth and no connection slot.

@@ -519,6 +519,25 @@ _probed = {}
 if os.path.exists('probed_tiers.json'):
     _probed = {str(k): v for k, v in json.load(open('probed_tiers.json')).items() if v}
 
+# Streams that answer a tune with the panel's black-screen filler, from
+# black_check.py. A dead stream on this provider does not fail: the front
+# redirects to /video/black.ts, a real decodable silent black video, so the
+# player never errors and never reaches the tile's backups — the viewer just
+# sits looking at a blank screen. 249 of the 691 browsable channels answered
+# that way on 2026-09-05, and 17 tiles were leading with one while holding a
+# source that plays.
+#
+# It only ever DEMOTES. A club channel is legitimately black between matches,
+# and a stream absent from a measuring line's package is not absent from the
+# viewer's — so a black source sinks to the bottom of its tile's ladder and
+# stays reachable, and a channel with nowhere better to go is left alone.
+_black = {}
+if os.path.exists('black_streams.json'):
+    _black = {str(k): v for k, v in json.load(open('black_streams.json')).items()}
+
+def is_black(sid):
+    return 1 if _black.get(str(sid)) else 0
+
 def measured_tier(sid):
     h = _probed.get(str(sid))
     # A zero is a FAILED probe, not a dead channel: re-probing the fourteen
@@ -1075,7 +1094,11 @@ for (k, reg), srcs in tiles.items():
     # whichever landed first — and a feed that failed to decode (recorded 0)
     # beat one measured at 720p that way. A number we took beats a word the
     # provider chose; 0 sorts last because it means "we could not tell".
-    srcs.sort(key=lambda x: (_swept_source(x), TIER_RANK.get(x["tier"], 8),
+    # Black first of all: a source that answers with the filler is not a
+    # picture at any tier, and the whole point of measuring one is to stop it
+    # leading a tile that holds something playable.
+    srcs.sort(key=lambda x: (is_black(x["id"]), _swept_source(x),
+                             TIER_RANK.get(x["tier"], 8),
                              -_probed.get(str(x["id"]), 0)))
     # A pinned source leads, and the rest keep the order measurement gave
     # them — the pin decides the primary, not the whole fallback ladder.
@@ -1124,8 +1147,18 @@ dropped_region = [sid for sid in dropped_region if sid not in _tile_member_ids]
 # ---------------------------------------------------------------- US locals
 # 1,394 affiliate feeds is noise. Keep the major markets only, resolving the
 # market from the city in the name, a suburb alias, or the call sign.
+# Ordered by market size, and the app renders the Locals shelf in this order
+# (CatalogueManifest.metroRank), so the order is a decision too.
+#
+# Phoenix, Seattle, Denver and Miami joined on 2026-09-05. The line-up carried
+# them all along — 274 local stations exist, 122 in the ten markets above and
+# 152 dropped for no reason but the market not being on this list — and these
+# four were the largest runs going to waste: Seattle is a complete market
+# (KOMO, KIRO, KING, KCPQ, KZJO, KONG, KSTW, KBTC, KCTS), Miami 11 streams,
+# Denver 10, Phoenix 8.
 TOP_METROS = ['NEW YORK','LOS ANGELES','CHICAGO','PHILADELPHIA','DALLAS',
-              'SAN FRANCISCO','WASHINGTON','HOUSTON','BOSTON','ATLANTA']
+              'SAN FRANCISCO','WASHINGTON','HOUSTON','BOSTON','ATLANTA',
+              'PHOENIX','SEATTLE','DENVER','MIAMI']
 MAJOR_MARKETS = {
  'NEW YORK','LOS ANGELES','CHICAGO','PHILADELPHIA','DALLAS','SAN FRANCISCO','WASHINGTON',
  'HOUSTON','BOSTON','ATLANTA','PHOENIX','SEATTLE','TAMPA','DETROIT','MINNEAPOLIS','DENVER',
@@ -1141,9 +1174,36 @@ SUBURB_ALIAS = {
  'ST PETERSBURG':'TAMPA','ST. PETERSBURG':'TAMPA','CLEARWATER':'TAMPA',
  'OAKLAND':'SAN FRANCISCO','SAN JOSE':'SAN FRANCISCO','CONCORD':'SAN FRANCISCO',
  'PEARLAND':'HOUSTON','GARDEN GROVE':'LOS ANGELES','CORONA':'LOS ANGELES',
- 'PARKER':'DENVER','CHULA VISTA':'SAN DIEGO','MARANA':'PHOENIX','WORCESTER':'BOSTON',
+ # MARANA is NOT a Phoenix suburb — it is a Tucson one, and the only stream
+ # it named was "NBC 4 (KVOA) MARANA", KVOA being Tucson's NBC. The alias put
+ # Tucson's station at the head of the Phoenix NBC tile, above the four KPNX
+ # feeds that are the actual Phoenix NBC. Removed 2026-09-05 with the market.
+ 'PARKER':'DENVER','CHULA VISTA':'SAN DIEGO','WORCESTER':'BOSTON',
  'FORT LAUDERDALE':'MIAMI','HOLLYWOOD':'MIAMI','ARLINGTON HEIGHTS':'CHICAGO',
  'GARY':'CHICAGO','SILVER SPRING':'WASHINGTON','ARLINGTON VA':'WASHINGTON',
+}
+# The call sign is the station's identity; the city in the name is the
+# provider's claim about it, and on the CITY: bundle that claim is often
+# wrong. These are the ones caught with the four markets added on 2026-09-05,
+# each verified against the station itself:
+#
+#   WKYT / WKLE  Lexington, Kentucky — shipped stamped "PHOENIX"
+#   KERA         Dallas PBS          — shipped stamped "MIAMI"
+#
+# Checked BEFORE the city text, which is the whole point: local_market reads
+# the city first, so a name carrying both can only be corrected from here.
+# A market outside TOP_METROS drops the station rather than moving it, which
+# is the right answer for a Kentucky station on a Phoenix shelf; KERA is
+# Dallas's real PBS and joins that market's shelf.
+#
+# Not exhaustive. The same defect is visible on shelves this change did not
+# touch — Philadelphia's PBS is KUED (Salt Lake City) and its CW is KUCW (Salt
+# Lake City), Houston's PBS is KETS (Arkansas), Washington's CW is WFLI and
+# its PBS WTCI (both Chattanooga), Los Angeles's CW is KGCW (Quad Cities).
+# Left alone deliberately: correcting them moves channels off shelves a viewer
+# is using today, which is a decision, not a cleanup.
+CALLSIGN_FIX = {
+ 'WKYT': 'LEXINGTON', 'WKLE': 'LEXINGTON', 'KERA': 'DALLAS',
 }
 # flagships whose entry carries no city at all
 CALLSIGN_MARKET = {
@@ -1161,6 +1221,9 @@ CALLSIGN_MARKET = {
  'WXYZ':'DETROIT','WWJ':'DETROIT','WDIV':'DETROIT','WJBK':'DETROIT',
  'WPLG':'MIAMI','WFOR':'MIAMI','WTVJ':'MIAMI','WSVN':'MIAMI',
  'KNXV':'PHOENIX','KPHO':'PHOENIX','KPNX':'PHOENIX','KSAZ':'PHOENIX',
+ # Denver's flagships, added with the market itself. The others here were
+ # already listed for markets this list did not yet keep.
+ 'KMGH':'DENVER','KUSA':'DENVER','KCNC':'DENVER','KDVR':'DENVER',
 }
 LOCAL_CITY = re.compile(r'\(([WK][A-Z0-9\-]{2,6})\)\s*(.*)$')
 CALL_ONLY  = re.compile(r'\(([WK][A-Z0-9\-]{2,6})\)')
@@ -1175,6 +1238,14 @@ def _clean_city(c):
 def local_market(name):
     """Return the major market this affiliate serves, or None to drop it."""
     n = asc(name)
+    # A verified call sign outranks the city the provider typed beside it.
+    # Matched as a bare word, not through CALL_ONLY: that pattern wants
+    # parentheses, and the CITY: bundle — where this defect lives — writes the
+    # call sign loose ("CITY: PBS KERA MIAMI"). Scanning for the three known
+    # signs rather than for call-sign SHAPE keeps it from reading "KIDS" or
+    # "WWE" as a station.
+    for _call, _market in CALLSIGN_FIX.items():
+        if re.search(rf'\b{_call}\b', n.upper()): return _market
     mm = LOCAL_CITY.search(n)
     if mm and mm.group(2).strip():
         city = _clean_city(mm.group(2))
@@ -3250,6 +3321,7 @@ for _mkey, _t in metro_tiles.items():
         if sid not in _seen:
             _seen.add(sid); _srcs.append(sid)
     _srcs.sort(key=lambda sid: (
+        is_black(sid),
         -_probed.get(str(sid), 0),
         TIER_RANK.get(measured_tier(sid) or tier_of(_nm.get(sid, '')), 8),
         _quality_rank(asc(_nm.get(sid, '')), _t['metro'], _t['network']),
