@@ -183,7 +183,42 @@ if ! python3 tools/manifest/refresh.py --write >>"$LOG" 2>&1; then
     exit 1
 fi
 
-if git diff --quiet -- app/src/main/assets/catalogue-manifest.json; then
+# The fixtures, which EXPIRE. fetch_fixtures.py publishes eight days of ESPN
+# scoreboards and this job runs weekly, so leaving it out meant the schedule
+# ran dry a day before the next rebuild replaced it — and a dry schedule does
+# not merely lose the kick-offs. SportsParser's matchday gate is what keeps a
+# domestic fixture from being billed Champions League, and with no fixtures to
+# check against it passes everything through. The fix goes quiet exactly when
+# the file goes stale, which is the worst way for a thing to break.
+#
+# Needs no credentials — ESPN's scoreboards are public — so it runs even on a
+# machine whose panel login has lapsed, and a failure here is not fatal to the
+# catalogue rebuild that has already succeeded.
+log "fetching fixtures"
+if ! python3 tools/manifest/fetch_fixtures.py >>"$LOG" 2>&1; then
+    log "fixtures failed — see $LOG; continuing with the catalogue"
+fi
+
+# Which streams answer with the panel's black-screen filler. Dead streams move
+# with the provider, so this is measured every rebuild rather than once: the
+# manifest sinks a black source to the bottom of its tile's ladder, and a
+# measurement from last month sinks the wrong ones. One HTTP request per
+# stream, no bandwidth and no connection slot — the redirect is served before
+# any stream opens.
+#
+# It runs AFTER refresh.py, because it reads the line-up that build wrote, and
+# the build then runs once more to fold the result in.
+log "checking for black streams"
+if python3 tools/manifest/black_check.py --all >>"$LOG" 2>&1; then
+    (cd tools/manifest && python3 build_manifest.py manifest.json >>"$LOG" 2>&1 \
+        && cp manifest.json ../../app/src/main/assets/catalogue-manifest.json) \
+        || log "rebuild after black_check failed; keeping the first build"
+else
+    log "black_check failed — see $LOG; keeping the previous measurements"
+fi
+
+if git diff --quiet -- app/src/main/assets/catalogue-manifest.json \
+                       app/src/main/assets/fixtures.json; then
     log "no drift; nothing to open"
     exit 0
 fi
@@ -204,7 +239,8 @@ bump "s/versionCode = $CODE/versionCode = $((CODE + 1))/" app/build.gradle.kts
 
 BRANCH="manifest-refresh-$(date +%Y%m%d)"
 git checkout -q -b "$BRANCH"
-git add app/build.gradle.kts app/src/main/assets/catalogue-manifest.json
+git add app/build.gradle.kts app/src/main/assets/catalogue-manifest.json \
+        app/src/main/assets/fixtures.json
 git commit -q -m "Catalogue refresh $(date +%Y-%m-%d)
 
 Scheduled rebuild: the provider's line-up moved, so the curation keyed to it
@@ -216,7 +252,8 @@ Version bumped only to satisfy the version guard — the app reads the manifest
 off main and prefers the newer generated stamp, so it does not need a release
 to pick this up.
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+The fixtures are refreshed in the same commit: they cover eight days and this
+job runs weekly, so they have to travel together."
 git push -q -u origin "$BRANCH"
 
 gh pr create --base main --head "$BRANCH" \
