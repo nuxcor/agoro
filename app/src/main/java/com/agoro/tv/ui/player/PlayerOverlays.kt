@@ -695,12 +695,18 @@ private fun plainLanguage(raw: String): String = when {
  * end — the episode has finished, the count is running, OK takes it now and
  * BACK stays on the last frame.
  *
- * The pill is in BOTH states, and the label under it names the key. The peek
- * used to carry neither, on the reasoning that a filled pill on a card no key
+ * The pill is in BOTH states, and it names its own key. The peek used to
+ * carry neither, on the reasoning that a filled pill on a card no key
  * activates is a control that lies — which was right, and the wrong half to
  * fix. A card in the corner where every service puts its next-episode button
  * IS read as a button; the viewer pressed OK at it and got a transport bar.
  * Now the key does what the card looks like it does, and the card says so.
+ *
+ * The key OK presses is INSIDE the pill and the key BACK presses is the dim
+ * text beside it, because the two answers used to take a full-width pill and
+ * a line of their own under it — a dialog's worth of chrome, on a card whose
+ * whole content is a title and two keys, sat in the corner of something the
+ * viewer is still watching. Same two answers, one line.
  *
  * Still not a menu. There are exactly two answers and the remote has a key
  * for each.
@@ -729,13 +735,13 @@ internal fun UpNextCard(
         artwork = artwork,
         // "Watch now" against a finished episode; "Play next" against one that
         // is still running, where "now" would be asking the viewer what they
-        // think they are doing.
-        action = if (secondsLeft != null) "▶  Watch now" else "▶  Play next",
-        // Both keys, both states — the second one is the important one on the
-        // peek, where the card arrived uninvited and the viewer needs to know
-        // it can be sent away.
-        hint = if (secondsLeft != null) "OK to start  ·  BACK to stay"
-        else "OK to play  ·  BACK to hide",
+        // think they are doing. The key is in the label because the pill no
+        // longer has a line under it to name one.
+        action = if (secondsLeft != null) "OK  ▶  Watch now" else "OK  ▶  Play next",
+        // Both keys, both states — this one is the important one on the peek,
+        // where the card arrived uninvited and the viewer needs to know it
+        // can be sent away.
+        hint = if (secondsLeft != null) "BACK to stay" else "BACK to hide",
         secondsLeft = secondsLeft,
         countdownFraction = countdownFraction,
         modifier = modifier,
@@ -778,11 +784,11 @@ internal fun FinishedCard(
         heading = heading,
         meta = meta,
         artwork = artwork,
-        action = "↩  $action",
+        action = "OK  ↩  $action",
         // Not "BACK to hide": the card is the only thing on a screen where
         // nothing is playing, and hiding it leaves the viewer exactly where
         // this whole card exists to stop them being left.
-        hint = "OK to go back  ·  BACK to stay",
+        hint = "BACK to stay",
         secondsLeft = secondsLeft,
         countdownFraction = countdownFraction,
         modifier = modifier,
@@ -866,29 +872,45 @@ private fun PlayerCornerCard(
             }
         }
 
+        // The whole foot on one line: what OK does, what BACK does, and how
+        // long either has. The pill is sized to its own label rather than to
+        // the card, which is what makes room for the other two — a full-width
+        // pill with a hint line under it and a count beside it stacked three
+        // bands of chrome under a two-line title.
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = UpNextPad),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .weight(1f)
                     .clip(PlayerTheme.PillShape)
                     .background(NuxColors.Primary)
-                    .padding(vertical = 11.dp),
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = action,
-                    style = MaterialTheme.typography.labelLarge.copy(
+                    style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
                     ),
                     color = NuxColors.OnAccent,
                     maxLines = 1,
                 )
             }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.labelSmall,
+                color = NuxColors.OnSurfaceDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                // Takes the slack so the seconds land on the trailing edge,
+                // and gives it back by ellipsizing if a long action label
+                // ever leaves it none.
+                modifier = Modifier.weight(1f),
+            )
             if (secondsLeft != null) {
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(
                     // Seconds live OUTSIDE the pill. Inside, the number moves
                     // as it narrows from two digits to one and takes the
@@ -903,13 +925,6 @@ private fun PlayerCornerCard(
                 )
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = hint,
-            style = MaterialTheme.typography.labelSmall,
-            color = NuxColors.OnSurfaceDim,
-            modifier = Modifier.padding(horizontal = UpNextPad),
-        )
         if (secondsLeft != null) {
             Spacer(Modifier.height(8.dp))
             // The same count as the number, drawn rather than read. It drains
@@ -931,7 +946,7 @@ private fun PlayerCornerCard(
                 )
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(UpNextPad))
     }
 }
 
@@ -943,18 +958,19 @@ private fun PlayerCornerCard(
  */
 private val UpNextShape = NuxShape.Dialog
 
-/** The card's one inset — its row, its pill, its hint and its track. */
-private val UpNextPad = 16.dp
+/** The card's one inset — its row, its key line, its track and its foot. */
+private val UpNextPad = 14.dp
 
 /**
  * The still, and the gap between it and the words.
  *
- * The still is the card's adjustable part. It shrank from 172dp because at
- * that size it was the tallest thing in the row and set the card's height
- * from a thumbnail rather than from the text — 124dp is still a recognisable
- * frame, and the words now govern. Both are on the 4dp scale.
+ * The still is the card's adjustable part. It shrank from 172dp, then from
+ * 124dp, because at either size it was the tallest thing in the row and set
+ * the card's height from a thumbnail rather than from the text — 96dp is
+ * still a recognisable frame at ten feet, and the words now govern. Both are
+ * on the 4dp scale.
  */
-private val UpNextStill = 124.dp
+private val UpNextStill = 96.dp
 private val UpNextGap = 12.dp
 
 /**
@@ -966,12 +982,13 @@ private val UpNextGap = 12.dp
  * of room mid-phrase. 224dp is the room it needs at titleSmall.
  *
  * This is stored rather than the card's total width because the total is the
- * derived thing. When the card came down from 448dp the cost was taken off
- * the still and the padding, and had the width stayed the literal it was,
- * the two of them would have quietly eaten 2dp of the room measured here —
- * which is a whole word at a wrap boundary, not 2dp of slack. Trade the
- * still and the gap freely; this constant is the one that cannot move
- * without measuring a title against it again.
+ * derived thing. When the card came down from 448dp, and again from 392dp,
+ * the cost was taken off the still and the padding, and had the width stayed
+ * the literal it was, the two of them would have quietly eaten the room
+ * measured here — which is a whole word at a wrap boundary, not a few dp of
+ * slack. Trade the still and the gap freely; this constant is the one that
+ * cannot move without measuring a title against it again, which is why a
+ * card asked to get smaller gave up height and chrome instead.
  */
 private val UpNextTextColumn = 224.dp
 
