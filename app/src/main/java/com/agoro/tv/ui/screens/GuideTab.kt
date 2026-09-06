@@ -369,7 +369,36 @@ fun GuideTab(
             dayOffset != 0 || abs(timelineScroll.value - nowPx) > farThresholdPx
         }
     }
-    BackHandler(enabled = awayFromNow) { jumpToNow() }
+    // Declared out here rather than beside the strip it points at: BACK reads
+    // it, and BACK is handled at the top of this composable.
+    val chipsFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    // BACK, in the order a viewer means it.
+    //
+    // The strip is reachable by UP, but only from the TOP ROW — which is a
+    // fine rule when a category holds twelve channels and a bad one now that
+    // UK holds 157. Reported 2026-09-05 as "am in locals and want to go to
+    // news": from row sixty that is sixty presses. The two shortcuts the grid
+    // already has are both unreachable on the box this ships to — a
+    // Chromecast with Google TV remote has no channel keys and no number pad
+    // — so BACK is the only key left that every remote carries.
+    //
+    // The rail keeps its own route: LEFT out of the channel column still
+    // opens it, and BACK from the STRIP still reaches it through the
+    // shell's handler, one press later than before. Nothing is taken away;
+    // a rung is added under it.
+    //
+    // ONE handler rather than two, because the order matters and composition
+    // order is a poor way to say so. Jumping back to now wins while the
+    // viewer has wandered in time — it is the bigger undo, and the second
+    // BACK then finds the strip.
+    val backAction = guideBackAction(awayFromNow, gridHandle.holdsFocusNow)
+    BackHandler(enabled = backAction != GuideBackAction.LeaveToShell) {
+        when (backAction) {
+            GuideBackAction.JumpToNow -> jumpToNow()
+            GuideBackAction.CategoryStrip -> scope.launch { chipsFocus.requestFocusRetrying() }
+            GuideBackAction.LeaveToShell -> Unit
+        }
+    }
 
     // The grid's focus entry — see GuideGridHandle. Every downward route into
     // the grid goes through it: geometric search from the strip or the day
@@ -431,7 +460,6 @@ fun GuideTab(
         // Dwell-select does NOT come back with it: the panel selects on OK,
         // and two category controls disagreeing about whether resting counts
         // as choosing is exactly the inconsistency that reads as a bug.
-        val chipsFocus = remember { androidx.compose.ui.focus.FocusRequester() }
         val dayFocus = remember { androidx.compose.ui.focus.FocusRequester() }
         // The territory is the GROUP, not a property of each chip. Spelling it
         // into every label made the strip read "News · United Kingdom, Sports ·
@@ -965,6 +993,31 @@ internal fun dayLabel(offset: Int, nowMs: Long = System.currentTimeMillis()): St
     }
 
 /** One entry in the category strip: a territory's name, or a shelf. */
+/** What BACK does in the guide. See [guideBackAction]. */
+internal enum class GuideBackAction { JumpToNow, CategoryStrip, LeaveToShell }
+
+/**
+ * The rule BACK follows, in one place so a test can state it.
+ *
+ * Three rungs, and the ORDER is the whole content. Jumping back to now must
+ * win while the viewer has wandered in time — it is the bigger undo, and
+ * "first BACK returns to now" is behaviour this screen has documented since
+ * the timeline could be paged. The strip is the rung under it, added because
+ * UP only leaves the grid from its top row and UK holds 157 channels.
+ * LeaveToShell is not a no-op: it is the handler standing DOWN, so the shell's
+ * own BACK opens the nav rail exactly as it does on every other tab.
+ *
+ * Written as a function rather than an `if` inside the handler because the
+ * order is the thing that breaks: composing two BackHandlers instead reverses
+ * their priority, and nothing about that reads as wrong at the call site.
+ */
+internal fun guideBackAction(awayFromNow: Boolean, gridHoldsFocus: Boolean): GuideBackAction =
+    when {
+        awayFromNow -> GuideBackAction.JumpToNow
+        gridHoldsFocus -> GuideBackAction.CategoryStrip
+        else -> GuideBackAction.LeaveToShell
+    }
+
 internal sealed interface StripEntry {
     val key: String
     val label: String

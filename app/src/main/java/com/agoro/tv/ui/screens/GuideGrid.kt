@@ -293,7 +293,8 @@ internal class GuideGridFocus(anchorMs: Long) {
      *  vertical movement is already the right thing. */
     var focusedIsCell = false
     /** Whether anything in the grid has focus right now — the registry
-     *  otherwise only knows where focus last WAS. */
+     *  otherwise only knows where focus last WAS. Read from event handlers;
+     *  composition reads [GuideGridHandle.holdsFocusNow] instead. */
     var holdsFocus = false
     var anchorMs = anchorMs
 
@@ -358,6 +359,21 @@ class GuideGridHandle {
      * the answer afterwards is always no.
      */
     fun holdsFocus(): Boolean = holdsFocusImpl?.invoke() ?: false
+
+    /**
+     * The same answer, readable FROM COMPOSITION.
+     *
+     * [holdsFocus] cannot be: it reaches the grid through a lambda the grid
+     * installs while it composes, so a host reading it on its first pass gets
+     * `false` from a null lambda WITHOUT touching any state — and a read that
+     * touches no state is never told it changed. The BACK handler armed that
+     * way would stay disabled for the life of the screen.
+     *
+     * State on the handle instead, which both sides hold before either
+     * composes. Written by the grid's own focus observer.
+     */
+    var holdsFocusNow by mutableStateOf(false)
+        internal set
 
     /** Land focus on the anchored cell of the last-focused row (else the first
      *  row), verified — not merely requested. False when the grid is empty or
@@ -733,6 +749,11 @@ internal fun GuideGrid(
             handle?.focusAnchorImpl = null
             handle?.focusAtImpl = null
             handle?.holdsFocusImpl = null
+            // A grid that has left composition holds nothing. Left true, the
+            // host's BACK handler stays armed over a screen with no grid
+            // under it — the player is up, or another tab is — and swallows
+            // the press that should have left.
+            handle?.holdsFocusNow = false
         }
     }
     handle?.focusAnchorImpl = {
@@ -766,7 +787,10 @@ internal fun GuideGrid(
             // descendant holds it, which is the one thing the per-cell
             // callbacks cannot tell the registry — they only ever say who
             // arrived, never that everyone has left.
-            .onFocusChanged { gridFocus.holdsFocus = it.hasFocus }
+            .onFocusChanged {
+                gridFocus.holdsFocus = it.hasFocus
+                handle?.holdsFocusNow = it.hasFocus
+            }
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key.nativeKeyCode) {

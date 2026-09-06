@@ -1,7 +1,9 @@
 package com.agoro.tv
 
 import com.agoro.tv.data.Category
+import com.agoro.tv.ui.screens.GuideBackAction
 import com.agoro.tv.ui.screens.groupByRegion
+import com.agoro.tv.ui.screens.guideBackAction
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -83,5 +85,57 @@ class GuideStripKeyTest {
     fun `region-less categories open no group`() {
         val entries = groupByRegion(listOf(Category(id = "recent", name = "Recent")))
         assertEquals(0, entries.count { it is com.agoro.tv.ui.screens.StripEntry.Group })
+    }
+}
+
+/**
+ * What BACK means in the guide, and in which order.
+ *
+ * Reported 2026-09-05 as "am in locals and want to go to news": the category
+ * strip is reachable by UP, but only from the grid's TOP ROW, and the two
+ * shortcuts that skip the walk — channel paging and the number-key jump — are
+ * both absent from a Chromecast with Google TV remote. BACK is the only key
+ * left that every remote carries.
+ */
+class GuideBackActionTest {
+
+    @Test
+    fun `back reaches the category strip from inside the grid`() {
+        assertEquals(
+            GuideBackAction.CategoryStrip,
+            guideBackAction(awayFromNow = false, gridHoldsFocus = true),
+        )
+    }
+
+    /**
+     * The rung that must not be displaced. "First BACK returns to now when the
+     * viewer has wandered" predates the strip route, and a viewer reading
+     * tomorrow's schedule is further from home than one reading today's
+     * Locals.
+     */
+    @Test
+    fun `returning to now outranks the strip`() {
+        assertEquals(
+            GuideBackAction.JumpToNow,
+            guideBackAction(awayFromNow = true, gridHoldsFocus = true),
+        )
+        assertEquals(
+            GuideBackAction.JumpToNow,
+            guideBackAction(awayFromNow = true, gridHoldsFocus = false),
+        )
+    }
+
+    /**
+     * And the case that keeps the rail: focus on the strip itself, or anywhere
+     * outside the grid, and this handler stands down so the shell's BACK opens
+     * the nav rail — which is what BACK did on this tab before the strip rung
+     * existed, one press later.
+     */
+    @Test
+    fun `outside the grid the shell keeps back`() {
+        assertEquals(
+            GuideBackAction.LeaveToShell,
+            guideBackAction(awayFromNow = false, gridHoldsFocus = false),
+        )
     }
 }
