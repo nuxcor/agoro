@@ -1,113 +1,23 @@
 {
- "generated": "2026-09-06T03:16:44Z",
+ "generated": "2026-09-07T04:36:48Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
   "NFL": 16,
   "NBA": 0,
   "MLS": 29,
-  "Premier League": 12,
-  "La Liga": 16,
-  "Serie A": 16,
-  "Bundesliga": 11,
-  "Ligue 1": 12,
+  "Premier League": 10,
+  "La Liga": 15,
+  "Serie A": 12,
+  "Bundesliga": 9,
+  "Ligue 1": 9,
   "Champions League": 18,
   "Europa League": 0,
   "Conference League": 0,
-  "Carabao Cup": 6,
+  "Carabao Cup": 11,
   "FA Cup": 0
  },
  "fixtures": [
-  {
-   "league": "Ligue 1",
-   "home": "Troyes",
-   "away": "Strasbourg",
-   "start": "2026-09-06T13:00Z"
-  },
-  {
-   "league": "Premier League",
-   "home": "Everton",
-   "away": "Manchester United",
-   "start": "2026-09-06T13:00Z"
-  },
-  {
-   "league": "Serie A",
-   "home": "Frosinone",
-   "away": "Venezia",
-   "start": "2026-09-06T13:00Z"
-  },
-  {
-   "league": "Serie A",
-   "home": "Parma",
-   "away": "Monza",
-   "start": "2026-09-06T13:00Z"
-  },
-  {
-   "league": "Bundesliga",
-   "home": "Hamburg SV",
-   "away": "Mainz",
-   "start": "2026-09-06T13:30Z"
-  },
-  {
-   "league": "La Liga",
-   "home": "Valencia",
-   "away": "Barcelona",
-   "start": "2026-09-06T14:15Z"
-  },
-  {
-   "league": "Ligue 1",
-   "home": "Angers",
-   "away": "Stade Rennais",
-   "start": "2026-09-06T15:15Z"
-  },
-  {
-   "league": "Bundesliga",
-   "home": "Eintracht Frankfurt",
-   "away": "FC Augsburg",
-   "start": "2026-09-06T15:30Z"
-  },
-  {
-   "league": "Premier League",
-   "home": "Arsenal",
-   "away": "Chelsea",
-   "start": "2026-09-06T15:30Z"
-  },
-  {
-   "league": "Serie A",
-   "home": "Bologna",
-   "away": "Sassuolo",
-   "start": "2026-09-06T16:00Z"
-  },
-  {
-   "league": "La Liga",
-   "home": "Alav\u00e9s",
-   "away": "Osasuna",
-   "start": "2026-09-06T16:30Z"
-  },
-  {
-   "league": "La Liga",
-   "home": "M\u00e1laga",
-   "away": "Levante",
-   "start": "2026-09-06T16:30Z"
-  },
-  {
-   "league": "Ligue 1",
-   "home": "Marseille",
-   "away": "Paris FC",
-   "start": "2026-09-06T18:45Z"
-  },
-  {
-   "league": "Serie A",
-   "home": "Juventus",
-   "away": "AC Milan",
-   "start": "2026-09-06T18:45Z"
-  },
-  {
-   "league": "La Liga",
-   "home": "Espanyol",
-   "away": "Sevilla",
-   "start": "2026-09-06T19:00Z"
-  },
   {
    "league": "Serie A",
    "home": "Cagliari",
@@ -833,6 +743,54 @@
    "home": "Kansas City Chiefs",
    "away": "Denver Broncos",
    "start": "2026-09-15T00:15Z"
+  },
+  {
+   "league": "La Liga",
+   "home": "Rayo Vallecano",
+   "away": "Espanyol",
+   "start": "2026-09-15T17:00Z"
+  },
+  {
+   "league": "La Liga",
+   "home": "Alav\u00e9s",
+   "away": "Valencia",
+   "start": "2026-09-15T18:00Z"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "Peterborough United",
+   "away": "Barnsley",
+   "start": "2026-09-15T18:45Z"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "West Ham United",
+   "away": "Fulham",
+   "start": "2026-09-15T18:45Z"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "Ipswich Town",
+   "away": "Arsenal",
+   "start": "2026-09-15T19:00Z"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "Liverpool",
+   "away": "Tottenham Hotspur",
+   "start": "2026-09-15T19:00Z"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "Reading",
+   "away": "Brentford",
+   "start": "2026-09-15T19:00Z"
+  },
+  {
+   "league": "La Liga",
+   "home": "Elche",
+   "away": "Real Madrid",
+   "start": "2026-09-15T19:30Z"
   }
  ]
 }
