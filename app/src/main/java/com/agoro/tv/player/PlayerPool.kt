@@ -3,6 +3,8 @@ package com.agoro.tv.player
 import android.content.Context
 import android.net.Uri
 import android.os.Handler
+import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -12,8 +14,10 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -212,16 +216,37 @@ private class IptvMediaSourceFactory(
  * numbers had been serving both — the live one, since that is what they were
  * measured against.
  *
- * LIVE is unchanged and deliberately deep. The panel delivers a live stream at
- * three to three and a half times real time, so six seconds of media costs
- * about two seconds of wall clock, and the cushion is what stops a dip from
- * becoming a source hop and a black screen mid-match.
+ * LIVE is deliberately SHALLOW, and the reason is the socket rather than the
+ * buffer. ExoPlayer loads until the buffer reaches maxBufferMs and then stops
+ * — `ProgressiveMediaPeriod`'s loadable parks on a condition variable between
+ * reads, `loadCondition.block()` sitting immediately before every
+ * `extractor.read` — and it does not start again until the buffer has drained
+ * to minBufferMs. At 25s/60s that left a raw `.ts` connection open and
+ * UNDRAINED for thirty-five seconds at a stretch, again and again, on a panel
+ * that serves faster than real time. A re-streamer with a fixed send buffer is
+ * entitled to drop a client that has stopped collecting, and the read that
+ * follows the silence gets eight seconds (see the data source below) before it
+ * fails into the recovery ladder. 20s to 24s keeps the working cushion and
+ * shortens the unread window to about four seconds of playback, which no
+ * reasonable server times out on. What it gives up is the deep end of the
+ * buffer, which resumption at 2.5s was never reaching anyway.
+ *
+ * That the window WAS the problem is a theory about the provider's server and
+ * is not yet measured; [TransferGaps] and the listener in [build] are what
+ * measure it. The numbers here are worth keeping either way, because the deep
+ * end also cost memory this box does not have.
  *
  * VOD is where that reasoning stops being true. A film is served at roughly
  * real time, so the SAME six seconds costs six seconds of frozen picture on
  * every hiccup — three times the price for a cushion that buys less, because a
  * film has no live edge to fall off and re-stalling is only another short
  * wait. It resumes on two seconds instead.
+ *
+ * VOD keeps its window, and that is a decision rather than an oversight: 20s
+ * to 50s is thirty seconds unread, the same shape as live had. A film is
+ * fetched from something that serves byte ranges rather than pushed by
+ * something re-streaming, so it has far less reason to mind — but if films are
+ * still breaking after this, that is the next number to try.
  *
  * The byte cap is the other half, and it matters most on the weakest boxes.
  * `prioritizeTimeOverSizeThresholds` buffers by TIME and ignores
@@ -232,13 +257,25 @@ private class IptvMediaSourceFactory(
  * viewer as exactly the stutter the deep buffer was meant to prevent. VOD
  * keeps the cap, so the buffer stays deep in seconds where the bitrate is
  * modest and gives way to memory where it is not.
+ *
+ * Live keeps the flag, but it is worth less than it looks: since 1.11.0
+ * `DefaultLoadControl` gates it on heap headroom, and when free memory plus
+ * unused allocator falls below maxMemory/25 it stops loading BELOW minBufferMs
+ * and logs "Stopped loading before minBufferUs reached due to memory pressure,
+ * despite prioritizeTimeOverSizeThresholds=true". A 60-second live buffer with
+ * no cap was the way to meet that on 2 GB; 24 seconds of a 20 Mbit/s channel
+ * is about 60 MB and stays well clear of it. If that line ever appears in a
+ * capture, the buffer is starving the stream and these numbers come down
+ * again.
  */
 @OptIn(UnstableApi::class)
 private fun loadControlFor(live: Boolean): DefaultLoadControl =
     DefaultLoadControl.Builder()
         .setBufferDurationsMs(
-            /* minBufferMs = */ if (live) 25_000 else 20_000,
-            /* maxBufferMs = */ if (live) 60_000 else 50_000,
+            /* minBufferMs = */ 20_000,
+            // Live stops at 24s so the gap it must drain before loading
+            // resumes is four seconds, not thirty-five; see above.
+            /* maxBufferMs = */ if (live) 24_000 else 50_000,
             // 2.5s to start on live: 1.5s made channel changes feel quicker
             // but began playback on a thinner buffer, so a marginal connection
             // re-stalled seconds later. A film is opened once, deliberately,
@@ -260,6 +297,73 @@ private fun loadControlFor(live: Boolean): DefaultLoadControl =
         )
         .setPrioritizeTimeOverSizeThresholds(live)
         .build()
+
+/**
+ * How long a live connection may go without a byte before the log says so.
+ *
+ * Above the window the load control designs in — maxBufferMs minus minBufferMs
+ * is four seconds of playback — so a stream behaving as configured says
+ * nothing and only an unexpected silence is reported. Under the live read
+ * timeout, so a gap logged immediately before a failure is that failure's
+ * first half rather than a separate event.
+ */
+private const val IDLE_REPORT_MS = 6_000L
+
+/**
+ * Says in the log how long the live connection went unread.
+ *
+ * The symptom this exists for is "live breaks for a few seconds", which has
+ * been guessed at for weeks and never measured. Three different faults produce
+ * it — a line with no throughput, a renderer that cannot keep up, and a server
+ * that drops a client the player stopped reading from — and only the third
+ * leaves no trace at all today. The existing `Rebuffer at …` line says what the
+ * buffer held when the picture stopped; this one says whether the connection
+ * had already been silent when it happened. Read them together, by timestamp.
+ *
+ * Attached to the live player the viewer is watching and nothing else. The
+ * guide's muted preview opens and closes constantly by design, and a film's
+ * connection idles for thirty seconds at a time on purpose ([loadControlFor]),
+ * so both would report gaps that mean nothing.
+ *
+ * One instance per player, and the callbacks arrive on whichever thread is
+ * loading. A progressive `.ts` — every live stream, until the ladder swaps the
+ * format — is one connection read by one loader, so [TransferGaps] is never
+ * touched from two threads at once. HLS segments arrive one after another on
+ * the same loader. Neither case needs synchronisation, and a diagnostic is not
+ * worth a lock.
+ */
+@OptIn(UnstableApi::class)
+private class LiveTransferLog : TransferListener {
+
+    private val gaps = TransferGaps(IDLE_REPORT_MS)
+
+    override fun onTransferInitializing(
+        source: DataSource,
+        dataSpec: DataSpec,
+        isNetwork: Boolean,
+    ) = Unit
+
+    override fun onTransferStart(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {
+        if (isNetwork) gaps.started(SystemClock.elapsedRealtime())
+    }
+
+    override fun onBytesTransferred(
+        source: DataSource,
+        dataSpec: DataSpec,
+        isNetwork: Boolean,
+        bytesTransferred: Int,
+    ) {
+        if (!isNetwork) return
+        val gap = gaps.bytes(SystemClock.elapsedRealtime()) ?: return
+        Log.w("Agoro", "Live connection went ${gap}ms with no byte, then read again")
+    }
+
+    override fun onTransferEnd(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {
+        if (!isNetwork) return
+        val gap = gaps.ended(SystemClock.elapsedRealtime()) ?: return
+        Log.w("Agoro", "Live connection closed after ${gap}ms with no byte")
+    }
+}
 
 /**
  * Process-lifetime ExoPlayer instances that [ExoEngine] borrows instead of
@@ -470,6 +574,9 @@ object PlayerPool {
             // to play. The buffer pays for the patience; live has no buffer
             // to pay with.
             .setReadTimeoutMs(if (slot.live) 8_000 else 20_000)
+        // Diagnostic only, and only where a silent connection means something;
+        // see LiveTransferLog.
+        if (slot.live && slot.main) httpFactory.setTransferListener(LiveTransferLog())
         // Stock until an output latch says otherwise; see AgoroRenderersFactory.
         val audioGate = TunnelledAudioGate()
         val renderers = AgoroRenderersFactory(context, slot, audioGate)
