@@ -394,9 +394,11 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
         engine.selectVideoTrack(
             if (qualityPref == 1) com.agoro.tv.player.HIGHEST_QUALITY else null
         )
-        if (resume > 0 && session.positionMs == 0L) {
-            session.statusMessage = "Resumed from ${formatPlayerTime(resume)}"
-        }
+        // No "Resumed from 19:34" toast. It announced, every single time,
+        // the one thing the viewer had just asked for and could already see:
+        // they pressed Resume, and the scrubber is sitting where they left
+        // off. A message that only ever confirms the obvious is noise over
+        // the picture, and this one arrived on top of the first frame.
     }
 
     // Learn each live stream's REAL tier as it decodes, so the lists can

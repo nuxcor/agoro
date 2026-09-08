@@ -157,7 +157,13 @@ fun MovieDetailScreen(
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(if (resumeMs > 0) "Resume from ${formatOffset(resumeMs)}" else "Play")
+                    // "Resume", not "Resume from 1h 12m". A button says what
+                    // pressing it does; the offset is a fact about the film,
+                    // and it is already on the poster as a progress bar and in
+                    // the row beside it as "Start over". The long form also
+                    // made the one control you always press the widest thing
+                    // on the page.
+                    Text(if (resumeMs > 0) "Resume" else "Play")
                 }
                 if (resumeMs > 0) {
                     OutlinedButton(onClick = {
