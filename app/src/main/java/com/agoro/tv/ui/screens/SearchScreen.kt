@@ -63,13 +63,14 @@ fun SearchTab(
     onOpenMovie: (Movie) -> Unit,
     onOpenSeries: (Series) -> Unit,
     onPlay: () -> Unit,
-    /** BACK: Search is entered from Home's pill, so BACK goes back to Home. */
+    /** BACK returns to the tab search was opened from, not to Home. */
     onBack: () -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    // Search is not a rail destination: the viewer came from Home's pill, and
-    // BACK should return them there, not open the drawer they did not come
-    // from. (The IME's own BACK closes the keyboard first, as it should.)
+    // Search IS a drawer destination, but BACK still returns to the tab it
+    // was opened from rather than opening the drawer again — reaching search
+    // from Series and being handed the menu loses the shelf you were standing
+    // in. (The IME's own BACK closes the keyboard first, as it should.)
     androidx.activity.compose.BackHandler(onBack = onBack)
     var statusMessage by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(statusMessage) {
@@ -159,9 +160,9 @@ fun SearchTab(
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
-        // Search is entered deliberately (Home's pill — it left the rail), so
-        // the query field takes focus on arrival instead of stranding it
-        // wherever the pill's departure dropped it.
+        // Search is entered deliberately — it is a row in the drawer — so the
+        // query field takes focus on arrival instead of stranding it wherever
+        // the drawer's dismissal dropped it.
         val fieldFocus = com.agoro.tv.ui.components.rememberInitialFocus(Unit)
 
         // Voice is the only humane way to type on a remote: the alternative is

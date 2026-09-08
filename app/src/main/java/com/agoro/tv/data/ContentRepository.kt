@@ -1483,8 +1483,37 @@ class ContentRepository(context: Context) {
             reviews = tmdb.reviews,
             cast = series.cast ?: tmdb.cast,
             director = series.director ?: tmdb.director,
+            // The panel's exact id where it sent one, otherwise the id the
+            // search above already found and used to throw away. This is what
+            // makes the episode fill work for M3U shows and for caches
+            // written before tmdbId existed.
+            tmdbId = series.tmdbId ?: tmdb.tmdbId,
         )
     }
+
+    /**
+     * One season of episode metadata from TMDB, for filling the holes a panel
+     * left. Empty for anything that did not come back — see
+     * [TmdbClient.season] for why one answer covers both "no such season" and
+     * "no network".
+     */
+    suspend fun tmdbSeason(tvId: Int, season: Int, tmdbKey: String): Map<Int, TmdbEpisode> =
+        try {
+            TmdbClient(http, tmdbKey).season(tvId, season)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            // NOT runCatching, and this branch is the whole reason.
+            //
+            // runCatching catches Throwable, and in a coroutine that includes
+            // the CancellationException that says "your caller went away".
+            // Swallowing it turns "we were interrupted" into "TMDB has no
+            // such season" — and the caller CACHES that answer, so one
+            // ordinary recomposition poisoned the season for the rest of the
+            // session and every episode row stayed bare. Cancellation is not
+            // a result; it has to keep travelling.
+            throw cancelled
+        } catch (t: Throwable) {
+            emptyMap()
+        }
 
     /**
      * Just the art TMDB has for a title — the cheap half of [movieDetails],

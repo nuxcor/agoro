@@ -215,26 +215,12 @@ fun MovieDetailScreen(
  * "2h 1m", the way every streaming service says it. Anything unparseable
  * passes through untouched.
  */
-private fun prettyDuration(raw: String): String? {
-    // Null, not the raw text, for anything that isn't a length: panels send
-    // "00:00:00" for "unknown", and a chip reading 00:00:00 is a chip that
-    // says the app doesn't know what it is showing.
-    val parts = raw.trim().split(':').map { it.toIntOrNull() ?: return null }
-    val minutes = when (parts.size) {
-        3 -> parts[0] * 60 + parts[1] + if (parts[2] >= 30) 1 else 0
-        2 -> parts[0] + if (parts[1] >= 30) 1 else 0
-        1 -> parts[0]
-        else -> return null
-    }
-    if (minutes <= 0) return null
-    val h = minutes / 60
-    val m = minutes % 60
-    return when {
-        h > 0 && m > 0 -> "${h}h ${m}m"
-        h > 0 -> "${h}h"
-        else -> "${m}m"
-    }
-}
+private fun prettyDuration(raw: String): String? =
+    // The parsing moved to EpisodeFacts.minutes so the Xtream parser gets the
+    // same rules — including "00:00:00" is not a length, which panels send
+    // for "unknown" and which as a chip says the app doesn't know what it is
+    // showing.
+    runtimeLabel(com.agoro.tv.data.EpisodeFacts.minutes(raw))
 
 /** "Starring  A, B, C" — bright label, dim names, one line. */
 @Composable
@@ -274,7 +260,7 @@ private fun MissingItemPane(kind: String, contentState: ContentState, onBack: ()
 }
 
 /** "1h 12m" — a resume offset a viewer can recognise at a glance. */
-private fun formatOffset(ms: Long): String {
+internal fun formatOffset(ms: Long): String {
     val totalMinutes = (ms / 60_000).coerceAtLeast(0)
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
@@ -414,12 +400,33 @@ fun SeriesDetailScreen(
     // Opens on the season the next episode is in — the one being resumed, or
     // the one after the last one finished. Season 1 was where a viewer four
     // seasons deep landed every time.
-    var selectedSeason by remember(eps, nextUp) {
+    // Keyed on the season LIST and the up-next season NUMBER, not on the
+    // episode list and the up-next episode OBJECT. The TMDB fill replaces
+    // both of those with new instances carrying the same seasons, and keyed
+    // on them this reset the viewer's chosen season the instant the fill
+    // arrived — a season bar that jumped back on its own a second after being
+    // used.
+    var selectedSeason by remember(seasons, nextUp?.season) {
         mutableStateOf(nextUp?.season ?: seasons.firstOrNull() ?: 1)
     }
     val seasonEpisodes = remember(eps, selectedSeason) {
         eps.orEmpty().filter { it.season == selectedSeason }
     }
+
+    // Second pass. The panel's answer is already on screen; this fills the
+    // holes it left in the season being LOOKED AT — one request per season
+    // rather than one per row, and none at all for a season the panel
+    // answered in full.
+    //
+    // Keyed on tmdbId too, because seriesDetails lands AFTER this screen
+    // opens and is where an id arrives for the shows the panel gave none for.
+    LaunchedEffect(seriesId, selectedSeason, eps != null, series.tmdbId) {
+        val current = episodes ?: return@LaunchedEffect
+        vm.episodeDetails(series, current, selectedSeason)?.let { episodes = it }
+    }
+
+    // Taken once per screen, not per row: it only has to be the right day.
+    val today = remember(seriesId) { todayIso() }
 
     // The hero is the list's first item, so walking down the episodes carries
     // it off the top of the screen — and walking back up does not bring it
@@ -534,12 +541,23 @@ fun SeriesDetailScreen(
                             // down all thirty rows, which reads as a
                             // rendering fault; the monogram at least differs.
                             imageUrl = episode.poster,
-                            meta = when {
-                                watchedTo > 0 -> "Resume from ${formatOffset(watchedTo)}"
-                                // The season is the bar above; repeating it
-                                // under every row said nothing.
-                                else -> episode.durationText?.let(::prettyDuration)
-                            },
+                            // The season is the bar above; repeating it
+                            // under every row said nothing. What goes here
+                            // instead is the air date and the runtime — see
+                            // [episodeMeta] for why they share one line, and
+                            // in that order.
+                            meta = episodeMeta(
+                                resumeMs = watchedTo,
+                                // The show's average is LAST, after the
+                                // episode's own and after TMDB's: it is a
+                                // property of the series, so it must not
+                                // stand in front of anything that measured
+                                // this episode.
+                                runtimeMinutes = episode.runtimeMinutes
+                                    ?: series.episodeRuntimeMinutes,
+                                airDate = episode.airDate,
+                                todayIso = today,
+                            ),
                             // The series synopsis on every episode row is the
                             // same paragraph N times. Nothing, rather than
                             // that: the row is built to close up around it.

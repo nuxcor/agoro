@@ -52,6 +52,7 @@ object NuxColors {
     val Error = Color(0xFFFF6B6B)
     val Scrim = Color(0xCC0B0A09)
 
+
     // Gradient stops. Same warm hue as the surface ramp so black-level lift
     // can't shift them to another colour (see the ramp comment above).
     val BackgroundRaised = Color(0xFF171614) // top stop of the page gradient
@@ -268,6 +269,28 @@ object NuxBorders {
 
 private val PageGradient = Brush.verticalGradient(
     listOf(NuxColors.BackgroundRaised, NuxColors.Background)
+)
+
+/**
+ * How tall the header band is. The wash behind it is drawn to exactly this,
+ * and it is the one number the content lane and the backdrop both have to
+ * agree on.
+ */
+val HEADER_BAND_HEIGHT = 66.dp
+
+/**
+ * A short wash under the top navigation.
+ *
+ * The header sits over the page's own artwork — a Home backdrop can be a
+ * bright still — and 16sp labels need something to sit on. A vertical fade to
+ * nothing rather than a filled bar, for the reason the nav drawer's own slab
+ * was removed: a bar has a lower edge, and an edge across the top of the
+ * screen reads as chrome bolted above the page instead of part of it.
+ */
+val HeaderWash: Brush = Brush.verticalGradient(
+    0.0f to NuxColors.Background,
+    0.55f to NuxColors.Background.copy(alpha = 0.82f),
+    1.0f to Color.Transparent,
 )
 
 /**

@@ -118,4 +118,112 @@ class XtreamEpisodesTest {
         )
         assertEquals(listOf("ep:3", "ep:2", "ep:1"), eps.map { it.id })
     }
+
+    // --- the `info` block ----------------------------------------------------
+    //
+    // Every fixture above is the outer object only, which is how the metadata
+    // path came to be entirely untested: these ten cases would all still pass
+    // if poster, durationText and plot were deleted from the parse.
+
+    @Test
+    fun `an info name beats the file-shaped title`() {
+        val eps = parse(
+            """{"episodes":{"1":[{"id":"11","episode_num":"1",
+                "title":"Lady in the Lake - S01E01 - x",
+                "info":{"name":"Did you know Seahorses are fish?"}}]}}"""
+        )
+        assertEquals("Did you know Seahorses are fish?", eps.single().title)
+    }
+
+    @Test
+    fun `a still comes from movie_image, cover_big or cover`() {
+        val eps = parse(
+            """{"episodes":{"1":[
+                {"id":"1","episode_num":"1","info":{"movie_image":"https://image.tmdb.org/t/p/original/a.jpg"}},
+                {"id":"2","episode_num":"2","info":{"cover_big":"https://image.tmdb.org/t/p/original/b.jpg"}},
+                {"id":"3","episode_num":"3","info":{"cover":"https://image.tmdb.org/t/p/original/c.jpg"}}]}}"""
+        )
+        assertEquals(3, eps.size)
+        // The w300 still rung, never the 2:3 poster crop.
+        assertTrue(eps.all { it.poster!!.contains("w300") })
+    }
+
+    @Test
+    fun `an array-valued movie_image is still a still`() {
+        val eps = parse(
+            """{"episodes":{"1":[{"id":"11","episode_num":"1",
+                "info":{"movie_image":["https://image.tmdb.org/t/p/original/a.jpg"]}}]}}"""
+        )
+        assertTrue(eps.single().poster!!.contains("w300"))
+    }
+
+    @Test
+    fun `duration_secs and duration both give runtime minutes`() {
+        val eps = parse(
+            """{"episodes":{"1":[
+                {"id":"1","episode_num":"1","info":{"duration_secs":"2520"}},
+                {"id":"2","episode_num":"2","info":{"duration":"00:42:00"}}]}}"""
+        )
+        assertEquals(listOf(42, 42), eps.map { it.runtimeMinutes })
+    }
+
+    @Test
+    fun `a zero duration is not a runtime`() {
+        val eps = parse(
+            """{"episodes":{"1":[{"id":"11","episode_num":"1","info":{"duration":"00:00:00"}}]}}"""
+        )
+        // Null, not 0 — "the panel does not know" and "it is zero long" are
+        // different answers, and only one of them may reach a row.
+        assertEquals(null, eps.single().runtimeMinutes)
+    }
+
+    @Test
+    fun `an air date is read from any of the keys and normalised`() {
+        val eps = parse(
+            """{"episodes":{"1":[
+                {"id":"1","episode_num":"1","info":{"releasedate":"2024-03-12 00:00:00"}},
+                {"id":"2","episode_num":"2","info":{"release_date":"2024-03-13"}},
+                {"id":"3","episode_num":"3","info":{"air_date":"2024-03-14"}}]}}"""
+        )
+        assertEquals(listOf("2024-03-12", "2024-03-13", "2024-03-14"), eps.map { it.airDate })
+    }
+
+    @Test
+    fun `a zero air date is no air date`() {
+        val eps = parse(
+            """{"episodes":{"1":[{"id":"11","episode_num":"1","info":{"releasedate":"0000-00-00"}}]}}"""
+        )
+        assertEquals(null, eps.single().airDate)
+    }
+
+    @Test
+    fun `added is never mistaken for an air date`() {
+        // `added` is when the panel ingested the file. Labelling every episode
+        // of a 2003 show with last Tuesday is worse than carrying no date.
+        val eps = parse(
+            """{"episodes":{"1":[{"id":"11","episode_num":"1","added":"1786116510","info":{}}]}}"""
+        )
+        assertEquals(null, eps.single().airDate)
+    }
+
+    @Test
+    fun `a plot falls back to overview and description`() {
+        val eps = parse(
+            """{"episodes":{"1":[
+                {"id":"1","episode_num":"1","info":{"overview":"From overview."}},
+                {"id":"2","episode_num":"2","info":{"description":"From description."}}]}}"""
+        )
+        assertEquals(listOf("From overview.", "From description."), eps.map { it.plot })
+    }
+
+    @Test
+    fun `an episode with no info block parses exactly as before`() {
+        val eps = parse("""{"episodes":{"1":[{"id":"11","title":"E1","episode_num":"1"}]}}""")
+        val ep = eps.single()
+        assertEquals("E1", ep.title)
+        assertEquals(null, ep.poster)
+        assertEquals(null, ep.runtimeMinutes)
+        assertEquals(null, ep.airDate)
+        assertEquals(null, ep.plot)
+    }
 }

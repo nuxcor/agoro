@@ -294,6 +294,16 @@ class XtreamClient(
                 // one title, and without this the fold that follows would
                 // have no way to tell which of them is the 4K one.
                 quality = obj.str("name")?.let { QualityTag.of(it) },
+                // The exact TMDB id, on 8,402 of this panel's 8,598 series.
+                // Free here — it is already in the list this loop walks — and
+                // it turns episode enrichment from a title search into a
+                // lookup.
+                tmdbId = (obj.int("tmdb") ?: obj.int("tmdb_id"))?.takeIf { it > 0 },
+                // 0 is the panel's "unknown" on a field that is otherwise a
+                // plain minute count. Deliberately NOT stamped onto each
+                // Episode: there it would outrank TMDB's per-episode runtime
+                // and block it, where on the series it is the last fallback.
+                episodeRuntimeMinutes = obj.int("episode_run_time")?.takeIf { it > 0 },
                 // Series have no `added`; `last_modified` is the panel's
                 // equivalent — it moves when a new episode lands, which is
                 // exactly what "recently added" should surface for a box set.
@@ -335,15 +345,66 @@ class XtreamClient(
             val info = obj["info"] as? JsonObject
             Episode(
                 id = "ep:$id",
-                title = obj.str("title") ?: "Episode",
+                // `info.name` FIRST, and the top-level `title` LAST.
+                //
+                // The top-level one is the whole address — "Lady in the Lake
+                // - S01E01 - Did you know Seahorses are fish?" — and where a
+                // panel has nothing to say it is the literal string
+                // "Episode", which EpisodeTitle correctly strips to nothing.
+                // Panels that DO know the name overwhelmingly put it in the
+                // info block under one of these three keys, and reading only
+                // the outer field threw it away.
+                //
+                // Worst case is the case we already have: a panel that puts
+                // the SHOW's name in `info.name` has it stripped by
+                // EpisodeTitle's leading-name rule and the row degrades to
+                // "Episode N", which is what it shows today.
+                title = info?.str("name")?.takeIf { it.isNotBlank() }
+                    ?: info?.str("title")?.takeIf { it.isNotBlank() }
+                    ?: info?.str("episode_name")?.takeIf { it.isNotBlank() }
+                    ?: obj.str("title")
+                    ?: "Episode",
                 season = obj.int("season") ?: seasonKey ?: 1,
                 episodeNum = obj.int("episode_num") ?: 0,
                 url = "$baseUrl/series/$userP/$passP/$id.$ext",
                 // A STILL, not a poster: 16:9, and asking for the 2:3 rung
                 // handed the row the middle third of the frame. See ArtworkUrl.
-                poster = ArtworkUrl.still(info?.str("movie_image")),
+                //
+                // Four keys, because panels disagree about which one carries
+                // it and a row with no picture is the most visible hole on
+                // the page. These are the EPISODE's `info` block, where
+                // `cover`/`cover_big` are the 16:9 still — never the
+                // series-level `cover`, which is a 2:3 poster and would put
+                // the wrong shape through still().
+                poster = ArtworkUrl.still(
+                    info?.imageStr("movie_image")
+                        ?: info?.imageStr("cover_big")
+                        ?: info?.imageStr("cover")
+                        ?: obj.imageStr("movie_image")
+                ),
                 durationText = info?.str("duration")?.takeIf { it.isNotBlank() },
-                plot = PlotText.preferred(info?.str("plot")?.takeIf { it.isNotBlank() }),
+                // `duration_secs` first: an integer of seconds says nothing
+                // ambiguous, where `duration` is a string into which panels
+                // write "00:00:00" to mean "I don't know".
+                runtimeMinutes = EpisodeFacts.minutesOfSeconds(info?.str("duration_secs"))
+                    ?: EpisodeFacts.minutes(info?.str("duration"))
+                    ?: EpisodeFacts.minutesOfSeconds(obj.str("duration_secs")),
+                // NOT `added` — that is when the panel ingested the file, and
+                // labelling every episode of a 2003 show with last Tuesday is
+                // worse than carrying no date at all.
+                airDate = EpisodeFacts.airDate(
+                    info?.str("releasedate")
+                        ?: info?.str("release_date")
+                        ?: info?.str("air_date")
+                        ?: info?.str("airdate")
+                        ?: obj.str("release_date")
+                        ?: obj.str("air_date")
+                ),
+                plot = PlotText.preferred(
+                    (info?.str("plot")
+                        ?: info?.str("overview")
+                        ?: info?.str("description"))?.takeIf { it.isNotBlank() }
+                ),
             )
         }.sortedWith(compareBy({ it.season }, { it.episodeNum }))
     }
@@ -423,6 +484,16 @@ private fun JsonObject.int(key: String): Int? =
 private fun JsonObject.arr0(key: String): String? =
     (this[key] as? JsonArray)?.firstOrNull()?.let { (it as? JsonPrimitive)?.contentOrNull }
         ?.takeIf { it.isNotBlank() }
+
+/**
+ * An image URL from a field that may be a string OR an array of them.
+ *
+ * The shape [arr0] exists for, applied at the field an episode row's entire
+ * picture comes from: read with [str] alone, a panel sending
+ * `"movie_image": ["…jpg"]` reads as an episode with no still at all.
+ */
+private fun JsonObject.imageStr(key: String): String? =
+    str(key)?.trim()?.takeIf { it.isNotBlank() } ?: arr0(key)
 
 private fun JsonObject.dbl(key: String): Double? =
     str(key)?.trim()?.toDoubleOrNull()?.takeIf { it > 0 }
