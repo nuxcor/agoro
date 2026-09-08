@@ -1436,14 +1436,38 @@ class ContentRepository(context: Context) {
 
     // --- lazy detail loading --------------------------------------------------
 
+    /**
+     * [runCatching], minus the one throwable it must never eat.
+     *
+     * `runCatching` catches Throwable, and inside a coroutine that includes
+     * the CancellationException that says "your caller went away". Swallowing
+     * it turns "we were interrupted" into a legitimate-looking result, and
+     * structured concurrency stops working: the coroutine carries on past its
+     * own cancellation, and anything downstream that CACHES the answer records
+     * an interruption as fact. That is exactly how one ordinary recomposition
+     * poisoned a season of episodes for a whole session.
+     *
+     * Cancellation is not a result. It has to keep travelling.
+     */
+    private inline fun <T> catchingExceptCancellation(block: () -> T): Result<T> =
+        try {
+            Result.success(block())
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (t: Throwable) {
+            Result.failure(t)
+        }
+
     suspend fun movieDetails(movie: Movie, tmdbKey: String? = null): Movie {
         var enriched = movie
         (activeSource.first() as? PlaylistSource.Xtream)?.let { source ->
-            enriched = runCatching { xtreamClient(source).movieDetails(enriched) }.getOrDefault(enriched)
+            enriched = catchingExceptCancellation { xtreamClient(source).movieDetails(enriched) }
+                .getOrDefault(enriched)
         }
         if (tmdbKey != null) {
-            runCatching { TmdbClient(http, tmdbKey).lookup("movie", enriched.name, enriched.year) }
-                .getOrNull()?.let { tmdb ->
+            catchingExceptCancellation {
+                TmdbClient(http, tmdbKey).lookup("movie", enriched.name, enriched.year)
+            }.getOrNull()?.let { tmdb ->
                     enriched = enriched.copy(
                         rating = enriched.rating ?: tmdb.rating,
                         voteCount = tmdb.voteCount,
@@ -1469,8 +1493,9 @@ class ContentRepository(context: Context) {
 
     suspend fun seriesDetails(series: Series, tmdbKey: String? = null): Series {
         if (tmdbKey == null) return series
-        val tmdb = runCatching { TmdbClient(http, tmdbKey).lookup("tv", series.name, series.year) }
-            .getOrNull() ?: return series
+        val tmdb = catchingExceptCancellation {
+            TmdbClient(http, tmdbKey).lookup("tv", series.name, series.year)
+        }.getOrNull() ?: return series
         return series.copy(
             rating = series.rating ?: tmdb.rating,
             voteCount = tmdb.voteCount,
@@ -1498,22 +1523,12 @@ class ContentRepository(context: Context) {
      * "no network".
      */
     suspend fun tmdbSeason(tvId: Int, season: Int, tmdbKey: String): Map<Int, TmdbEpisode> =
-        try {
+        // The bug this helper was written for: swallowing cancellation here
+        // meant "we were interrupted" was cached as "TMDB has no such
+        // season", and every episode row stayed bare for the session.
+        catchingExceptCancellation {
             TmdbClient(http, tmdbKey).season(tvId, season)
-        } catch (cancelled: kotlinx.coroutines.CancellationException) {
-            // NOT runCatching, and this branch is the whole reason.
-            //
-            // runCatching catches Throwable, and in a coroutine that includes
-            // the CancellationException that says "your caller went away".
-            // Swallowing it turns "we were interrupted" into "TMDB has no
-            // such season" — and the caller CACHES that answer, so one
-            // ordinary recomposition poisoned the season for the rest of the
-            // session and every episode row stayed bare. Cancellation is not
-            // a result; it has to keep travelling.
-            throw cancelled
-        } catch (t: Throwable) {
-            emptyMap()
-        }
+        }.getOrDefault(emptyMap())
 
     /**
      * Just the art TMDB has for a title — the cheap half of [movieDetails],
@@ -1522,7 +1537,7 @@ class ContentRepository(context: Context) {
      * the miss and stop asking; null only when the request itself failed.
      */
     suspend fun artworkFor(kind: String, title: String, year: Int?, tmdbKey: String): ArtEntry? =
-        runCatching { TmdbClient(http, tmdbKey).art(kind, title, year) }.getOrNull()
+        catchingExceptCancellation { TmdbClient(http, tmdbKey).art(kind, title, year) }.getOrNull()
 
     /**
      * The name cleaner the bundle uses, or null when it must not be applied.
