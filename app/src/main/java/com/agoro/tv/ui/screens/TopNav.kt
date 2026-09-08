@@ -86,7 +86,7 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
     // [TopNav].
     Search("Search", Icons.Default.Search),
     Home("Home", Icons.Default.Home),
-    Live("Live TV", Icons.Default.LiveTv),
+    Live("TV", Icons.Default.LiveTv),
     // Beside Live TV because that is what it is — live, just organised by
     // fixture instead of by channel. "Sport" and not "Sports": the Live TV
     // strip already has a Sports shelf of channels, and two header-level
@@ -194,24 +194,11 @@ internal fun TopNav(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.xs),
     ) {
-        // The brand mark alone — the wordmark came off: the mark is
-        // distinctive enough to carry identity, and a header that opens with
-        // its own name in caps read as the app introducing itself on every
-        // visit.
-        //
-        // ic_logo, not ic_splash: the splash copy is padded into a square and
-        // scaled for its circular mask, so drawing it here gave about 59% of
-        // the size asked for. Size by height; the 55:76 viewport carries the
-        // aspect. The marker slot's height is added underneath so the mark
-        // sits on the labels' centre line, not the whole band's.
-        Image(
-            painter = painterResource(R.drawable.ic_logo),
-            contentDescription = "Agoro",
-            modifier = Modifier
-                .padding(end = Space.m, bottom = MARKER_HEIGHT + 4.dp)
-                .height(24.dp)
-                .width(17.dp),
-        )
+        // No standalone brand mark. It sat beside Home saying the same thing
+        // twice — a logo that does nothing next to a tab that goes home — and
+        // spent the leading edge of the header on decoration. Home IS the mark
+        // now: it is the app's own destination, so the app's own symbol is the
+        // right label for it, and one control does what two were doing.
         items.forEachIndexed { index, item ->
             // Everything above the catalogue on the left, the app itself on
             // the right. The drawer said this with a divider; a header says it
@@ -220,9 +207,13 @@ internal fun TopNav(
             TopNavItem(
                 label = item.label,
                 selected = item == selected,
-                // Search is the icon; everything else is its word.
+                // Two of these are symbols rather than words. Search
+                // because it is an action and not a place; Home because the
+                // app's own mark says "the front of the app" better than the
+                // word does, and saying both was the redundancy.
                 icon = item.icon.takeIf { item == HomeTab.Search },
-                labelled = item != HomeTab.Search,
+                brand = item == HomeTab.Home,
+                labelled = item != HomeTab.Search && item != HomeTab.Home,
                 onClick = { commit(index) },
                 modifier = Modifier
                     .focusRequester(itemFocus[index])
@@ -269,6 +260,17 @@ private fun TopNavItem(
      * is an action rather than a place earns the shape instead.
      */
     labelled: Boolean = true,
+    /**
+     * Draw the app's own mark instead of an icon or a word. Home only.
+     *
+     * Through [Icon] rather than [Image] so it takes the row's content colour:
+     * a tab dims when it is not the one you are on, and a brand mark that
+     * stayed gold through that would be the only control on the header not
+     * saying where you are. ic_logo, not ic_splash — the splash copy is padded
+     * into a square for its circular mask and draws at about 59% of the size
+     * asked for. Sized by height; the 55:76 viewport carries the aspect.
+     */
+    brand: Boolean = false,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         Surface(
@@ -308,6 +310,13 @@ private fun TopNavItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Space.s),
             ) {
+                if (brand) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_logo),
+                        contentDescription = label,
+                        modifier = Modifier.height(22.dp).width(16.dp),
+                    )
+                }
                 if (icon != null) {
                     Icon(
                         icon,

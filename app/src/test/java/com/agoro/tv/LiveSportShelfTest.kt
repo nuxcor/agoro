@@ -52,6 +52,35 @@ class LiveSportShelfTest {
     }
 
     @Test
+    fun `a finished match leaves the shelf`() {
+        // The bug this exists for: isLive has no upper bound, so a match that
+        // kicked off stayed "live" until the schedule forgot it — Getafe v
+        // Celta Vigo sat on Home hours after full time.
+        val over = fixture(1).copy(state = "post")
+        assertTrue(liveSportShelf(listOf(over), listOf(slot(1)), now).isEmpty())
+    }
+
+    @Test
+    fun `ESPN's verdict beats the clock in both directions`() {
+        // Says it is on, however long ago it started.
+        val long = fixture(1, startMs = now - 8 * 60 * 60_000).copy(state = "in")
+        assertEquals(1, liveSportShelf(listOf(long), listOf(slot(1)), now).size)
+        // And says it is not, however recently.
+        val notYet = fixture(2, startMs = now - 60_000).copy(state = "post")
+        assertTrue(liveSportShelf(listOf(notYet), listOf(slot(2)), now).isEmpty())
+    }
+
+    @Test
+    fun `without a verdict it falls back to a bounded window`() {
+        // Slots the schedule never placed, and fixtures published before the
+        // state field existed.
+        val recent = fixture(1, startMs = now - 30 * 60_000)
+        assertEquals(1, liveSportShelf(listOf(recent), listOf(slot(1)), now).size)
+        val stale = fixture(2, startMs = now - 5 * 60 * 60_000)
+        assertTrue(liveSportShelf(listOf(stale), listOf(slot(2)), now).isEmpty())
+    }
+
+    @Test
     fun `a fixture that has not started is not on now`() {
         val later = fixture(1, startMs = now + 45 * 60_000)
         assertTrue(liveSportShelf(listOf(later), listOf(slot(1)), now).isEmpty())
