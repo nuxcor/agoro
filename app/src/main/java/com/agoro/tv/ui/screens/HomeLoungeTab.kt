@@ -136,8 +136,8 @@ private sealed interface HomeMenu {
  * braces rather than a state the list can actually be in.
  */
 private enum class HomeRow {
-    Recents, Continue, Favorites, StarterChannels, StarterMovies, StarterSeries,
-    New, Acclaimed, GenreA, GenreB, GenreC
+    LiveSport, Recents, Continue, Favorites, StarterChannels, StarterMovies,
+    StarterSeries, New, Acclaimed, GenreA, GenreB, GenreC
 }
 
 /**
@@ -159,6 +159,7 @@ private val GENRE_SLOTS = listOf(HomeRow.GenreA, HomeRow.GenreB, HomeRow.GenreC)
  */
 private class HomeShelves(
     val rowKeys: List<HomeRow>,
+    val liveSport: List<LiveFixture>,
     val continueRow: List<ContinueCard>,
     val favoritesRow: List<LiveChannel>,
     val recentsRow: List<LiveChannel>,
@@ -178,6 +179,7 @@ private class HomeShelves(
     }
 
     fun sizeOf(row: HomeRow): Int = when (row) {
+        HomeRow.LiveSport -> liveSport.size
         HomeRow.Continue -> continueRow.size
         HomeRow.Favorites -> favoritesRow.size
         HomeRow.Recents -> recentsRow.size
@@ -204,6 +206,7 @@ private class HomeShelves(
                 is CatalogCard.SeriesCard -> card.series.toHero()
                 null -> null
             }
+            HomeRow.LiveSport -> liveSport.at()?.let { channelHero(it.slot, nowNext[it.slot.id]) }
             HomeRow.Favorites -> favoritesRow.at()?.let { channelHero(it, nowNext[it.id]) }
             HomeRow.Recents -> recentsRow.at()?.let { channelHero(it, nowNext[it.id]) }
             HomeRow.StarterChannels -> starterChannels.at()?.let { channelHero(it, nowNext[it.id]) }
@@ -241,6 +244,24 @@ fun HomeLoungeTab(
     // the film is still in Movies, in Shows and in search, because "not on
     // my home screen" is not "delete this".
     val catalog by vm.catalog.collectAsState()
+
+    // Sport that has kicked off, for the shelf at the top.
+    //
+    // A minute clock, not System.currentTimeMillis() read in composition: a
+    // fixture becomes live by the passage of time and nothing else, so with a
+    // static read the shelf only appeared when something ELSE recomposed Home.
+    // A minute is the resolution the Sport tab already uses; kick-offs are not
+    // announced to the second.
+    val fixtures by vm.sportFixtures.collectAsState()
+    val sportMinute by androidx.compose.runtime.produceState(System.currentTimeMillis()) {
+        while (true) {
+            value = System.currentTimeMillis()
+            kotlinx.coroutines.delay(60_000)
+        }
+    }
+    val liveSport = remember(fixtures, bundle.events, sportMinute) {
+        liveSportShelf(fixtures, bundle.events, sportMinute)
+    }
 
     val favoritesRow = remember(displayChannels, favorites) {
         channelsInCategory(CATEGORY_FAVORITES, displayChannels, favorites, recents)
@@ -297,7 +318,7 @@ fun HomeLoungeTab(
     // Only rows with something in them compose — an empty shelf is a dead
     // D-pad press (same rule as the browse tabs' Continue watching shortcut).
     val rowKeys = remember(
-        continueRow, favoritesRow, recentsRow, recentlyAdded,
+        liveSport, continueRow, favoritesRow, recentsRow, recentlyAdded,
         starterChannels, starterMovies, starterSeries, acclaimed, genreShelves,
     ) {
         // Live first, then films, then shows.
@@ -316,6 +337,12 @@ fun HomeLoungeTab(
         // order matches the rail order and the thing this app is primarily for
         // is the thing on screen when Home opens.
         buildList {
+            // ON NOW sport takes the very top, above even recent channels.
+            // It is the only shelf on this screen with a clock running
+            // against it: a film waits, a channel waits, a match does not.
+            // It is also absent most of the time, so it costs the usual
+            // arrival nothing.
+            if (liveSport.isNotEmpty()) add(HomeRow.LiveSport)
             if (recentsRow.isNotEmpty()) add(HomeRow.Recents)
             if (continueRow.isNotEmpty()) add(HomeRow.Continue)
             if (favoritesRow.isNotEmpty()) add(HomeRow.Favorites)
@@ -434,12 +461,12 @@ fun HomeLoungeTab(
         // is the number the menu-return effect uses to decide whether focus has
         // to step off the doomed card.
         remember(
-            rowKeys, continueRow, favoritesRow, recentsRow, recentlyAdded,
+            rowKeys, liveSport, continueRow, favoritesRow, recentsRow, recentlyAdded,
             starterChannels, starterMovies, starterSeries, acclaimed, genreShelves,
             nowNext,
         ) {
             HomeShelves(
-                rowKeys, continueRow, favoritesRow, recentsRow, recentlyAdded,
+                rowKeys, liveSport, continueRow, favoritesRow, recentsRow, recentlyAdded,
                 starterChannels, starterMovies, starterSeries, acclaimed, genreShelves,
                 nowNext,
             )
@@ -784,6 +811,41 @@ fun HomeLoungeTab(
                                 is ContinueCard.SeriesCard -> SeriesPoster(
                                     card.series, row, rowIndex, index, card.progress,
                                     onLongClick = { menu = HomeMenu.ResumedSeries(card.series) },
+                                )
+                            }
+                        }
+                    }
+                }
+                HomeRow.LiveSport -> Column {
+                    SectionTitle("Live sport · on now")
+                    LazyRow(
+                        modifier = shelf.focusRestorer().shelfRingRoom(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(horizontal = ShelfRingRoom),
+                    ) {
+                        itemsIndexed(liveSport, key = { _, f -> f.slot.id }) { index, fixture ->
+                            Box(modifier = Modifier.itemEntrance(index, entrance)) {
+                                ChannelShelfCard(
+                                    channel = fixture.slot,
+                                    // The fixture rides in the now-playing
+                                    // slot, which is exactly what it is. The
+                                    // card draws a progress bar from it too,
+                                    // so the tile says how far into the match
+                                    // you would be joining — the one thing
+                                    // that matters about a game already under
+                                    // way, and the one thing the slot's own
+                                    // name never says.
+                                    now = fixture.asProgram(),
+                                    modifier = cardFocusModifier(row, index),
+                                    onClick = {
+                                        vm.playEvent(
+                                            fixture.event.streamId,
+                                            fixture.event.alternates,
+                                            fixture.event.title,
+                                        )
+                                        onPlay()
+                                    },
+                                    onFocus = { noteFocus(row, rowIndex, index) },
                                 )
                             }
                         }

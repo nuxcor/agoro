@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.focus.FocusRequester
+import com.agoro.tv.ui.components.dpadLongPress
 import com.agoro.tv.ui.components.requestFocusRetrying
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.Alignment
@@ -67,6 +68,16 @@ fun SearchTab(
     onBack: () -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    val recentSearches by vm.recentSearches.collectAsState()
+    // Recorded only once the typing stops AND the query found something. A
+    // keystroke on the way to a word is not a search, and neither is a
+    // misspelling that matched nothing — a history of those is worse than none.
+    LaunchedEffect(query) {
+        val trimmed = query.trim()
+        if (trimmed.length < 2) return@LaunchedEffect
+        kotlinx.coroutines.delay(1_200)
+        vm.recordSearch(trimmed)
+    }
     // Search IS a drawer destination, but BACK still returns to the tab it
     // was opened from rather than opening the drawer again — reaching search
     // from Series and being handed the menu loses the shelf you were standing
@@ -217,6 +228,18 @@ fun SearchTab(
                 onValueChange = { query = it },
                 label = { androidx.compose.material3.Text("Search channels, movies and shows") },
                 singleLine = true,
+                // A magnifier at the leading edge. The field used to be a bare
+                // outlined box running the width of the panel, which on a TV
+                // reads as a form to fill in rather than the thing you came
+                // here to do — and it was the one search surface in the app
+                // with no search mark on it at all.
+                leadingIcon = {
+                    androidx.tv.material3.Icon(
+                        androidx.compose.material.icons.Icons.Default.Search,
+                        contentDescription = null,
+                        tint = NuxColors.OnSurfaceDim,
+                    )
+                },
                 modifier = Modifier
                     .weight(1f)
                     .focusRequester(fieldFocus)
@@ -268,10 +291,42 @@ fun SearchTab(
         val empty = results.channels.isEmpty() && results.movies.isEmpty() &&
             results.series.isEmpty() && results.programs.isEmpty()
         when {
+            // Before there is a query: what you searched for before, if
+            // anything. Typing on a remote is walking a D-pad around a grid of
+            // letters, so the cheapest search is one already typed — and this
+            // was previously a full-screen pane whose entire content was an
+            // instruction to type more.
+            query.trim().length < 2 && recentSearches.isNotEmpty() -> Column {
+                SectionTitle("Recent searches")
+                LazyRow(
+                    modifier = Modifier.focusRestorer().shelfRingRoom(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = ShelfRingRoom),
+                ) {
+                    itemsIndexed(recentSearches, key = { _, q -> q }) { _, past ->
+                        CategoryItem(
+                            name = past,
+                            selected = false,
+                            onClick = { query = past },
+                            // Held down, a chip forgets itself. A history you
+                            // cannot edit is one bad search away from being
+                            // someone else's business on a shared TV. Through
+                            // the modifier because CategoryItem takes no
+                            // long-press of its own, and dpadLongPress is the
+                            // app's clock-based one — many remotes send no key
+                            // repeat for tv-material's version to count.
+                            modifier = Modifier
+                                .dpadLongPress { vm.forgetSearch(past) },
+                        )
+                    }
+                }
+            }
+
             query.trim().length < 2 -> StatusPane(
                 title = "Search your library",
-                // The field's own label already names what is searchable.
-                message = "Type at least two characters.",
+                // No instruction to type: the field's own label already names
+                // what is searchable, and a screen whose only content is
+                // "type more" says nothing the cursor did not.
                 icon = androidx.compose.material.icons.Icons.Default.Search,
             )
 

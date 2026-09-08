@@ -1380,6 +1380,42 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                             }
                         }
                     },
+                    // Read while the controls are up, which is the only time
+                    // the button is drawn — and re-read on every poke, so the
+                    // icon flips the moment the press lands rather than on the
+                    // next thing that happens to recompose.
+                    subtitlesOn = remember(session.interactionTick, session.currentIndex) {
+                        engine.textTracks().takeIf { it.isNotEmpty() }?.any { it.selected }
+                    },
+                    onToggleSubtitles = {
+                        val tracks = engine.textTracks()
+                        val current = tracks.firstOrNull { it.selected }
+                        if (current != null) {
+                            engine.selectTextTrack(null)
+                            // Forget the language too. Leaving it set would
+                            // turn subtitles straight back on for the next
+                            // film, which is not what turning them off means.
+                            scope.launch { prefs.setPreferredSubtitleLanguage(null) }
+                        } else {
+                            // The remembered language if this stream has it,
+                            // else simply the first — wanting subtitles at all
+                            // is the common case, and a viewer who wants a
+                            // particular language has the full list under
+                            // Options.
+                            scope.launch {
+                                val want = prefs.preferredSubtitleLanguage.first()
+                                val pick = want
+                                    ?.let { w -> tracks.firstOrNull { languageMatches(it.language, w) } }
+                                    ?: tracks.firstOrNull()
+                                pick?.let {
+                                    engine.selectTextTrack(it.id)
+                                    prefs.setPreferredSubtitleLanguage(it.language)
+                                    session.poke()
+                                }
+                            }
+                        }
+                        session.poke()
+                    },
                     onInteraction = { session.poke() },
                 )
             }

@@ -82,6 +82,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val content: StateFlow<ContentState> = repo.content
 
 
+    /**
+     * Queries this viewer has searched before, newest first. Typing on a
+     * remote is the expensive part; this is the shortcut past it.
+     */
+    val recentSearches: StateFlow<List<String>> = playerPrefs.recentSearches
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun recordSearch(query: String) {
+        viewModelScope.launch { playerPrefs.recordSearch(query) }
+    }
+
+    fun forgetSearch(query: String) {
+        viewModelScope.launch { playerPrefs.forgetSearch(query) }
+    }
+
     val favorites: StateFlow<Set<String>> = playerPrefs.favorites
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
