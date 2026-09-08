@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-07T21:29:16Z",
+ "generated": "2026-09-08T04:31:47Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -7,41 +7,17 @@
   "NBA": 0,
   "MLS": 29,
   "Premier League": 10,
-  "La Liga": 15,
-  "Serie A": 12,
+  "La Liga": 17,
+  "Serie A": 10,
   "Bundesliga": 9,
   "Ligue 1": 9,
   "Champions League": 18,
-  "Europa League": 0,
+  "Europa League": 9,
   "Conference League": 0,
-  "Carabao Cup": 11,
+  "Carabao Cup": 15,
   "FA Cup": 0
  },
  "fixtures": [
-  {
-   "league": "Serie A",
-   "home": "Cagliari",
-   "away": "Lecce",
-   "start": "2026-09-07T16:30Z"
-  },
-  {
-   "league": "La Liga",
-   "home": "Getafe",
-   "away": "Celta Vigo",
-   "start": "2026-09-07T17:00Z"
-  },
-  {
-   "league": "Serie A",
-   "home": "Udinese",
-   "away": "Lazio",
-   "start": "2026-09-07T18:45Z"
-  },
-  {
-   "league": "La Liga",
-   "home": "Elche",
-   "away": "Real Sociedad",
-   "start": "2026-09-07T19:30Z"
-  },
   {
    "league": "Champions League",
    "home": "AEK Athens",
@@ -791,6 +767,108 @@
    "home": "Elche",
    "away": "Real Madrid",
    "start": "2026-09-15T19:30Z"
+  },
+  {
+   "league": "Europa League",
+   "home": "Ararat-Armenia",
+   "away": "Sparta Prague",
+   "start": "2026-09-16T16:45Z"
+  },
+  {
+   "league": "Europa League",
+   "home": "Omonia Nicosia",
+   "away": "Celta Vigo",
+   "start": "2026-09-16T16:45Z"
+  },
+  {
+   "league": "La Liga",
+   "home": "Atl\u00e9tico Madrid",
+   "away": "Osasuna",
+   "start": "2026-09-16T17:00Z"
+  },
+  {
+   "league": "La Liga",
+   "home": "Deportivo",
+   "away": "Sevilla",
+   "start": "2026-09-16T17:00Z"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "Everton",
+   "away": "Wolverhampton Wanderers",
+   "start": "2026-09-16T18:45Z"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "Fleetwood Town",
+   "away": "Sheffield United",
+   "start": "2026-09-16T18:45Z"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "Coventry City",
+   "away": "Aston Villa",
+   "start": "2026-09-16T19:00Z"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "Manchester United",
+   "away": "Brighton & Hove Albion",
+   "start": "2026-09-16T19:00Z"
+  },
+  {
+   "league": "Europa League",
+   "home": "AC Milan",
+   "away": "Benfica",
+   "start": "2026-09-16T19:00Z"
+  },
+  {
+   "league": "Europa League",
+   "home": "Anderlecht",
+   "away": "Lyon",
+   "start": "2026-09-16T19:00Z"
+  },
+  {
+   "league": "Europa League",
+   "home": "Bayer Leverkusen",
+   "away": "NK Celje",
+   "start": "2026-09-16T19:00Z"
+  },
+  {
+   "league": "Europa League",
+   "home": "Hapoel Be'er",
+   "away": "Dinamo Zagreb",
+   "start": "2026-09-16T19:00Z"
+  },
+  {
+   "league": "Europa League",
+   "home": "Olympiacos",
+   "away": "Jagiellonia Bialystok",
+   "start": "2026-09-16T19:00Z"
+  },
+  {
+   "league": "Europa League",
+   "home": "SK Sturm Graz",
+   "away": "Stade Rennais",
+   "start": "2026-09-16T19:00Z"
+  },
+  {
+   "league": "Europa League",
+   "home": "Sunderland",
+   "away": "AZ Alkmaar",
+   "start": "2026-09-16T19:00Z"
+  },
+  {
+   "league": "La Liga",
+   "home": "Barcelona",
+   "away": "Racing Santander",
+   "start": "2026-09-16T19:30Z"
+  },
+  {
+   "league": "La Liga",
+   "home": "Levante",
+   "away": "Athletic Club",
+   "start": "2026-09-16T19:30Z"
   }
  ]
 }
