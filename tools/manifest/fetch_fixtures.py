@@ -59,18 +59,43 @@ def fetch(league, path, start, end):
             time.sleep(1.5 * (attempt + 1))
 
 
+# The spellings worth publishing beside the display name.
+#
+# NOT "location": on the NFL that field is the CITY, so the Jets and the
+# Giants both answer to "New York" and the Rams and the Chargers both answer
+# to "Los Angeles" — and the matcher treats a shorter name as the same club
+# when it is a subset of a longer one. Two clubs sharing a spelling is the one
+# thing an alias list must not do.
+ALIAS_FIELDS = ("shortDisplayName", "name")
+
+
+def side(competitor):
+    """One club: how ESPN bills it, what else it answers to, and its badge."""
+    team = competitor.get("team") or {}
+    name = team.get("displayName")
+    if not name:
+        return None
+    alts, seen = [], {name.casefold()}
+    for field in ALIAS_FIELDS:
+        alt = team.get(field)
+        if alt and alt.casefold() not in seen:
+            seen.add(alt.casefold())
+            alts.append(alt)
+    return {"name": name, "alt": alts, "logo": team.get("logo") or ""}
+
+
 def sides(event):
     """Home and away, as ESPN spells them. The app normalises before matching."""
     comps = (event.get("competitions") or [{}])[0].get("competitors") or []
     home = away = None
     for c in comps:
-        name = (c.get("team") or {}).get("displayName")
-        if not name:
+        info = side(c)
+        if not info:
             continue
         if c.get("homeAway") == "home":
-            home = name
+            home = info
         elif c.get("homeAway") == "away":
-            away = name
+            away = info
     return home, away
 
 
@@ -104,13 +129,32 @@ def main():
                 continue
             record = {
                 "league": league,
-                "home": home,
-                "away": away,
+                "home": home["name"],
+                "away": away["name"],
                 # ESPN writes Zulu; the app parses it as such and does its own
                 # local arithmetic. No zone is ever inferred from a name here,
                 # which is the entire point of this file.
                 "start": date,
             }
+            # What else each club answers to. The display name alone is why
+            # Real Madrid v Inter sat on the wrong clock: ESPN bills the away
+            # side "Internazionale", every pack writes "Inter", the two share
+            # no word, the fixture went unmatched and the row kept the pack's
+            # kick-off — which is the one this file exists to overrule.
+            if home["alt"]:
+                record["homeAlt"] = home["alt"]
+            if away["alt"]:
+                record["awayAlt"] = away["alt"]
+            # The badge, from the same record as the clock.
+            #
+            # The app used to look a crest up by club name in a separate
+            # index, which meant the name it matched on and the name the badge
+            # was filed under had to agree — and they routinely did not. Taken
+            # from the fixture there is no lookup to miss.
+            if home["logo"]:
+                record["homeLogo"] = home["logo"]
+            if away["logo"]:
+                record["awayLogo"] = away["logo"]
             # Whether it has FINISHED, which nothing else here can answer.
             #
             # A kick-off alone only says a match has begun; the app was reading
