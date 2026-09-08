@@ -133,6 +133,7 @@ class PlayerPrefs(private val context: Context) {
     private val videoQualityKey = stringPreferencesKey("video_quality")
     private val recentChannelsKey = stringPreferencesKey("recent_channels")
     private val recentSearchesKey = stringPreferencesKey("recent_searches")
+    private val progressStampsKey = stringPreferencesKey("progress_stamps")
     private val aspectModeKey = stringPreferencesKey("aspect_mode")
     private val aspectOverridesKey = stringPreferencesKey("aspect_overrides")
     private val audioLangKey = stringPreferencesKey("preferred_audio_lang")
@@ -189,6 +190,7 @@ class PlayerPrefs(private val context: Context) {
     private val favoritesSlot = JsonSlot<Set<String>>(emptySet()) { json.decodeFromString(it) }
     private val recentChannelsSlot = JsonSlot<List<String>>(emptyList()) { json.decodeFromString(it) }
     private val recentSearchesSlot = JsonSlot<List<String>>(emptyList()) { json.decodeFromString(it) }
+    private val progressStampsSlot = JsonSlot<Map<String, Long>>(emptyMap()) { json.decodeFromString(it) }
     private val hiddenSlot = JsonSlot<Set<String>>(emptySet()) { json.decodeFromString(it) }
     private val hiddenTitlesSlot = JsonSlot<Set<String>>(emptySet()) { json.decodeFromString(it) }
 
@@ -527,7 +529,76 @@ class PlayerPrefs(private val context: Context) {
             if (durationMs > 0 && trimmed.containsKey(url)) durations[url] = durationMs
             durations.keys.retainAll(trimmed.keys)
             prefs[durationsKey] = json.encodeToString(durations)
+
+            // When this box last touched this title. Read only by the sync,
+            // which cannot merge two histories per title without it.
+            val stamps = prefs[progressStampsKey]?.let {
+                runCatching { json.decodeFromString<MutableMap<String, Long>>(it) }.getOrNull()
+            } ?: mutableMapOf()
+            stamps[url] = System.currentTimeMillis()
+            // Follows the two maps it describes, so it cannot outgrow them.
+            stamps.keys.retainAll(trimmed.keys + (prefs[watchedKey]?.let { raw ->
+                runCatching { json.decodeFromString<Map<String, Long>>(raw) }.getOrNull()?.keys
+            } ?: emptySet()))
+            prefs[progressStampsKey] = json.encodeToString(stamps)
         }
+    }
+
+    /**
+     * url → when this box last changed its progress.
+     *
+     * Its own entry rather than a field on the position, for the reason
+     * [resumeDurations] is: widening the stored shape would make every
+     * existing install fail to decode the positions it already has and lose
+     * them. Entries predating this carry no stamp, and lose every tie-break —
+     * which is right, because a box that has been keeping stamps knows more.
+     *
+     * Written beside every progress change so two TVs can be merged per
+     * title. Nothing reads it locally; it exists for [ProgressSync].
+     */
+    val progressStamps: Flow<Map<String, Long>> = context.playerDataStore.data.map { prefs ->
+        progressStampsSlot.read(prefs[progressStampsKey])
+    }.flowOn(Dispatchers.Default)
+
+    /**
+     * Applies a merged history, replacing positions, durations, watch marks
+     * and stamps for the titles it names.
+     *
+     * Only the named titles. A merge is about the entries two boxes disagree
+     * on, and anything this box holds that the other has never seen must
+     * survive untouched — the failure mode of every sync story is the one
+     * where switching a second TV on empties the first.
+     */
+    suspend fun applyMergedProgress(
+        positions: Map<String, Long>,
+        durations: Map<String, Long>,
+        watched: Map<String, Long>,
+        stamps: Map<String, Long>,
+    ) {
+        if (positions.isEmpty() && watched.isEmpty()) return
+        context.playerDataStore.edit { prefs ->
+            fun read(key: androidx.datastore.preferences.core.Preferences.Key<String>) =
+                prefs[key]?.let {
+                    runCatching { json.decodeFromString<LinkedHashMap<String, Long>>(it) }.getOrNull()
+                } ?: LinkedHashMap()
+
+            val pos = read(positionsKey).apply { putAll(positions) }
+            val dur = read(durationsKey).apply { putAll(durations) }
+            val seen = read(watchedKey).apply { putAll(watched) }
+            val stamped = read(progressStampsKey).apply { putAll(stamps) }
+            // Durations belong to the positions they describe, the same rule
+            // saveResumePosition keeps.
+            dur.keys.retainAll(pos.keys)
+            prefs[positionsKey] = json.encodeToString(pos)
+            prefs[durationsKey] = json.encodeToString(dur)
+            prefs[watchedKey] = json.encodeToString(seen)
+            prefs[progressStampsKey] = json.encodeToString(stamped)
+        }
+    }
+
+    /** Drops every stamp, for "forget my progress everywhere". */
+    suspend fun clearProgressStamps() {
+        context.playerDataStore.edit { it.remove(progressStampsKey) }
     }
 
     /**

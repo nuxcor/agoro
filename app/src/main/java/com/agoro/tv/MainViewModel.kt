@@ -25,6 +25,13 @@ import com.agoro.tv.data.PlayerPrefs
 import com.agoro.tv.data.PlaylistSource
 import com.agoro.tv.data.indexAnswering
 import com.agoro.tv.data.inSeriesOrder
+import com.agoro.tv.data.ProgressEntry
+import com.agoro.tv.data.ProgressPayload
+import com.agoro.tv.data.ProgressSync
+import com.agoro.tv.data.ProgressSyncClient
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filterNotNull
 import com.agoro.tv.data.Series
 import com.agoro.tv.recording.RecordingScheduler
 import com.agoro.tv.ui.screens.foldMovieVariants
@@ -57,6 +64,16 @@ private const val BACKUP_FILE = "agoro-backup.json"
 private const val LEGACY_BACKUP_FILE = "dzidzi-backup.json"
 
 /** How old the cached catalog may grow before a quiet refresh re-fetches it. */
+/**
+ * How long after the last progress change before this box publishes it.
+ *
+ * saveResumePosition fires every few seconds of playback. A request per tick
+ * would be thousands a night for a household of two — the free tier's entire
+ * daily write budget inside one film — so the push waits for the writing to
+ * stop rather than following it.
+ */
+private const val SYNC_PUSH_DEBOUNCE_MS = 20_000L
+
 private const val PLAYLIST_MAX_AGE_MS = com.agoro.tv.data.ContentRepository.PLAYLIST_MAX_AGE_MS
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -258,6 +275,132 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     val watchedAt: StateFlow<Map<String, Long>> = playerPrefs.watchedAt
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    // --- continue watching, across the household's TVs -------------------------
+
+    /**
+     * Off unless the build carries all three secrets. Absent means absent —
+     * no error, no dead control, the way TMDB enrichment is off without a key.
+     */
+    private val progressSync: ProgressSyncClient? =
+        if (BuildConfig.SYNC_URL.isNotBlank() && BuildConfig.SYNC_KEY.isNotBlank() &&
+            BuildConfig.SYNC_SALT.isNotBlank()
+        ) {
+            ProgressSyncClient(repo.http, BuildConfig.SYNC_URL, BuildConfig.SYNC_KEY)
+        } else null
+
+    /**
+     * The household this box belongs to, or null when it cannot be known.
+     *
+     * Derived from the provider host and username — never the password — so
+     * two boxes signed into the same account land on the same id without
+     * anything being configured on either.
+     */
+    private suspend fun syncAccountId(): String? {
+        val source = activeSource.value as? PlaylistSource.Xtream ?: return null
+        if (source.username.isBlank()) return null
+        return ProgressSync.accountId(source.serverUrl, source.username, BuildConfig.SYNC_SALT)
+    }
+
+    /** This box's history, in the shape that travels. */
+    private suspend fun localEntries(): Map<String, ProgressEntry> = ProgressSync.entriesOf(
+        positions = playerPrefs.resumePositions.first(),
+        durations = playerPrefs.resumeDurations.first(),
+        watched = playerPrefs.watchedAt.first(),
+        updatedAt = playerPrefs.progressStamps.first(),
+    )
+
+    /**
+     * Pull, merge, write back, push — once at start-up.
+     *
+     * Pull BEFORE push, and merge rather than replace: the other TV holds
+     * titles this one has never seen, and pushing first would publish this
+     * box's view as the household's before it had heard the other side.
+     */
+    private fun syncProgressOnStart() {
+        val client = progressSync ?: return
+        viewModelScope.launch {
+            // Wait for a source: this runs from init and the playlist is read
+            // from disk a beat later.
+            val account = activeSource.filterNotNull().first().let { syncAccountId() } ?: return@launch
+            val remote = client.pull(account)?.entries ?: return@launch
+            val local = localEntries()
+            val merged = ProgressSync.merge(local, remote)
+            applyMerged(merged, local)
+            client.push(account, ProgressSync.outgoing(merged))
+        }
+    }
+
+    /**
+     * Writes back only what actually changed, translated from wire names to
+     * this box's own URLs.
+     *
+     * A title only the other TV has watched has no local URL yet — the
+     * catalogue knows the stream id but not the file extension until the
+     * title is opened — so it stays on the server and lands the next time
+     * this box has a URL for it. Better a late arrival than a fabricated URL
+     * that plays nothing.
+     */
+    private suspend fun applyMerged(
+        merged: Map<String, ProgressEntry>,
+        local: Map<String, ProgressEntry>,
+    ) {
+        val urls = ProgressSync.urlsBySyncKey(
+            playerPrefs.resumePositions.first().keys + playerPrefs.watchedAt.first().keys
+        )
+        val positions = LinkedHashMap<String, Long>()
+        val durations = LinkedHashMap<String, Long>()
+        val watched = LinkedHashMap<String, Long>()
+        val stamps = LinkedHashMap<String, Long>()
+        for ((key, entry) in merged) {
+            if (entry == local[key]) continue      // nothing to write
+            val url = urls[key] ?: continue        // no local URL yet
+            if (entry.positionMs > 0) positions[url] = entry.positionMs
+            if (entry.durationMs > 0) durations[url] = entry.durationMs
+            if (entry.watchedAtMs > 0) watched[url] = entry.watchedAtMs
+            stamps[url] = entry.updatedAtMs
+        }
+        playerPrefs.applyMergedProgress(positions, durations, watched, stamps)
+    }
+
+    /**
+     * Publishes this box's view after it changes.
+     *
+     * Debounced hard. saveResumePosition fires every few seconds of playback,
+     * and a request per tick would be thousands a night for a household of
+     * two — the free tier's whole daily write budget in one film.
+     */
+    private fun syncProgressOnChange() {
+        val client = progressSync ?: return
+        viewModelScope.launch {
+            playerPrefs.progressStamps
+                .drop(1)
+                .debounce(SYNC_PUSH_DEBOUNCE_MS)
+                .collect {
+                    val account = syncAccountId() ?: return@collect
+                    client.push(account, ProgressSync.outgoing(localEntries()))
+                }
+        }
+    }
+
+    /**
+     * Forgets this household's progress everywhere — here and on the server.
+     *
+     * Data that left the box has to have a way back, and the order matters:
+     * clear the server first, so a failure halfway leaves the box holding a
+     * history it can push again rather than a server holding one nobody can
+     * reach.
+     */
+    fun forgetProgressEverywhere() {
+        viewModelScope.launch {
+            val account = syncAccountId()
+            if (account != null) progressSync?.push(account, ProgressPayload())
+            playerPrefs.clearProgressStamps()
+            playerPrefs.clearResume(
+                playerPrefs.resumePositions.first().keys + playerPrefs.watchedAt.first().keys
+            )
+        }
+    }
 
     /**
      * Series id → how many episodes it had when last played; what tells
@@ -737,6 +880,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // this answers, so it must not wait on anything an install with no
         // channel to resume doesn't already have.
         resolveStartTarget()
+        // Both no-ops unless the build carries the sync secrets.
+        syncProgressOnStart()
+        syncProgressOnChange()
         // Load the guide when a playlist becomes readable and whenever the
         // playlist it belongs to changes — NOT on every publish of content.
         // A cold start publishes the catalogue at least twice (the cache,
