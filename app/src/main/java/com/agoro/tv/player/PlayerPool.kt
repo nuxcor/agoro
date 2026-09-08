@@ -272,9 +272,30 @@ private class IptvMediaSourceFactory(
 private fun loadControlFor(live: Boolean): DefaultLoadControl =
     DefaultLoadControl.Builder()
         .setBufferDurationsMs(
-            /* minBufferMs = */ 20_000,
-            // Live stops at 24s so the gap it must drain before loading
-            // resumes is four seconds, not thirty-five; see above.
+            // Live starts loading again at 22s, not 20s.
+            //
+            // The loader parks between min and max: it fills to maxBufferMs,
+            // then reads NOTHING until the buffer drains back to minBufferMs.
+            // At 20/24 that leaves the live socket deliberately unread for
+            // about four seconds at a time, over and over, on every channel.
+            // A provider whose edge closes a quiet socket faster than that
+            // drops the connection on a cycle, the ladder reconnects, and the
+            // viewer sees the picture stop and come back — on every channel,
+            // which is what a stream-specific fault never does.
+            //
+            // 22/24 halves that idle window to roughly two seconds. The cost
+            // is more frequent, smaller reads, which is the trade this
+            // provider appears to want: the previous narrowing, 35s down to
+            // four, is recorded as never verified on hardware, and the
+            // symptom it was meant to remove is still being reported.
+            //
+            // NOT MEASURED. Asked for directly after the mechanism was
+            // explained, on a night when the log could not be captured. If it
+            // does not help, the number is not the cause and the next step is
+            // lowering IDLE_REPORT_MS below the idle window so the gap is
+            // visible at all — at 6s it cannot see a four-second park, which
+            // is why the log can be silent while this happens.
+            /* minBufferMs = */ if (live) 22_000 else 20_000,
             /* maxBufferMs = */ if (live) 24_000 else 50_000,
             // 2.5s to start on live: 1.5s made channel changes feel quicker
             // but began playback on a thinner buffer, so a marginal connection
