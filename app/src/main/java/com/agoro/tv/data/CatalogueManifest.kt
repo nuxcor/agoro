@@ -31,6 +31,42 @@ import java.io.File
  *  - [collapse]        one tile, several sources, best quality first
  *  - [vodNameRules]    regexes that strip "4K-NF - " and friends
  */
+/**
+ * What a sport slot was measured to be, published per stream id.
+ *
+ * The sport ranking had no picture signal at all. Three slots carrying Club
+ * Brugge v Aston Villa on 2026-09-08 all scored TIER_UNKNOWN and
+ * SOURCE_NEUTRAL — a complete tie on every field the comparator holds — so
+ * the winner was whichever the playlist listed first, and that one was
+ * serving the panel's black filler while a 1080p50 feed sat beside it. The
+ * viewer got a blank screen and nothing recovered, because black filler is
+ * valid decodable video: it never errors, so the failover ladder never fires.
+ *
+ * Measured by tools/manifest/probe_tiers.py and the black sweep. Absent for
+ * most slots and that is expected — a slot nothing measured keeps the
+ * behaviour it had.
+ */
+@Serializable
+data class SlotQuality(
+    /** Measured picture height. 0 means "never measured", not "short". */
+    val height: Int = 0,
+    /**
+     * Measured frames per second. The field that separates sport feeds when
+     * height cannot: six slots carrying two live Champions League matches
+     * came back 1080p on five of them, running 50, 30 and 25.
+     */
+    val fps: Int = 0,
+    /**
+     * The slot answered a tune with the panel's black filler.
+     *
+     * Demotes, never drops — the same rule the channel ladder uses. A PPV
+     * slot is legitimately black between fixtures, and a slot measured black
+     * last night may carry a real match tonight, so it sinks to the bottom of
+     * its fixture's ladder and stays reachable rather than vanishing.
+     */
+    val black: Boolean = false,
+)
+
 @Serializable
 data class Sport(
     /**
@@ -54,6 +90,11 @@ data class Sport(
      * back to a monogram. A row must never assume a crest exists.
      */
     @SerialName("club_crest") val clubCrest: Map<String, String> = emptyMap(),
+    /**
+     * Stream id -> what it measured. See [SlotQuality]; empty by default and a
+     * manifest without it behaves exactly as before.
+     */
+    @SerialName("slot_quality") val slotQuality: Map<String, SlotQuality> = emptyMap(),
     /**
      * The spelling a pack uses -> the club's real name, for the ones no rule
      * can derive.

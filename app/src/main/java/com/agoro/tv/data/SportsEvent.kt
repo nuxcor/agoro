@@ -71,6 +71,19 @@ data class SportsEvent(
     /** The same match on other slots, best first, for the player to fall back to. */
     val alternates: List<Int> = emptyList(),
     /**
+     * What this slot was actually measured to be. See [SlotQuality].
+     *
+     * The comparator had no picture signal at all before these: three slots
+     * carrying Club Brugge v Aston Villa on 2026-09-08 tied on every field it
+     * holds, so the winner was playlist order — and it was the one serving
+     * black filler. 0 means never measured and ranks after anything measured,
+     * the same convention the channel ladder uses for an unprobed source.
+     */
+    val measuredHeight: Int = 0,
+    val measuredFps: Int = 0,
+    /** The slot answered with the panel's black filler. Demotes, never drops. */
+    val blackFiller: Boolean = false,
+    /**
      * The club badges, taken off the matched schedule fixture.
      *
      * Null where the schedule could not place the slot, which is when the
@@ -298,6 +311,11 @@ object SportsParser {
         leagues: Map<String, List<String>>,
         ambiguous: Set<String> = emptySet(),
         aliases: Map<String, String> = emptyMap(),
+        /**
+         * Stream id -> measured picture, from the manifest. Empty by default,
+         * and empty behaves exactly as this did before measurements existed.
+         */
+        quality: Map<Int, SlotQuality> = emptyMap(),
     ): List<SportsEvent> {
         val idx = index(leagues)
         val amb = ambiguous.mapTo(HashSet()) { norm(it) }
@@ -307,7 +325,19 @@ object SportsParser {
             .filterTo(HashSet()) { it.length >= 3 }
         val parsed = slots.mapNotNull { (id, name) ->
             if (!worthParsing(name, clubWords)) null
-            else parseIndexed(id, name, nowMs, idx, amb, ali)
+            else parseIndexed(id, name, nowMs, idx, amb, ali)?.let { e ->
+                // Applied after the parse rather than inside it: the parse is
+                // about reading a name and these are facts about a stream,
+                // and keeping them apart means the expensive half stays
+                // cacheable when only the measurements change.
+                quality[e.streamId]?.let { q ->
+                    e.copy(
+                        measuredHeight = q.height,
+                        measuredFps = q.fps,
+                        blackFiller = q.black,
+                    )
+                } ?: e
+            }
         }
         // A fixture is women's, or youth, or a reserve game, whatever the
         // slot in front of you says about it.
@@ -1458,6 +1488,25 @@ object SportsParser {
         // earned no say in the kick-off, and the row takes its time from
         // whoever wins here.
         { if (it.wrongSport) 1 else 0 },
+        // A slot with no picture is not a feed. Black filler is valid
+        // decodable video, so it never errors, the player's failover ladder
+        // never fires and no watchdog can see it — the viewer simply sits
+        // looking at black. Demoted rather than dropped, the same rule the
+        // channel ladder uses: a PPV slot is legitimately black between
+        // fixtures, and one measured black last night may carry a real match
+        // tonight, so it sinks to the bottom and stays reachable.
+        { if (it.blackFiller) 1 else 0 },
+        // What we measured, before what the pack called itself. Negated so
+        // taller and smoother sort first; 0 means never measured and lands
+        // after anything that was, which is the convention the channel
+        // ladder already uses for an unprobed source.
+        { -it.measuredHeight },
+        // Height frequently cannot separate sport feeds — five of six slots
+        // carrying two Champions League matches were 1080p — and frame rate
+        // completely does: 50, 30 and 25 on the same match. Below height
+        // deliberately: trading resolution for frame rate is a judgement
+        // nothing here has measured.
+        { -it.measuredFps },
         { it.tierRank },
         // Only reached when the two advertise the same picture, which for the
         // bracketed packs means neither said anything at all. See sourceOf.
