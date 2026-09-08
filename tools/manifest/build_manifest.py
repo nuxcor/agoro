@@ -309,6 +309,39 @@ def _eff_region(s):
 # renames it so the stale claim never reaches a viewer.
 NAMED_KEEP = {
     1577208: 'UK',   # ES: M.LALIGA — Movistar's own LaLiga channel
+    # TNT's two 4K event channels, on their own tiles.
+    #
+    # Both sit in the panel's 4K category, whose "region" is a tier and not a
+    # territory, so they rely on the rescue that asks which territory OTHER
+    # channels sharing their tile key live in. That carried "4K: SKY SPORTS
+    # DARTS" through — it keys to skysportdarts and UK copies already hold it
+    # — but these key to tntsportevent and tntultimateliveevent, which nothing
+    # else in the catalogue shares. No sibling, no territory, dropped without
+    # ever being measured. 57 of the 59 "4K:" channels go the same way.
+    #
+    # It has to be NAMED_KEEP and not REGION_FIX_ID: that only sets a region
+    # inside the tile fold, and the fold discards anything with one source
+    # (len(srcs) < 2), so a channel whose key nothing shares can never become
+    # a tile member and can never be rescued by tile membership. This is the
+    # only gate that admits a channel standing on its own.
+    #
+    # Measured on the World 8K line 2026-09-08, both live: hevc 3840x2160 @50,
+    # 10-bit, smpte2084/bt2020 — real HDR10, the best picture this catalogue
+    # carries. A frame off 1544247 showed live coverage, so they are fed even
+    # when the numbered channels are on something else.
+    #
+    # Their OWN tiles rather than folded into tntsport1, deliberately: an
+    # event channel follows whichever fixture it is given. That night the 4K
+    # feed carried PSG while TNT Sport 1 had another match, so promoting it to
+    # lead a numbered channel's tile would point that tile at the wrong game.
+    #
+    # Whether this box can decode them is still open. HEVC-in-MPEG-TS has
+    # never been tested on it, and the ABC News result behind the "prefer
+    # H.264" rule was Disney's HLS hvc1, a different container and path.
+    # skysportdarts, skysportmainevent and tntsportultimate ALREADY lead with
+    # 4K HEVC, so that answer is load-bearing whatever happens here.
+    1544247: 'UK',   # 4K: TNT SPORTS UHD (EVENT)
+    1544246: 'UK',   # 4K: TNT ULTIMATE UHD+ (LIVE-EVENT)
 }
 
 dropped_region = [s['stream_id'] for s in ls
