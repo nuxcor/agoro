@@ -79,6 +79,12 @@ private val Context.playerDataStore: DataStore<Preferences> by preferencesDataSt
  */
 const val RECENT_CHANNEL_LIMIT = 20
 
+/** One row of chips, no more — a history longer than a screen is a list. */
+const val RECENT_SEARCH_LIMIT = 8
+
+/** Below this a query is a keystroke on the way somewhere, not a search. */
+const val MIN_RECORDED_SEARCH = 2
+
 /** How long borrowed-art answers pool before they are written; see [PlayerPrefs.putArtwork]. */
 private const val ARTWORK_FLUSH_MS = 2_000L
 
@@ -126,6 +132,7 @@ class PlayerPrefs(private val context: Context) {
     private val watchedKey = stringPreferencesKey("watched_at")
     private val videoQualityKey = stringPreferencesKey("video_quality")
     private val recentChannelsKey = stringPreferencesKey("recent_channels")
+    private val recentSearchesKey = stringPreferencesKey("recent_searches")
     private val aspectModeKey = stringPreferencesKey("aspect_mode")
     private val aspectOverridesKey = stringPreferencesKey("aspect_overrides")
     private val audioLangKey = stringPreferencesKey("preferred_audio_lang")
@@ -181,6 +188,7 @@ class PlayerPrefs(private val context: Context) {
     private val watchedSlot = JsonSlot<Map<String, Long>>(emptyMap()) { json.decodeFromString(it) }
     private val favoritesSlot = JsonSlot<Set<String>>(emptySet()) { json.decodeFromString(it) }
     private val recentChannelsSlot = JsonSlot<List<String>>(emptyList()) { json.decodeFromString(it) }
+    private val recentSearchesSlot = JsonSlot<List<String>>(emptyList()) { json.decodeFromString(it) }
     private val hiddenSlot = JsonSlot<Set<String>>(emptySet()) { json.decodeFromString(it) }
     private val hiddenTitlesSlot = JsonSlot<Set<String>>(emptySet()) { json.decodeFromString(it) }
 
@@ -586,6 +594,52 @@ class PlayerPrefs(private val context: Context) {
     val recentChannels: Flow<List<String>> = context.playerDataStore.data.map { prefs ->
         recentChannelsSlot.read(prefs[recentChannelsKey])
     }.flowOn(Dispatchers.Default)
+
+    /**
+     * Queries this viewer has actually searched for, newest first.
+     *
+     * Worth storing for one reason: typing on a remote is walking a D-pad
+     * around a grid of letters, so the cheapest search is one already typed.
+     * Every other surface in the app remembers what you did — channels, resume
+     * positions, the tab you were on — and search was the one that made you
+     * start from nothing every time.
+     */
+    val recentSearches: Flow<List<String>> = context.playerDataStore.data.map { prefs ->
+        recentSearchesSlot.read(prefs[recentSearchesKey])
+    }.flowOn(Dispatchers.Default)
+
+    /**
+     * Records a query, moving it to the front if it was searched before.
+     *
+     * Compared case-insensitively so "Arsenal" typed twice with a stray
+     * capital is one entry, but stored as the viewer typed it — the list is
+     * read back as words, and lower-casing a name to save a duplicate makes
+     * every one of them look wrong.
+     */
+    suspend fun recordSearch(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.length < MIN_RECORDED_SEARCH) return
+        context.playerDataStore.edit { prefs ->
+            val current = prefs[recentSearchesKey]?.let {
+                runCatching { json.decodeFromString<List<String>>(it) }.getOrNull()
+            } ?: emptyList()
+            val updated = (listOf(trimmed) + current.filterNot { it.equals(trimmed, true) })
+                .take(RECENT_SEARCH_LIMIT)
+            prefs[recentSearchesKey] = json.encodeToString(updated)
+        }
+    }
+
+    /** Forgets one query, for the long-press on its chip. */
+    suspend fun forgetSearch(query: String) {
+        context.playerDataStore.edit { prefs ->
+            val current = prefs[recentSearchesKey]?.let {
+                runCatching { json.decodeFromString<List<String>>(it) }.getOrNull()
+            } ?: emptyList()
+            prefs[recentSearchesKey] = json.encodeToString(
+                current.filterNot { it.equals(query.trim(), true) }
+            )
+        }
+    }
 
     /**
      * Records a channel as watched, moving it to the front if it was already

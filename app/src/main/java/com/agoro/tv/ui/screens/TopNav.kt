@@ -73,11 +73,19 @@ private val MARKER_HEIGHT = 3.dp
 private val MARKER_WIDTH = 20.dp
 
 enum class HomeTab(val label: String, val icon: ImageVector) {
-    // Enum order is header order, left to right; Home leads because it is the
-    // landing tab. Settings is last and gets pushed to the far right — see
+    // Enum order is header order, left to right.
+    //
+    // Search leads, as an icon rather than a word — the shape everyone already
+    // reads, in the corner every TV puts it. It is not a destination in the
+    // way the others are: you go to Home, to Movies, to Live TV, but you don't
+    // go to Search, you use it. An icon says that where a word sitting in the
+    // same run as "Movies" and "Series" claimed to be one of them.
+    //
+    // Home still LANDS the app; leading the row and being the landing are
+    // different jobs. Settings is last and gets pushed to the far right — see
     // [TopNav].
-    Home("Home", Icons.Default.Home),
     Search("Search", Icons.Default.Search),
+    Home("Home", Icons.Default.Home),
     Live("Live TV", Icons.Default.LiveTv),
     // Beside Live TV because that is what it is — live, just organised by
     // fixture instead of by channel. "Sport" and not "Sports": the Live TV
@@ -212,6 +220,9 @@ internal fun TopNav(
             TopNavItem(
                 label = item.label,
                 selected = item == selected,
+                // Search is the icon; everything else is its word.
+                icon = item.icon.takeIf { item == HomeTab.Search },
+                labelled = item != HomeTab.Search,
                 onClick = { commit(index) },
                 modifier = Modifier
                     .focusRequester(itemFocus[index])
@@ -250,6 +261,14 @@ private fun TopNavItem(
      */
     accent: Boolean = false,
     icon: ImageVector? = null,
+    /**
+     * False draws the icon alone, with [label] left to the screen reader.
+     *
+     * Only Search does this. A row of icons would be a puzzle at ten feet —
+     * the words are what make the header readable — but the one control that
+     * is an action rather than a place earns the shape instead.
+     */
+    labelled: Boolean = true,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         Surface(
@@ -289,8 +308,16 @@ private fun TopNavItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Space.s),
             ) {
-                if (icon != null) Icon(icon, contentDescription = null, Modifier.size(18.dp))
-                Text(
+                if (icon != null) {
+                    Icon(
+                        icon,
+                        // The label still has to exist for anyone not reading
+                        // the screen; it just isn't drawn.
+                        contentDescription = if (labelled) null else label,
+                        modifier = Modifier.size(if (labelled) 18.dp else 22.dp),
+                    )
+                }
+                if (labelled) Text(
                     text = label,
                     style = MaterialTheme.typography.labelLarge,
                     // One line, always. A header that grows a second line

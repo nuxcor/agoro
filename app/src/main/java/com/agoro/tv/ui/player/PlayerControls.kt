@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.SubtitlesOff
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -88,6 +90,15 @@ internal fun PlayerControls(
     onGuide: () -> Unit,
     onOptions: () -> Unit,
     onPip: () -> Unit,
+    /**
+     * Subtitles on right now, or null when this stream carries none.
+     *
+     * Null hides the button rather than disabling it: a control that is always
+     * there and does nothing on most streams is worse than one that appears
+     * when it can act.
+     */
+    subtitlesOn: Boolean? = null,
+    onToggleSubtitles: () -> Unit = {},
     onInteraction: () -> Unit,
 ) {
     // Initial focus goes to the play/pause button — the one control
@@ -171,6 +182,27 @@ internal fun PlayerControls(
                     onGuide,
                     modifier = if (hasPlaylist) Modifier else Modifier.focusRequester(playFocus),
                     showLabel = labelled,
+                )
+            }
+            // Subtitles are one press, here, and not three into a menu.
+            //
+            // The full track list still lives under Options, because picking
+            // BETWEEN languages is a different question from wanting subtitles
+            // at all — and the second question is the one asked constantly.
+            // Turning them on also SAVES the language, which the player
+            // already applies to everything opened afterwards, so the press is
+            // "subtitles on" for the evening rather than for this film.
+            if (subtitlesOn != null) {
+                ControlButton(
+                    icon = if (subtitlesOn) Icons.Default.Subtitles
+                    else Icons.Default.SubtitlesOff,
+                    label = "Subtitles",
+                    onClick = onToggleSubtitles,
+                    showLabel = labelled,
+                    // Gold while on, the way the selected tab is gold: this is
+                    // the one button in the row with a state to report rather
+                    // than an action to offer.
+                    tint = if (subtitlesOn) NuxColors.Primary else NuxColors.OnSurface,
                 )
             }
             ControlButton(Icons.Default.Tune, "Options", onOptions, showLabel = true)
