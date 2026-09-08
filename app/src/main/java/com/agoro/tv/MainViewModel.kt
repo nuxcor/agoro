@@ -189,11 +189,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // fixture row is the lock bypassed.
         val sides = title?.let { com.agoro.tv.data.SportsParser.readFixture(it) }
         val broadcasters = if (sides == null) emptyList() else {
-            val guide = nowNext.value
+            // repo.programsFor, NOT nowNext.
+            //
+            // nowNext is stateIn(WhileSubscribed(5_000), emptyMap()), and the
+            // Sport tab does not collect it — its rows show a fixture, not a
+            // channel's now/next. So five seconds after leaving a screen that
+            // does, .value is an EMPTY MAP, the index was built over no guide
+            // at all, no broadcaster was ever found, and the row fell back to
+            // the slot. That is why v2.47.0 still opened the tennis feed.
+            //
+            // Reading .value off a cold WhileSubscribed flow makes a
+            // correctness-critical lookup depend on which screen happens to be
+            // subscribed. programsFor is two map lookups — guideIdFor, then
+            // byGuideId — so asking it directly costs nothing and cannot go
+            // cold.
+            val atMs = System.currentTimeMillis()
             com.agoro.tv.data.broadcastersFor(
                 sides.first, sides.second,
-                com.agoro.tv.data.broadcasterIndex(displayChannels.value) {
-                    guide[it.id]?.now?.title
+                com.agoro.tv.data.broadcasterIndex(displayChannels.value) { channel ->
+                    repo.programsFor(channel)
+                        .firstOrNull { atMs in it.startMs until it.endMs }?.title
                 },
             )
         }
