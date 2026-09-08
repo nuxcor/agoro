@@ -110,7 +110,10 @@ fun SportTab(
         // is a drawer, and a pane with nothing focusable leaves the remote
         // dead until BACK.
         StatusPane(
-            title = "Sport isn't set up",
+            // Matches the tab it belongs to. An empty state that names the
+            // destination differently from the header reads as a message
+            // about something else.
+            title = "Sports isn't set up",
             message = "This playlist carries no fixture listings.",
             icon = Icons.Default.SportsSoccer,
             primaryAction = StatusAction("Browse Live TV") { onBrowse(HomeTab.Live) },
