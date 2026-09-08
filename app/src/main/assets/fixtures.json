@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-08T16:38:29Z",
+ "generated": "2026-09-08T21:07:44Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -25,7 +25,7 @@
    "start": "2026-09-08T16:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/887.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/4411.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -34,7 +34,7 @@
    "start": "2026-09-08T16:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/570.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/362.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -46,7 +46,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/349.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/314.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -61,7 +61,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/384.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/369.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -73,7 +73,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/309.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/387.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -85,7 +85,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/366.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/306.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -97,7 +97,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/391.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/361.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -109,7 +109,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/124.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/102.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -121,7 +121,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/437.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/382.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -133,7 +133,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/166.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/244.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -145,7 +145,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/110.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
