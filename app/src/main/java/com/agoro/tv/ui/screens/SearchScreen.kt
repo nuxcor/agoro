@@ -231,7 +231,15 @@ fun SearchTab(
                         runCatching { speech.launch(voiceIntent) }
                     },
                 ) {
-                    androidx.compose.material3.Icon(
+                    // tv-material3's Icon, not Compose Material3's — this was
+                    // the one place in the app that used the other one, and it
+                    // is why the mic came out dark and hard to see. Material3's
+                    // Icon tints from ITS OWN LocalContentColor, which nothing
+                    // here provides: the app themes with tv-material3, so the
+                    // M3 hierarchy is never set up and the icon fell back to a
+                    // near-black default instead of inheriting the button's
+                    // content colour.
+                    androidx.tv.material3.Icon(
                         Icons.Default.Mic,
                         contentDescription = "Search by voice",
                     )

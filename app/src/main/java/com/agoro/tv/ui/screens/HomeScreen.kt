@@ -318,7 +318,11 @@ fun HomeScreen(
             // viewer out of the header mid-choice, leaving LEFT/RIGHT dead.
             // Re-armed the instant focus enters the content.
             androidx.compose.runtime.CompositionLocalProvider(
-                com.agoro.tv.ui.components.LocalArrivalFocusAllowed provides !headerFocused
+                com.agoro.tv.ui.components.LocalArrivalFocusAllowed provides !headerFocused,
+                // How a tab hands UP back to the navigation above it. Every
+                // tab already intercepts UP at its top edge; before the header
+                // existed they all intercepted it and went nowhere.
+                com.agoro.tv.ui.components.LocalTopNavFocus provides { focusHeader() },
             ) {
             tabStateHolder.SaveableStateProvider(current.name) {
                 if (current == HomeTab.Settings) {

@@ -14,11 +14,11 @@ class EpisodeMetaTest {
     private val today = "2026-09-07"
 
     @Test
-    fun `a resume position takes the line alone`() {
-        // It is the only thing in the slot the viewer can act on; where they
-        // are beats what the episode is.
-        val meta = episodeMeta(resumeMs = 4_320_000, runtimeMinutes = 58, airDate = "2008-01-20", todayIso = today)
-        assertEquals("Resume from 1h 12m", meta)
+    fun `a part-watched episode still reads as itself`() {
+        // "Resume from 1h 12m" used to take this line alone. It was the
+        // progress bar across the still, said again in words, and it cost the
+        // row the date and the runtime.
+        assertEquals("20 Jan 2008 · 58m", episodeMeta(58, "2008-01-20", today))
     }
 
     @Test
@@ -27,13 +27,13 @@ class EpisodeMetaTest {
         // stable down the list — and dates are not ("1 Mar" vs "12 Mar 2024").
         assertEquals(
             "20 Jan 2008 · 58m",
-            episodeMeta(0, runtimeMinutes = 58, airDate = "2008-01-20", todayIso = today),
+            episodeMeta(runtimeMinutes = 58, airDate = "2008-01-20", todayIso = today),
         )
     }
 
     @Test
     fun `an episode from this year drops the year`() {
-        assertEquals("3 Mar · 58m", episodeMeta(0, 58, "2026-03-03", today))
+        assertEquals("3 Mar · 58m", episodeMeta(58, "2026-03-03", today))
     }
 
     @Test
@@ -44,13 +44,13 @@ class EpisodeMetaTest {
 
     @Test
     fun `either half alone still fills the line`() {
-        assertEquals("58m", episodeMeta(0, 58, null, today))
-        assertEquals("20 Jan 2008", episodeMeta(0, null, "2008-01-20", today))
+        assertEquals("58m", episodeMeta(58, null, today))
+        assertEquals("20 Jan 2008", episodeMeta(null, "2008-01-20", today))
     }
 
     @Test
     fun `nothing known is no line at all`() {
-        assertNull(episodeMeta(0, null, null, today))
+        assertNull(episodeMeta(null, null, today))
     }
 
     @Test
@@ -64,9 +64,8 @@ class EpisodeMetaTest {
 
     @Test
     fun `the worst case is no wider than what the slot already shipped`() {
-        // The layout argument for keeping this to one line: the row already
-        // carried "Resume from 1h 12m" at 18 characters.
-        val worst = episodeMeta(0, 62, "2008-12-20", today)!!
-        assertTrue(worst, worst.length <= "Resume from 1h 12m".length + 1)
+        // The layout argument for keeping this to one line.
+        val worst = episodeMeta(62, "2008-12-20", today)!!
+        assertTrue(worst, worst.length <= 20)
     }
 }

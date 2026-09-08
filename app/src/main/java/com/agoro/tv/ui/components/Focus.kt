@@ -53,6 +53,20 @@ suspend fun FocusRequester.requestFocusRetrying(
 val LocalArrivalFocusAllowed = androidx.compose.runtime.compositionLocalOf { true }
 
 /**
+ * Send focus up to the top navigation, or null when there is none above.
+ *
+ * UP out of the top of a tab is an EXPLICIT request, not a geometric search.
+ * The search is what this codebase keeps having to take back: it refuses moves
+ * inside overlaid groups, it sails past a scrolled strip to whatever is
+ * nearest in a straight line, and in a windowed grid it aims at cells that
+ * have not been composed. Every tab already intercepts UP at its top edge for
+ * exactly those reasons — they just used to intercept it and go NOWHERE,
+ * because the navigation was a drawer and there was nothing above the content
+ * to reach. There is now.
+ */
+val LocalTopNavFocus = androidx.compose.runtime.compositionLocalOf<(() -> Unit)?> { null }
+
+/**
  * The common "focus this on arrival" case: a requester whose target is focused
  * once per [keys] change, with the standard retry loop.
  *

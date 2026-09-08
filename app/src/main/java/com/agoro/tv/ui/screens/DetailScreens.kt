@@ -547,7 +547,6 @@ fun SeriesDetailScreen(
                             // [episodeMeta] for why they share one line, and
                             // in that order.
                             meta = episodeMeta(
-                                resumeMs = watchedTo,
                                 // The show's average is LAST, after the
                                 // episode's own and after TMDB's: it is a
                                 // property of the series, so it must not

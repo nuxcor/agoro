@@ -424,6 +424,8 @@ private fun VodBrowser(
     // at all, and when it existed the landing on "All" dwell-selected it and
     // wiped the category the viewer had chosen.
     val categoriesFocus = remember { FocusRequester() }
+    /** Where UP out of the strip goes; null when nothing is above. */
+    val toTopNav = com.agoro.tv.ui.components.LocalTopNavFocus.current
     val posterFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
 
@@ -506,7 +508,19 @@ private fun VodBrowser(
             modifier = Modifier
                 .padding(bottom = 10.dp)
                 .focusRequester(categoriesFocus)
-                .focusRestorer(),
+                .focusRestorer()
+                // The strip is this tab's top edge, so UP out of it belongs to
+                // the navigation above. Explicit, not geometric: the chips
+                // scroll horizontally, and the search happily sails from a
+                // scrolled strip to whatever is nearest in a straight line.
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown &&
+                        event.key == Key.DirectionUp && toTopNav != null
+                    ) {
+                        toTopNav.invoke()
+                        true
+                    } else false
+                },
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(end = 16.dp),
         ) {
