@@ -8,7 +8,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.agoro.tv.data.userMessage
 import com.agoro.tv.data.ArtEntry
+import com.agoro.tv.data.EpisodeFacts
 import com.agoro.tv.data.EpisodeTitle
+import com.agoro.tv.data.TmdbEpisode
 import com.agoro.tv.data.Category
 import com.agoro.tv.data.ContentBundle
 import com.agoro.tv.data.ContentRepository
@@ -28,6 +30,7 @@ import com.agoro.tv.recording.RecordingScheduler
 import com.agoro.tv.ui.screens.foldMovieVariants
 import com.agoro.tv.ui.screens.foldSeriesVariants
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -671,6 +674,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var addState by mutableStateOf<AddState>(AddState.Idle)
         private set
 
+    // --- launch target --------------------------------------------------------
+    //
+    // DECLARED ABOVE `init`, and it has to stay there. `resolveStartTarget()`
+    // is called from the init block, `viewModelScope` dispatches on
+    // Dispatchers.Main.immediate, and immediate means the coroutine body runs
+    // INLINE on the thread that launched it — so if `decideStartTarget()`
+    // returns or throws without ever suspending, `_startTarget.value = …`
+    // executes while the constructor is still walking the class body. A field
+    // declared below the init block is still null at that moment, and the
+    // launch died with an NPE on the one path that was written to be
+    // unkillable: `runCatching { … }.getOrElse { StartTarget.Home }` catches
+    // the throw, and then the recovery itself is what crashes.
+
+    private val _startTarget = MutableStateFlow(StartTarget.Pending)
+
+    /**
+     * Whether this launch opens on the player or on Home.
+     *
+     * Resolved once, before anything is drawn, so the shell can hold the boot
+     * background rather than flashing Home on its way to a channel. An install
+     * with nothing to resume settles this on the first read and waits for
+     * nothing — only a launch that HAS a channel to reopen waits for the
+     * catalogue, and then only until [RESUME_CATALOGUE_WAIT_MS].
+     */
+    val startTarget: StateFlow<StartTarget> = _startTarget
+
     init {
         // Before anything reads URL-keyed prefs: live URLs changed .m3u8 → .ts
         // and favorites/hidden/learned-quality keys must follow them.
@@ -1072,7 +1101,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         MutableStateFlow<com.agoro.tv.data.XtreamClient.AccountInfo?>(null)
     val accountInfo: StateFlow<com.agoro.tv.data.XtreamClient.AccountInfo?> = _accountInfo
 
-    /** Starts true so the drawer hint never flashes for installs that saw it. */
+    /**
+     * Retired with the nav drawer it taught (the header needs no coach mark),
+     * but kept: the flag is already written on every existing install, and the
+     * key is carried by backup/restore. Removing it is a data change, not a UI
+     * one.
+     */
     val menuHintSeen: StateFlow<Boolean> = playerPrefs.menuHintSeen
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
@@ -1305,6 +1339,115 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         return result
     }
+
+    // --- episode detail, borrowed ---------------------------------------------
+
+    /**
+     * "$tmdbId:$season" → the fetch for that season, running or finished.
+     *
+     * The fetch itself is the cache entry, so asking twice never asks twice:
+     * a completed [kotlinx.coroutines.Deferred] hands back its map instantly,
+     * and an empty map is a recorded "TMDB has nothing to add", which is why
+     * a miss costs one request per session rather than one per visit.
+     *
+     * In memory rather than DataStore: a season is 10-40 entries of name,
+     * still, date and runtime, and a hundred of those in the preferences blob
+     * would be decoded and re-encoded on every artwork write. The MERGED
+     * episodes go back into [episodesCache] anyway, which is where the fill
+     * survives re-opening the page.
+     *
+     * Eviction does not cancel: an evicted fetch belongs to [viewModelScope],
+     * so a caller already awaiting it still gets its answer — it simply is
+     * not found by the next asker, who starts a new one.
+     */
+    private val seasonCache =
+        object : LinkedHashMap<String, kotlinx.coroutines.Deferred<Map<Int, TmdbEpisode>>>(
+            16, 0.75f, true,
+        ) {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<
+                    String, kotlinx.coroutines.Deferred<Map<Int, TmdbEpisode>>,
+                    >,
+            ) = size > 60
+        }
+
+    /** Two at a time. A viewer walking the season bar can only ask so fast. */
+    private val seasonConcurrency = kotlinx.coroutines.sync.Semaphore(2)
+
+    /**
+     * The in-flight-or-finished fetch for one season, started at most once.
+     *
+     * A Deferred on [viewModelScope] rather than a plain suspend call in the
+     * caller's scope, and that is the entire point: this is asked for from a
+     * LaunchedEffect, which is cancelled and restarted whenever the screen's
+     * keys move — and they always move at least once, because the season bar
+     * settles as the episodes arrive. Tied to the composition, the request
+     * that was 100ms from finishing got killed, and the restart then had to
+     * decide what to do about a fetch it could see was already running.
+     *
+     * Both answers to that were wrong. Waiting on a shared "in flight" flag
+     * and giving up meant the retry returned nothing and nothing ever asked
+     * again. Recording the cancelled attempt as an answer meant caching an
+     * empty season, which is indistinguishable from "TMDB has nothing" and
+     * poisoned the show for the rest of the session.
+     *
+     * A Deferred has neither problem: the fetch belongs to the ViewModel and
+     * outlives any one composition, every caller awaits the same one, and a
+     * caller that goes away takes nothing with it.
+     */
+    private fun seasonFetch(
+        tvId: Int,
+        season: Int,
+        key: String,
+    ): kotlinx.coroutines.Deferred<Map<Int, TmdbEpisode>> =
+        synchronized(seasonCache) {
+            seasonCache.getOrPut("$tvId:$season") {
+                viewModelScope.async {
+                    seasonConcurrency.withPermit { repo.tmdbSeason(tvId, season, key) }
+                }
+            }
+        }
+
+    /**
+     * [episodes] with one season's holes filled from TMDB, or null when there
+     * was nothing to do — no key, no id, nothing missing, or nothing TMDB
+     * could add.
+     *
+     * Null rather than the unchanged list on purpose: the caller assigns this
+     * into Compose state, and an equal-but-new list would recompose the whole
+     * season to redraw what was already on screen.
+     *
+     * Suspends until the season's fetch answers. A caller that goes away
+     * mid-flight cancels only its own wait — see [seasonFetch].
+     */
+    suspend fun episodeDetails(
+        series: Series,
+        episodes: List<Episode>,
+        season: Int,
+    ): List<Episode>? {
+        val key = tmdbApiKey ?: return null
+        val tvId = series.tmdbId ?: return null
+        // Nothing to ask about: every episode of this season already has a
+        // name, a picture, a runtime and a date. Checked BEFORE the cache so
+        // a complete season never spends a request at all.
+        val holes = episodes.any { episode ->
+            episode.season == season && (
+                episode.title.isBlank() || episode.poster == null ||
+                    episode.runtimeMinutes == null || episode.airDate == null
+                )
+        }
+        if (!holes) return null
+
+        val tmdb = seasonFetch(tvId, season, key).await()
+
+        val merged = EpisodeFacts.fill(episodes, season, tmdb)
+        if (merged === episodes) return null
+        // Back into the session cache, so re-opening the series shows the
+        // filled rows immediately rather than asking again.
+        synchronized(episodesCache) { episodesCache[series.id] = merged }
+        return merged
+    }
+
     suspend fun epgFor(channel: LiveChannel): List<EpgProgram> = repo.epgFor(channel)
     suspend fun catchupUrl(channel: LiveChannel, program: EpgProgram): String? =
         repo.catchupUrl(channel, program)
@@ -1537,19 +1680,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // --- launch target --------------------------------------------------------
-
-    private val _startTarget = MutableStateFlow(StartTarget.Pending)
-
-    /**
-     * Whether this launch opens on the player or on Home.
-     *
-     * Resolved once, before anything is drawn, so the shell can hold the boot
-     * background rather than flashing Home on its way to a channel. An install
-     * with nothing to resume settles this on the first read and waits for
-     * nothing — only a launch that HAS a channel to reopen waits for the
-     * catalogue, and then only until [RESUME_CATALOGUE_WAIT_MS].
-     */
-    val startTarget: StateFlow<StartTarget> = _startTarget
 
     private fun resolveStartTarget() {
         viewModelScope.launch {

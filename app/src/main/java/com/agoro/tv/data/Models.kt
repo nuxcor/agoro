@@ -163,6 +163,28 @@ data class Episode(
     val durationText: String? = null,
     /** Synopsis, when the provider ships one. Defaulted, so old caches load. */
     val plot: String? = null,
+    /**
+     * How long the episode runs, in whole minutes.
+     *
+     * Its own field rather than more parsing of [durationText], because the
+     * three sources that answer this disagree on shape and only one of them
+     * is a string: Xtream's `duration_secs` is an integer, TMDB's `runtime`
+     * is minutes, and `duration` is "00:42:00" — into which panels also write
+     * "00:00:00" to mean "I don't know". A string field cannot tell that
+     * apart from a length, and the merge needs a field that is honestly null
+     * when nobody knows.
+     */
+    val runtimeMinutes: Int? = null,
+    /**
+     * The day it first aired, as "2024-03-12".
+     *
+     * A calendar date rather than an epoch, deliberately: an episode that
+     * aired on the 12th aired on the 12th everywhere, and parsing this to
+     * millis would push the label a day either side of midnight for anyone
+     * west of the broadcaster. Normalised to exactly this shape — and the
+     * panel's "0000-00-00" rejected — by [EpisodeFacts.airDate].
+     */
+    val airDate: String? = null,
 )
 
 /**
@@ -207,6 +229,25 @@ data class Series(
     /** Top-billed actors, comma-separated. Provider value, else TMDB credits. */
     val cast: String? = null,
     val director: String? = null,
+    /**
+     * The panel's own TMDB id for this show — present on 8,402 of this one's
+     * 8,598 series.
+     *
+     * An EXACT id, not a search result: it is what lets the episode fill ask
+     * for "season 3 of THIS show" rather than guessing from a title that has
+     * already been through two cleaning passes. Null falls back to the id
+     * [ContentRepository.seriesDetails]'s existing lookup already finds and
+     * used to throw away.
+     */
+    val tmdbId: Int? = null,
+    /**
+     * The show's usual episode length in minutes (Xtream `episode_run_time`).
+     *
+     * A property of the SHOW, so it lives here rather than being stamped onto
+     * forty copies of itself — and so it ranks BELOW TMDB's per-episode
+     * runtime instead of blocking it. The panel writes 0 for unknown.
+     */
+    val episodeRuntimeMinutes: Int? = null,
 )
 
 @Serializable

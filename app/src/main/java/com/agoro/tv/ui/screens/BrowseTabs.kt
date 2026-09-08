@@ -106,9 +106,11 @@ internal const val VOD_ALL = "__all__"
  * fixing the columns, so a poster is always the same size.
  *
  * Five fixed columns divided whatever width was left after two collapsible
- * panels — the rail (64↔190dp) and the 190dp category column — so walking
- * rail → categories → grid re-laid the pane out twice and took cells from
- * ~76dp to ~145dp. The posters visibly inflated as you moved toward them.
+ * panels — the nav rail, back when it was one, and the 190dp category column
+ * — so walking rail → categories → grid re-laid the pane out twice and took
+ * cells from ~76dp to ~145dp. The posters visibly inflated as you moved
+ * toward them. The nav drawer reserves nothing today; the category column
+ * still does, so this stays derived rather than fixed.
  */
 private val POSTER_TARGET_WIDTH = 168.dp
 private val GRID_GAP = 16.dp

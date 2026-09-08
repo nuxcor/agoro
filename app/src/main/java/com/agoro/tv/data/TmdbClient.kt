@@ -23,6 +23,28 @@ data class TmdbInfo(
     /** Top-billed actors, comma-separated. */
     val cast: String?,
     val director: String?,
+    /**
+     * The id the search matched. Read all along and thrown away, and it is
+     * the fallback that makes episode enrichment work for M3U shows and for
+     * the 2.3% of series the panel ships no `tmdb` for.
+     */
+    val tmdbId: Int?,
+)
+
+/**
+ * One episode as TMDB has it.
+ *
+ * Every field independently nullable: TMDB has a name for nearly everything,
+ * a still for most things and a runtime for rather less, and a partial answer
+ * is still worth merging.
+ */
+data class TmdbEpisode(
+    val episodeNum: Int,
+    val name: String?,
+    val overview: String?,
+    val stillUrl: String?,
+    val airDate: String?,
+    val runtimeMinutes: Int?,
 )
 
 /**
@@ -128,7 +150,47 @@ class TmdbClient(private val http: OkHttpClient, private val apiKey: String) {
             reviews = reviews,
             cast = cast,
             director = director,
+            tmdbId = id,
         )
+    }
+
+    /**
+     * One season's episodes, keyed by episode number.
+     *
+     * The whole cost of episode metadata: `/tv/{id}/season/{n}` answers with
+     * the ENTIRE season — name, overview, still, air date and runtime for
+     * every episode — so a season a viewer opens is one round trip, not one
+     * per row.
+     *
+     * [tvId] is the panel's own id wherever it sent one, so there is no
+     * search step and no chance of merging another show's episode names into
+     * this one's rows.
+     *
+     * Unlike [art] this does NOT distinguish "TMDB has no such season" from
+     * "TMDB could not be reached": both answer empty. That distinction earns
+     * its keep in [art] because art answers are written to disk forever,
+     * where recording an outage as a miss is permanent. These are held in
+     * memory for the session, so a conflated outage costs panel-only rows
+     * until the next launch — and in exchange this is capped at one request
+     * per (show, season) per session, with no retry path to storm from.
+     */
+    suspend fun season(tvId: Int, season: Int): Map<Int, TmdbEpisode> {
+        val root = get("https://api.themoviedb.org/3/tv/$tvId/season/$season?api_key=$apiKey")
+            ?: return emptyMap()
+        return (root["episodes"] as? JsonArray).orEmpty()
+            .filterIsInstance<JsonObject>()
+            .mapNotNull { obj ->
+                val num = obj.int("episode_number") ?: return@mapNotNull null
+                num to TmdbEpisode(
+                    episodeNum = num,
+                    name = obj.str("name")?.takeIf { it.isNotBlank() },
+                    overview = obj.str("overview")?.takeIf { it.isNotBlank() },
+                    stillUrl = obj.stillUrl(),
+                    airDate = EpisodeFacts.airDate(obj.str("air_date")),
+                    runtimeMinutes = obj.int("runtime")?.takeIf { it > 0 },
+                )
+            }
+            .toMap()
     }
 
     // w500 upscaled into a 220x330dp poster on a 4K panel is visibly soft; the
@@ -139,6 +201,12 @@ class TmdbClient(private val http: OkHttpClient, private val apiKey: String) {
 
     private fun JsonObject.backdropUrl() =
         str("backdrop_path")?.let { "https://image.tmdb.org/t/p/original$it" }
+
+    // Through ArtworkUrl, which owns STILL_SIZE, rather than pasting a rung
+    // here: two places naming the size is two places to drift, and the shape
+    // mistake ArtworkUrl documents cost every episode row in the app once.
+    private fun JsonObject.stillUrl() =
+        str("still_path")?.let { ArtworkUrl.still("https://image.tmdb.org/t/p/original$it") }
 
     /** TMDB could not be reached. Distinct from "TMDB has no such title". */
     class Unreachable : java.io.IOException("TMDB unreachable")
