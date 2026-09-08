@@ -323,9 +323,9 @@ object SportsParser {
         // Every word any club we carry uses, for the cheap test below.
         val clubWords = idx.flatMapTo(HashSet()) { it.third.split(' ') }
             .filterTo(HashSet()) { it.length >= 3 }
-        val parsed = slots.mapNotNull { (id, name) ->
+        val admitted = slots.mapNotNull { (id, name) ->
             if (!worthParsing(name, clubWords)) null
-            else parseIndexed(id, name, nowMs, idx, amb, ali)?.let { e ->
+            else parseIndexed(id, name, nowMs, idx, amb, ali, keepClockless = true)?.let { e ->
                 // Applied after the parse rather than inside it: the parse is
                 // about reading a name and these are facts about a stream,
                 // and keeping them apart means the expensive half stays
@@ -338,6 +338,25 @@ object SportsParser {
                     )
                 } ?: e
             }
+        }
+        // A slot with no clock rides on a sibling's, or it does not ride.
+        //
+        // The UEFA shelf's 74 slots carry a bare "5:45pm" and no date, so
+        // every one of them was refused — and that pack measured 1080p50
+        // against the "8K EXCLUSIVE" pack's 1080p30. Dating them by assuming
+        // today was considered and refused, because a stale slot then claims
+        // to be on tonight; [LiveNowTest] pins that refusal.
+        //
+        // The playlist itself settles it. A fixture that any OTHER slot dates
+        // is a fixture we know the time of, so the silent slot can join it and
+        // [lendClocks] fills the clock in before the window. A fixture nothing
+        // dates stays refused, exactly as before — which is the Celje v Slovan
+        // Bratislava case, European qualifying that no schedule covers.
+        val datedFixtures = admitted.asSequence()
+            .filter { it.startMs != null }
+            .mapTo(HashSet()) { fixtureKey(it) }
+        val parsed = admitted.filter {
+            it.startMs != null || it.live || fixtureKey(it) in datedFixtures
         }
         // A fixture is women's, or youth, or a reserve game, whatever the
         // slot in front of you says about it.
@@ -473,6 +492,18 @@ object SportsParser {
          * returns reaches a screen.
          */
         allowForeign: Boolean = false,
+        /**
+         * Return a fixture whose kick-off nothing in the name gives, instead
+         * of refusing it. Only [parseAll] passes true, and only because it can
+         * see the whole playlist: a slot with no clock is admitted there ONLY
+         * when a sibling slot dates the same fixture, and dropped otherwise.
+         *
+         * Never a date invented from today. The UEFA shelf writes "8:00 pm"
+         * and nothing else, and dating that by assuming today is how a row
+         * fills with matches that finished yesterday — considered before and
+         * refused, which [LiveNowTest] pins.
+         */
+        keepClockless: Boolean = false,
     ): SportsEvent? {
         val name = rawName.trim()
         if (name.isEmpty() || name.contains("NO EVENT", ignoreCase = true)) return null
@@ -535,6 +566,17 @@ object SportsParser {
         // said LIVE itself. Guessing that something might be on is how a row
         // fills with matches that finished hours ago.
         if (start == null) {
+            if (keepClockless && !liveWord.containsMatchIn(name)) {
+                // Not live, and not dated: [parseAll] decides whether any
+                // sibling can date this fixture, and drops it if none can.
+                return SportsEvent(
+                    streamId = streamId, league = league, home = home, away = away,
+                    startMs = null, live = false,
+                    tierRank = tierOf(name), sourceRank = sourceOf(name),
+                    wrongSport = isWrongSport(name, league),
+                    sideFeed = isSideFeed(name), languageFeed = isLanguageFeed(name),
+                )
+            }
             return if (liveWord.containsMatchIn(name)) {
                 SportsEvent(
                     streamId = streamId, league = league, home = home, away = away,
@@ -836,9 +878,21 @@ object SportsParser {
 
     /** The teams, taken from the busiest-looking field the name offers. */
     internal fun readFixture(name: String): Pair<String, String>? {
-        // Pipe formats put the fixture in its own field; the rest bury it in a
-        // line that also carries the slot number and the time.
-        val fields = name.split('|', ':').map { it.trim() }.filter { it.isNotEmpty() }
+        // The clock goes first, before the split can break it in half.
+        //
+        // The split treats ':' as a field separator, which cuts "5:45pm" into
+        // "5" and "45pm" — so the UEFA pack's 74 slots, which put the time
+        // AFTER the fixture, handed the club matcher "Aston Villa 5" and
+        // "Inter Milan 8" and matched nothing. The whole pack was invisible,
+        // and it is the one that measured 1080p50.
+        //
+        // Removed rather than stripped off the tail afterwards: a trailing
+        // bare number is not safely junk, because clubs are called Schalke 04
+        // and Hannover 96. Taking the clock out before anything splits leaves
+        // no residue to guess about. readStart still reads the ORIGINAL name,
+        // so nothing here costs a kick-off.
+        val fields = clockNoise.replace(name, " ")
+            .split('|', ':').map { it.trim() }.filter { it.isNotEmpty() }
         for (field in fields.sortedByDescending { it.length }) {
             val m = fixture.find(stripNoise(field)) ?: continue
             val home = clean(m.groupValues[1])
@@ -852,6 +906,14 @@ object SportsParser {
     // reads naturally and compiles a Pattern per call — and stripNoise runs
     // per field per slot, so a parse of 6,000 slots was ~30,000 trips
     // through Pattern.compile before a single name was read.
+
+    /**
+     * A clock anywhere in a slot name: "5:45pm", "8:20pm", "04:50:29".
+     *
+     * Only ever used to take the time OUT before the fixture is read. The
+     * patterns that read a kick-off work on the untouched name.
+     */
+    private val clockNoise = Regex("""(?i)\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:am|pm)?""")
 
     /** "8/20 8pm": the NFL pack's slot time. */
     private val noiseSlashTime = Regex("""(?i)\b\d{1,2}/\d{1,2}\s+\d{1,2}(?::\d{2})?\s*(am|pm)""")
@@ -1104,6 +1166,7 @@ object SportsParser {
         }
         return null
     }
+
 
     private fun hour24(h: Int, meridiem: String): Int {
         // A 24-hour clock says nothing after the number, and says it about

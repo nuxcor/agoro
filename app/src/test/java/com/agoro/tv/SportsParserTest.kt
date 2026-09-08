@@ -1664,4 +1664,88 @@ class SportsParserTest {
         assertEquals(1940148, best.streamId)
         assertEquals(listOf(1535953), best.alternates)
     }
+    // --- the UEFA pack, 74 slots that used to parse as nothing -------------
+
+    /**
+     * The pack puts its clock AFTER the fixture, and readFixture splits on
+     * ':' — so "5:45pm" was cut in half and the away side arrived as "Aston
+     * Villa 5". Nothing matched, and this is the pack that measured 1080p50
+     * against the "8K EXCLUSIVE" pack's 1080p30.
+     */
+    @Test
+    fun `the UEFA pack's trailing clock does not end up in a club name`() {
+        assertEquals(
+            "Club Brugge" to "Aston Villa",
+            SportsParser.readFixture("UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm"),
+        )
+        assertEquals(
+            "AEK Athens" to "LASK",
+            SportsParser.readFixture("UEFA | 01-  AEK Athens vs LASK 5:45pm"),
+        )
+    }
+
+    /**
+     * A trailing number is NOT safely junk — which is why the clock comes out
+     * before the split rather than being trimmed off the tail afterwards.
+     */
+    @Test
+    fun `a club whose name ends in digits survives`() {
+        assertEquals(
+            "Schalke 04" to "Hannover 96",
+            SportsParser.readFixture("UEFA  | 05 - Schalke 04 vs Hannover 96 7:30pm"),
+        )
+    }
+
+    /**
+     * Still refused on its own. The shelf gives a time and no date, and
+     * dating it by assuming today is how a row fills with matches that
+     * finished yesterday — see the same rule in LiveNowTest.
+     */
+    @Test
+    fun `a UEFA slot nothing else dates is still refused`() {
+        val now = ms(2026, 9, 8, 12, 0, "UTC")
+        val out = SportsParser.parseAll(
+            listOf(1025279 to "UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm"),
+            now, mapOf("UEFA" to listOf("Club Brugge", "Aston Villa")),
+        )
+        assertTrue("no sibling knows the time, so it cannot be shown", out.isEmpty())
+    }
+
+    /** But a sibling that DOES date the fixture carries it in. */
+    @Test
+    fun `a dated sibling admits the silent slot`() {
+        val now = ms(2026, 9, 8, 17, 30, "UTC")
+        val out = SportsParser.parseAll(
+            listOf(
+                1940148 to "Next | Club Brugge vs. Aston Villa | all | 08-09-2026 | 17:55 (GMT) | US: SOCCER PPV 9",
+                1025279 to "UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm",
+            ),
+            now,
+            mapOf("Champions League" to listOf("Club Brugge", "Aston Villa"),
+                  "UEFA" to listOf("Club Brugge", "Aston Villa")),
+        )
+        assertEquals(setOf(1940148, 1025279), out.mapTo(HashSet()) { it.streamId })
+    }
+
+    /** And the whole point: the measured feed can now win the fixture. */
+    @Test
+    fun `the UEFA slot becomes a candidate and leads on measurement`() {
+        val now = ms(2026, 9, 8, 17, 30, "UTC")
+        val best = SportsParser.bestPerFixture(
+            SportsParser.parseAll(
+                listOf(
+                    1940148 to "Next | Club Brugge vs. Aston Villa | all | 08-09-2026 | 17:55 (GMT) | 8K EXCLUSIVE | US: SOCCER PPV 9",
+                    1025279 to "UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm",
+                ),
+                now,
+                mapOf("Champions League" to listOf("Club Brugge", "Aston Villa"),
+                      "UEFA" to listOf("Club Brugge", "Aston Villa")),
+                quality = mapOf(
+                    1940148 to SlotQuality(height = 1080, fps = 30, black = true),
+                    1025279 to SlotQuality(height = 1080, fps = 50),
+                ),
+            )
+        ).single()
+        assertEquals(1025279, best.streamId)
+    }
 }
