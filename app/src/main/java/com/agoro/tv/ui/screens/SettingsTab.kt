@@ -173,6 +173,7 @@ internal fun SettingsTab(
     var storageFreed by remember { mutableStateOf<Long?>(null) }
     var storageBusy by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
+    var confirmForgetProgress by remember { mutableStateOf(false) }
     var confirmDeleteRecordings by remember { mutableStateOf(false) }
     LaunchedEffect(storageFreed) {
         storageReport = withContext(Dispatchers.IO) {
@@ -598,6 +599,15 @@ internal fun SettingsTab(
                     Button(onClick = { confirmClear = true }, enabled = !storageBusy) {
                         Text(if (storageBusy) "Clearing…" else "Clear caches")
                     }
+                    // Only where progress actually leaves the box. On a build
+                    // with no sync there is nothing "everywhere" about it, and
+                    // a button offering to reach a server that does not exist
+                    // is a control the viewer has to learn is a lie.
+                    if (com.agoro.tv.BuildConfig.SYNC_URL.isNotBlank()) {
+                        OutlinedButton(onClick = { confirmForgetProgress = true }) {
+                            Text("Forget watch progress")
+                        }
+                    }
                     // Only when there is something to delete, so it is absent
                     // on every box that never recorded. Recording was removed
                     // in this release and its Recordings tab went with it, so
@@ -668,6 +678,24 @@ internal fun SettingsTab(
                 }
             },
             onDismiss = { confirmDeleteRecordings = false },
+        )
+    }
+
+    if (confirmForgetProgress) {
+        ConfirmDialog(
+            title = "Forget watch progress?",
+            // Says where it reaches. "Forget on this TV" would be a lie on a
+            // household that syncs, and the whole point of the control is that
+            // data which left the box has a way back.
+            message = "Where you got to in every film and episode, on this TV " +
+                "and on any other signed into the same account. This cannot be undone.",
+            confirmLabel = "Forget",
+            onConfirm = {
+                confirmForgetProgress = false
+                vm.forgetProgressEverywhere()
+                pendingLoadMessage = "Watch progress forgotten"
+            },
+            onDismiss = { confirmForgetProgress = false },
         )
     }
 

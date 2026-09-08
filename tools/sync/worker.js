@@ -34,8 +34,16 @@ export default {
     // probe timing on the key.
     if (!ID.test(id)) return text(400, "bad id");
 
+    // SYNC_KEY_PREVIOUS is optional and exists only for rotation. Without it
+    // changing the key means every box is locked out until it updates, which
+    // makes rotating something nobody ever does — and a secret nobody rotates
+    // is a secret that leaks eventually. Set it to the old key, ship the app
+    // with the new one, then unset it.
     const auth = request.headers.get("authorization") || "";
-    if (auth !== `Bearer ${env.SYNC_KEY}`) return text(401, "unauthorized");
+    const accepted = [env.SYNC_KEY, env.SYNC_KEY_PREVIOUS]
+      .filter(Boolean)
+      .map((k) => `Bearer ${k}`);
+    if (!accepted.includes(auth)) return text(401, "unauthorized");
 
     if (request.method === "GET") {
       const stored = await env.PROGRESS.get(`p:${id}`);

@@ -37,6 +37,18 @@ val tmdbApiKey: String = secret("TMDB_API_KEY")
  */
 val providerHost: String = secret("PROVIDER_HOST")
 
+/**
+ * Continue-watching sync. All three absent means the feature is simply off —
+ * no error, no dead control, the way TMDB enrichment is off without its key.
+ *
+ * SYNC_SALT must NEVER change once anyone has synced: it is half of the
+ * account id, so a new salt orphans every history already stored. SYNC_KEY
+ * can rotate; the worker takes a previous one during a changeover.
+ */
+val syncUrl: String = secret("SYNC_URL")
+val syncKey: String = secret("SYNC_KEY")
+val syncSalt: String = secret("SYNC_SALT")
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -62,11 +74,14 @@ android {
         applicationId = "com.agoro.tv"
         minSdk = 23
         targetSdk = 36
-        versionCode = 201
-        versionName = "2.43.3"
+        versionCode = 202
+        versionName = "2.44.0"
 
         buildConfigField("String", "TMDB_API_KEY", buildConfigString(tmdbApiKey))
         buildConfigField("String", "PROVIDER_HOST", buildConfigString(providerHost))
+        buildConfigField("String", "SYNC_URL", buildConfigString(syncUrl))
+        buildConfigField("String", "SYNC_KEY", buildConfigString(syncKey))
+        buildConfigField("String", "SYNC_SALT", buildConfigString(syncSalt))
 
         // One APK for every real device: both ARM ABIs, no x86 (emulators only).
         ndk {

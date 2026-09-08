@@ -112,6 +112,13 @@ jobs:
           # The host is not a credential — each viewer still signs in as
           # themselves — so it being readable in the APK is by design.
           PROVIDER_HOST: ${{ secrets.PROVIDER_HOST }}
+          # Continue-watching sync. All three absent builds fine and the
+          # feature stays off, the same way the TMDB key works above.
+          # SYNC_SALT must never change once anyone has synced — it is half of
+          # the account id, so a new one orphans every history already stored.
+          SYNC_URL: ${{ secrets.SYNC_URL }}
+          SYNC_KEY: ${{ secrets.SYNC_KEY }}
+          SYNC_SALT: ${{ secrets.SYNC_SALT }}
         run: ./gradlew assembleRelease
 
       # Two names for one APK. The versioned one is the archive; the plain one
