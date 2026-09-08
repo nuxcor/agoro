@@ -87,12 +87,17 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
     Search("Search", Icons.Default.Search),
     Home("Home", Icons.Default.Home),
     Live("TV", Icons.Default.LiveTv),
-    // Beside Live TV because that is what it is — live, just organised by
-    // fixture instead of by channel. "Sport" and not "Sports": the Live TV
-    // strip already has a Sports shelf of channels, and two header-level
-    // things reading the same word would be two names for what a viewer would
-    // assume is one place.
-    Sport("Sport", Icons.Default.SportsSoccer),
+    // Beside TV because that is what it is — live, just organised by fixture
+    // instead of by channel.
+    //
+    // "Sports", plural, by the viewer's own call. This read "Sport" on the
+    // reasoning that the TV strip already has a Sports SHELF of channels, and
+    // two things in the app wearing the same word would look like one place.
+    // That collision is real but it is not what a viewer trips over: they
+    // never see the two side by side, and the singular reads as a category
+    // label where every other tab is a plain name for a place. Recorded here
+    // because the argument still stands and someone will make it again.
+    Sport("Sports", Icons.Default.SportsSoccer),
     Movies("Movies", Icons.Default.Movie),
     Series("Series", Icons.Default.VideoLibrary),
     Settings("Settings", Icons.Default.Settings),
