@@ -55,7 +55,7 @@ fun EpisodeRow(
     title: String,
     /** The still, 16:9. Null draws the monogram; the series poster must not stand in. */
     imageUrl: String?,
-    /** Far right of the title line: "54m", or "Resume from 12:04". */
+    /** Far right of the title line: "12 Mar 2024 · 54m". */
     meta: String? = null,
     /** Up to three dim lines under the title. */
     synopsis: String? = null,
