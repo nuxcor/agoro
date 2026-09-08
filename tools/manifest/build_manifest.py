@@ -3664,6 +3664,41 @@ for _k, _urls in DIRECT_FEED.items():
                          f"— the key moved or the tile is gone; fix the table, do not ship")
     collapse[_k]['direct'] = list(_urls)
 
+# ---------------------------------------------------- what a sport slot IS
+# The sport ranking had no picture signal at all, and PPV slots reach it by a
+# different road from every channel: they are skipped before the tile fold, so
+# nothing that ranks a channel ever sees them. On 2026-09-08 three slots
+# carrying Club Brugge v Aston Villa all scored TIER_UNKNOWN and
+# SOURCE_NEUTRAL — a complete tie — so the winner was playlist order, and that
+# slot was serving black filler while a 1080p50 feed sat beside it. Black
+# filler is valid decodable video, so it never errors, the player's failover
+# never fires and no watchdog can see it. The viewer just sits looking at
+# black.
+#
+# Published per slot rather than per pack because blackness is not a property
+# of a pack: it is one slot's upstream having nothing on it. Height and frame
+# rate ride along because height alone could not separate these either — five
+# of six slots measured 1080p and the frame rates were 50, 30 and 25.
+#
+# Sparse by construction. Neither sweep covers PPV slots by default:
+# probe_tiers.py and black_check.py both need --ids pointed at them, so most
+# slots carry nothing here and the app keeps the behaviour it had for those.
+_sport_quality = {}
+for _s in ls:
+    _sid = str(_s['stream_id'])
+    if (cat_live.get(str(_s.get('category_id'))) or {}).get('section') != 'PPV':
+        continue
+    _med = _media.get(_sid) or {}
+    _rec = {}
+    if _med.get('height'):
+        _rec['height'] = _med['height']
+    if _med.get('fps'):
+        _rec['fps'] = _med['fps']
+    if _black.get(_sid):
+        _rec['black'] = True
+    if _rec:
+        _sport_quality[_sid] = _rec
+
 manifest = {
     "manifest_version": 1,
     "generated": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
@@ -3764,7 +3799,8 @@ manifest = {
     "solo_regions": list(SHELF_SOLO_REGIONS),
     "sport": {"leagues": SPORT_LEAGUES, "cue_minutes": SPORT_CUE_MINUTES,
               "club_alias": SPORT_CLUB_ALIAS,
-              "ambiguous": SPORT_AMBIGUOUS, "club_crest": _crest_map},
+              "ambiguous": SPORT_AMBIGUOUS, "club_crest": _crest_map,
+              "slot_quality": _sport_quality},
     # Section-level fold, applied to whatever section a channel resolves to.
     # The per-stream merged_section map cannot cover a channel that no pass
     # enumerated, and a handful of strays were enough to reopen a shelf.

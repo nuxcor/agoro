@@ -812,6 +812,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 com.agoro.tv.data.SportsParser.parseAll(
                     bundle.events.mapNotNull { ch -> ch.xtreamId?.let { it to ch.name } },
                     now, leagues, s?.ambiguous.orEmpty().toSet(), s?.clubAlias.orEmpty(),
+                    // Keyed by Int here, by String in the manifest: JSON has
+                    // no integer keys, and the parser holds stream ids.
+                    s?.slotQuality.orEmpty()
+                        .mapNotNull { (k, v) -> k.toIntOrNull()?.let { it to v } }
+                        .toMap(),
                 ).also {
                     sportCacheEvents = bundle.events
                     sportCacheSport = s

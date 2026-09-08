@@ -1,6 +1,8 @@
 package com.agoro.tv
 
 import com.agoro.tv.data.ScheduleFixture
+import com.agoro.tv.data.SlotQuality
+import com.agoro.tv.data.SportsEvent
 import com.agoro.tv.data.SportsParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -1563,5 +1565,187 @@ class SportsParserTest {
             "Premier League", "Arsenal", "Brighton", "2026-09-04T16:30Z",
         )), now).single()
         assertEquals(ms(2026, 9, 4, 16, 30, "UTC"), fixed.startMs)
+    }
+
+    // --- measured picture beats playlist order -----------------------------
+
+    /**
+     * Two slots that really carried Club Brugge v Aston Villa on 2026-09-08,
+     * named exactly as the catalogue has them.
+     *
+     * A third, "UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm", is
+     * deliberately absent: that pack's format does not parse at all, so its
+     * slots never become candidates. It measured 1080p50 — the best of the
+     * three — which makes it a gap worth its own fix, and not one ranking can
+     * close.
+     */
+    private val ucl = mapOf(
+        "Champions League" to listOf("Club Brugge", "Aston Villa"),
+        "UEFA" to listOf("Club Brugge", "Aston Villa"),
+    )
+    private val brugge = listOf(
+        1940148 to "Next | Club Brugge vs. Aston Villa | all | 08-09-2026 | 17:55 (GMT) | 8K EXCLUSIVE | US: SOCCER PPV 9",
+        1535953 to "AU (STAN 09) | Club Brugge v Aston Villa  UEFA Champions League 2026/2027 (2026-09-09 02:40:29)",
+    )
+
+    private fun foldedBrugge(quality: Map<Int, SlotQuality>): SportsEvent =
+        SportsParser.bestPerFixture(
+            SportsParser.parseAll(
+                brugge, ms(2026, 9, 8, 17, 30, "UTC"), ucl, quality = quality,
+            )
+        ).single()
+
+    /**
+     * The bug this exists for. Both slots score TIER_UNKNOWN and
+     * SOURCE_NEUTRAL — a complete tie on every field the comparator had — so
+     * the winner was whichever the playlist listed first, and on the night
+     * that one was serving the panel's black filler. Black never errors, so
+     * the failover ladder never fired and nothing recovered.
+     */
+    @Test
+    fun `a slot serving black filler does not lead its fixture`() {
+        val best = foldedBrugge(mapOf(
+            1940148 to SlotQuality(height = 1080, fps = 30, black = true),
+            1535953 to SlotQuality(height = 720, fps = 50),
+        ))
+        assertEquals("the feed with a picture, however short", 1535953, best.streamId)
+    }
+
+    /** Demoted, never dropped — a PPV slot is black between fixtures. */
+    @Test
+    fun `the black slot stays in the ladder, last`() {
+        val best = foldedBrugge(mapOf(
+            1940148 to SlotQuality(height = 1080, fps = 30, black = true),
+            1535953 to SlotQuality(height = 720, fps = 50),
+        ))
+        assertEquals(listOf(1940148), best.alternates)
+    }
+
+    /** Black loses even to a slot nothing measured: unknown beats known-blank. */
+    @Test
+    fun `black loses to an unmeasured slot`() {
+        val best = foldedBrugge(mapOf(
+            1940148 to SlotQuality(height = 1080, fps = 50, black = true),
+        ))
+        assertEquals(1535953, best.streamId)
+    }
+
+    /** Taller wins before smoother — a trade nothing here has measured. */
+    @Test
+    fun `height outranks frame rate`() {
+        val best = foldedBrugge(mapOf(
+            1940148 to SlotQuality(height = 1080, fps = 25),
+            1535953 to SlotQuality(height = 720, fps = 50),
+        ))
+        assertEquals(1940148, best.streamId)
+    }
+
+    /** Same height, so frame rate is the only thing that can decide. */
+    @Test
+    fun `frame rate breaks a tie height cannot`() {
+        val best = foldedBrugge(mapOf(
+            1940148 to SlotQuality(height = 1080, fps = 30),
+            1535953 to SlotQuality(height = 1080, fps = 50),
+        ))
+        assertEquals(1535953, best.streamId)
+    }
+
+    /** 0 means "never measured" and must not outrank something we did measure. */
+    @Test
+    fun `a measured slot beats an unmeasured one`() {
+        val best = foldedBrugge(mapOf(1535953 to SlotQuality(height = 720, fps = 50)))
+        assertEquals(1535953, best.streamId)
+    }
+
+    /** No measurements at all behaves exactly as it did before they existed. */
+    @Test
+    fun `without measurements nothing changes`() {
+        val best = foldedBrugge(emptyMap())
+        assertEquals(1940148, best.streamId)
+        assertEquals(listOf(1535953), best.alternates)
+    }
+    // --- the UEFA pack, 74 slots that used to parse as nothing -------------
+
+    /**
+     * The pack puts its clock AFTER the fixture, and readFixture splits on
+     * ':' — so "5:45pm" was cut in half and the away side arrived as "Aston
+     * Villa 5". Nothing matched, and this is the pack that measured 1080p50
+     * against the "8K EXCLUSIVE" pack's 1080p30.
+     */
+    @Test
+    fun `the UEFA pack's trailing clock does not end up in a club name`() {
+        assertEquals(
+            "Club Brugge" to "Aston Villa",
+            SportsParser.readFixture("UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm"),
+        )
+        assertEquals(
+            "AEK Athens" to "LASK",
+            SportsParser.readFixture("UEFA | 01-  AEK Athens vs LASK 5:45pm"),
+        )
+    }
+
+    /**
+     * A trailing number is NOT safely junk — which is why the clock comes out
+     * before the split rather than being trimmed off the tail afterwards.
+     */
+    @Test
+    fun `a club whose name ends in digits survives`() {
+        assertEquals(
+            "Schalke 04" to "Hannover 96",
+            SportsParser.readFixture("UEFA  | 05 - Schalke 04 vs Hannover 96 7:30pm"),
+        )
+    }
+
+    /**
+     * Still refused on its own. The shelf gives a time and no date, and
+     * dating it by assuming today is how a row fills with matches that
+     * finished yesterday — see the same rule in LiveNowTest.
+     */
+    @Test
+    fun `a UEFA slot nothing else dates is still refused`() {
+        val now = ms(2026, 9, 8, 12, 0, "UTC")
+        val out = SportsParser.parseAll(
+            listOf(1025279 to "UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm"),
+            now, mapOf("UEFA" to listOf("Club Brugge", "Aston Villa")),
+        )
+        assertTrue("no sibling knows the time, so it cannot be shown", out.isEmpty())
+    }
+
+    /** But a sibling that DOES date the fixture carries it in. */
+    @Test
+    fun `a dated sibling admits the silent slot`() {
+        val now = ms(2026, 9, 8, 17, 30, "UTC")
+        val out = SportsParser.parseAll(
+            listOf(
+                1940148 to "Next | Club Brugge vs. Aston Villa | all | 08-09-2026 | 17:55 (GMT) | US: SOCCER PPV 9",
+                1025279 to "UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm",
+            ),
+            now,
+            mapOf("Champions League" to listOf("Club Brugge", "Aston Villa"),
+                  "UEFA" to listOf("Club Brugge", "Aston Villa")),
+        )
+        assertEquals(setOf(1940148, 1025279), out.mapTo(HashSet()) { it.streamId })
+    }
+
+    /** And the whole point: the measured feed can now win the fixture. */
+    @Test
+    fun `the UEFA slot becomes a candidate and leads on measurement`() {
+        val now = ms(2026, 9, 8, 17, 30, "UTC")
+        val best = SportsParser.bestPerFixture(
+            SportsParser.parseAll(
+                listOf(
+                    1940148 to "Next | Club Brugge vs. Aston Villa | all | 08-09-2026 | 17:55 (GMT) | 8K EXCLUSIVE | US: SOCCER PPV 9",
+                    1025279 to "UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm",
+                ),
+                now,
+                mapOf("Champions League" to listOf("Club Brugge", "Aston Villa"),
+                      "UEFA" to listOf("Club Brugge", "Aston Villa")),
+                quality = mapOf(
+                    1940148 to SlotQuality(height = 1080, fps = 30, black = true),
+                    1025279 to SlotQuality(height = 1080, fps = 50),
+                ),
+            )
+        ).single()
+        assertEquals(1025279, best.streamId)
     }
 }
