@@ -116,7 +116,7 @@ fun SportTab(
             title = "Sports isn't set up",
             message = "This playlist carries no fixture listings.",
             icon = Icons.Default.SportsSoccer,
-            primaryAction = StatusAction("Browse Live TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
         )
         return
     }
@@ -313,7 +313,7 @@ private fun Fixtures(
                 else -> "Fixtures appear here $cue minutes before kick-off."
             },
             icon = Icons.Default.SportsSoccer,
-            primaryAction = StatusAction("Browse Live TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
         )
         return
     }
@@ -431,8 +431,15 @@ private fun Fixtures(
                     FixtureRow(
                         home = event.home,
                         away = event.away,
-                        homeCrest = SportsParser.crestFor(crests, event.league, event.home),
-                        awayCrest = SportsParser.crestFor(crests, event.league, event.away),
+                        // The schedule's badge first: it comes off the same
+                        // record as the clock, so it cannot be lost to the
+                        // roster and ESPN spelling a club differently. The
+                        // name-keyed index is the fallback for slots the
+                        // schedule never placed.
+                        homeCrest = event.homeCrest
+                            ?: SportsParser.crestFor(crests, event.league, event.home),
+                        awayCrest = event.awayCrest
+                            ?: SportsParser.crestFor(crests, event.league, event.away),
                         status = status,
                         // Fixtures inside a league belong together; the
                         // first one sits straight under its heading.

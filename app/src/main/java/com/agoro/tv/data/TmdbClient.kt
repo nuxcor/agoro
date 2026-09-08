@@ -118,9 +118,13 @@ class TmdbClient(private val http: OkHttpClient, private val apiKey: String) {
                 (root["results"] as? JsonArray).orEmpty().mapNotNull { el ->
                     val obj = el as? JsonObject ?: return@mapNotNull null
                     val author = obj.str("author") ?: "Anonymous"
-                    val content = obj.str("content")?.replace(Regex("""\s+"""), " ")?.trim()
-                        ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                    "$author — ${content.take(280)}${if (content.length > 280) "…" else ""}"
+                    // Through ReviewText, not a whitespace collapse: these are
+                    // web-form bodies full of tags, markdown and the URL of
+                    // the blog they were copied from, and all of it used to
+                    // reach the screen verbatim.
+                    val content = ReviewText.clean(obj.str("content"))
+                        ?: return@mapNotNull null
+                    "$author — $content"
                 }.take(3)
             } ?: emptyList()
 

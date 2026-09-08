@@ -7,6 +7,12 @@ build_manifest.py prefers over the advertised token wherever both exist; a
 height of 0 records "couldn't decode" so the id isn't probed again and the
 advertised token stands.
 
+It also writes probed_media.json (stream_id -> codec, width, height, fps,
+at), which is where the answer usually is. Six PPV slots carrying two live
+Champions League matches on 2026-09-08 came back 1080p on five of them —
+height separated nothing, and frame rate separated everything: 50, 30 and 25
+on the same match, with the slot advertising "8K EXCLUSIVE" being the 30.
+
 Resumable: already-probed ids are skipped. Iterate probe -> rebuild until the
 set of primaries stops changing — a demoted liar promotes a source that may
 itself be unprobed.
@@ -118,22 +124,60 @@ URL_TEMPLATE = os.environ.get(
     'AGORO_STREAM_URL', 'https://{host}/live/{user}/{pass}/{id}.ts')
 
 
-def probe(sid):
-    url = URL_TEMPLATE.format(host=HOST, user=USER, id=sid, **{'pass': PASS})
+def _fps(value):
+    """ffprobe writes a rational; 0 denominator means it would not say."""
     try:
-        r = subprocess.run(
-            ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
-             '-show_entries', 'stream=height', '-of', 'csv=p=0',
-             '-probesize', '3000000', '-analyzeduration', '3000000',
-             '-rw_timeout', '8000000', url],
-            capture_output=True, text=True, timeout=25)
-        return int(r.stdout.strip().splitlines()[0])
+        num, den = str(value).split('/')
+        return round(int(num) / int(den)) if int(den) else 0
     except Exception:
         return 0
 
 
+def probe(sid):
+    """Height, and the two fields height alone cannot answer.
+
+    Height was the whole record until 2026-09-08, when six PPV slots
+    carrying two live Champions League matches came back 1080p on five of
+    them — so height separated nothing, and the field that DID separate them
+    was frame rate: 50, 30 and 25 on the same match. For football that is the
+    most visible difference on the screen, and it was invisible here.
+
+    Codec for the other half of it. The sixth slot was HEVC, which the user's
+    box cannot decode at all (see the box-cannot-decode-hevc note), so it is
+    not a lower rung on the same ladder — it is unplayable, and a ranking
+    that only knows heights would have put its 720p above a 1080p rival's
+    lower sample.
+    """
+    url = URL_TEMPLATE.format(host=HOST, user=USER, id=sid, **{'pass': PASS})
+    try:
+        r = subprocess.run(
+            ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+             '-show_entries', 'stream=codec_name,width,height,avg_frame_rate',
+             '-of', 'json',
+             '-probesize', '3000000', '-analyzeduration', '3000000',
+             '-rw_timeout', '8000000', url],
+            capture_output=True, text=True, timeout=25)
+        v = (json.loads(r.stdout or '{}').get('streams') or [{}])[0]
+        return {
+            'height': int(v.get('height') or 0),
+            'width': int(v.get('width') or 0),
+            'codec': v.get('codec_name') or '',
+            'fps': _fps(v.get('avg_frame_rate')),
+        }
+    except Exception:
+        return {'height': 0, 'width': 0, 'codec': '', 'fps': 0}
+
+
+# The richer record, beside probed_tiers.json rather than inside it:
+# build_manifest.py reads that file as {id: height} and a dict there would
+# read as a truthy height. Nothing downstream has to change to keep working.
+MEDIA_OUT = 'probed_media.json'
+media = json.load(open(MEDIA_OUT)) if os.path.exists(MEDIA_OUT) else {}
+
+
 for i, sid in enumerate(queue, 1):
-    height = probe(sid)
+    got = probe(sid)
+    height = got['height']
     # The LOWEST sample wins, never the latest. A live feed's resolution is
     # not a constant: BBC News measured 1080 one morning and 576 that
     # afternoon, and ranking on the optimistic sample put an SD feed at the
@@ -141,11 +185,29 @@ for i, sid in enumerate(queue, 1):
     # meant to end. A feed that ever drops to SD is not an HD source.
     previous = done.get(sid) or 0
     done[sid] = min(previous, height) if (previous and height) else (height or previous)
+    # Frame rate takes the same pessimistic rule and for the same reason: a
+    # feed that ever drops to 25 is not a 50fps source. The codec does not —
+    # it is a fact about the encoder, not a sample of its output.
+    if got['height']:
+        was = media.get(sid) or {}
+        media[sid] = {
+            **got,
+            'fps': min(was['fps'], got['fps']) if was.get('fps') and got['fps'] else (
+                got['fps'] or was.get('fps') or 0),
+            # When this was measured. A PPV slot id carries a DIFFERENT match
+            # tomorrow, off a possibly different upstream, so unlike a channel
+            # its measurement describes an event and not a stream. Whoever
+            # ranks fixtures has to be able to ask how old this is.
+            'at': int(time.time()),
+        }
     if i % 10 == 0 or i == len(queue):
         json.dump(done, open(OUT, 'w'))
-        print(f"{i}/{len(queue)}  last {sid} -> {done[sid]}", flush=True)
+        json.dump(media, open(MEDIA_OUT, 'w'), indent=1)
+        print(f"{i}/{len(queue)}  last {sid} -> "
+              f"{got['codec'] or 'none'} {got['width']}x{height} @{got['fps']}", flush=True)
     time.sleep(0.2)
 
 json.dump(done, open(OUT, 'w'))
+json.dump(media, open(MEDIA_OUT, 'w'), indent=1)
 ok = sum(1 for v in done.values() if v)
 print(f"done: {len(done)} recorded, {ok} decoded", flush=True)

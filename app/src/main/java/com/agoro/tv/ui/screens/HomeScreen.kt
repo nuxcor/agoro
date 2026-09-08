@@ -386,7 +386,7 @@ fun HomeScreen(
     // half-erased by a poster the first time this was a Column.
     //
     // The wash is a short vertical fade rather than a filled bar: the header
-    // sits over the page's own artwork, 16sp labels need something to sit on,
+    // sits over the page's own artwork, 20sp labels need something to sit on,
     // and a bar would have a lower edge — the exact thing the nav redesign
     // took the drawer apart to avoid.
     Box(

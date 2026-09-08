@@ -276,13 +276,23 @@ private val PageGradient = Brush.verticalGradient(
  * and it is the one number the content lane and the backdrop both have to
  * agree on.
  */
-val HEADER_BAND_HEIGHT = 66.dp
+/**
+ * What the header costs the content below it.
+ *
+ * Grown from 66dp when the labels went from 16sp to 20sp: this is the top
+ * level of the app and it was reading as a toolbar. It is the wash's height
+ * and the content's top padding, and it has to cover the tallest thing the
+ * header draws — 18dp above, a 28dp label in 9dp of padding, the 4dp marker
+ * in its 4dp slot, 6dp below. Set it short and the content tucks under the
+ * tabs; [TopNav] is not clipped by it and will simply overhang.
+ */
+val HEADER_BAND_HEIGHT = 78.dp
 
 /**
  * A short wash under the top navigation.
  *
  * The header sits over the page's own artwork — a Home backdrop can be a
- * bright still — and 16sp labels need something to sit on. A vertical fade to
+ * bright still — and 20sp labels need something to sit on. A vertical fade to
  * nothing rather than a filled bar, for the reason the nav drawer's own slab
  * was removed: a bar has a lower edge, and an edge across the top of the
  * screen reads as chrome bolted above the page instead of part of it.

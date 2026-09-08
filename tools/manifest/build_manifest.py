@@ -309,6 +309,39 @@ def _eff_region(s):
 # renames it so the stale claim never reaches a viewer.
 NAMED_KEEP = {
     1577208: 'UK',   # ES: M.LALIGA — Movistar's own LaLiga channel
+    # TNT's two 4K event channels, on their own tiles.
+    #
+    # Both sit in the panel's 4K category, whose "region" is a tier and not a
+    # territory, so they rely on the rescue that asks which territory OTHER
+    # channels sharing their tile key live in. That carried "4K: SKY SPORTS
+    # DARTS" through — it keys to skysportdarts and UK copies already hold it
+    # — but these key to tntsportevent and tntultimateliveevent, which nothing
+    # else in the catalogue shares. No sibling, no territory, dropped without
+    # ever being measured. 57 of the 59 "4K:" channels go the same way.
+    #
+    # It has to be NAMED_KEEP and not REGION_FIX_ID: that only sets a region
+    # inside the tile fold, and the fold discards anything with one source
+    # (len(srcs) < 2), so a channel whose key nothing shares can never become
+    # a tile member and can never be rescued by tile membership. This is the
+    # only gate that admits a channel standing on its own.
+    #
+    # Measured on the World 8K line 2026-09-08, both live: hevc 3840x2160 @50,
+    # 10-bit, smpte2084/bt2020 — real HDR10, the best picture this catalogue
+    # carries. A frame off 1544247 showed live coverage, so they are fed even
+    # when the numbered channels are on something else.
+    #
+    # Their OWN tiles rather than folded into tntsport1, deliberately: an
+    # event channel follows whichever fixture it is given. That night the 4K
+    # feed carried PSG while TNT Sport 1 had another match, so promoting it to
+    # lead a numbered channel's tile would point that tile at the wrong game.
+    #
+    # Whether this box can decode them is still open. HEVC-in-MPEG-TS has
+    # never been tested on it, and the ABC News result behind the "prefer
+    # H.264" rule was Disney's HLS hvc1, a different container and path.
+    # skysportdarts, skysportmainevent and tntsportultimate ALREADY lead with
+    # 4K HEVC, so that answer is load-bearing whatever happens here.
+    1544247: 'UK',   # 4K: TNT SPORTS UHD (EVENT)
+    1544246: 'UK',   # 4K: TNT ULTIMATE UHD+ (LIVE-EVENT)
 }
 
 dropped_region = [s['stream_id'] for s in ls
@@ -555,6 +588,29 @@ if os.path.exists('black_streams.json'):
 
 def is_black(sid):
     return 1 if _black.get(str(sid)) else 0
+
+# Frame rate, codec and the rest, from probe_tiers.py's probed_media.json.
+#
+# Height alone could not separate the sources that matter: six PPV slots
+# carrying two live Champions League matches on 2026-09-08 came back 1080p on
+# five of them, and what separated those was frame rate — 50, 30 and 25 on the
+# same match, with the slot advertising "8K EXCLUSIVE" being the 30. TNT's own
+# channels are the same shape: every TNT Sport 1-4 primary is 1080p, and the
+# alternates behind them run 25fps.
+_media = {}
+if os.path.exists('probed_media.json'):
+    _media = {str(k): v for k, v in json.load(open('probed_media.json')).items() if v}
+
+
+def measured_fps(sid):
+    """Frames per second measured, or 0 for "we never asked".
+
+    0 sorts last for the same reason a 0 height does: it means no information,
+    not a slow feed, and a source we simply have not probed must not be pushed
+    below one we measured badly.
+    """
+    return (_media.get(str(sid)) or {}).get('fps') or 0
+
 
 def measured_tier(sid):
     h = _probed.get(str(sid))
@@ -1184,17 +1240,34 @@ def _swept_source(x):
             and not re.match(r'^PRIME\s*:', _cnm.get(x["id"], ''), re.I))
 for (k, reg), srcs in tiles.items():
     if len(srcs) < 2: continue
-    # Measured height breaks the tie inside a tier. Two feeds both calling
-    # themselves HD are indistinguishable to TIER_RANK, so the winner was
-    # whichever landed first — and a feed that failed to decode (recorded 0)
-    # beat one measured at 720p that way. A number we took beats a word the
-    # provider chose; 0 sorts last because it means "we could not tell".
+    # What we measured, THEN what the provider called it — the order the
+    # metro fold and the UK region fold already used, and this sort was the
+    # one place still asking the name first.
+    #
+    # The name is not evidence. Six PPV slots carrying two live Champions
+    # League matches measured 1080p30 while advertising "8K EXCLUSIVE", and
+    # under the old key that word alone put them ahead of a 1080p50 rival,
+    # because the height only ever broke ties INSIDE a tier and those two
+    # were never in the same tier. So height leads, and the tier is the
+    # fallback for the sources nothing has measured.
+    #
+    # Frame rate sits between them because height frequently cannot separate
+    # what is left: every TNT Sport 1-4 source that matters is 1080p, and
+    # what actually differs is 50 against 25. It ranks BELOW height rather
+    # than above it deliberately — trading resolution for frame rate is a
+    # judgement nothing here has measured, and every case that prompted this
+    # was settled without needing to make it.
+    #
+    # 0 sorts last for both, because 0 means "we could not tell" and an
+    # unprobed source must not fall below one measured badly.
+    #
     # Black first of all: a source that answers with the filler is not a
     # picture at any tier, and the whole point of measuring one is to stop it
     # leading a tile that holds something playable.
     srcs.sort(key=lambda x: (is_black(x["id"]), _swept_source(x),
-                             TIER_RANK.get(x["tier"], 8),
-                             -_probed.get(str(x["id"]), 0)))
+                             -_probed.get(str(x["id"]), 0),
+                             -measured_fps(x["id"]),
+                             TIER_RANK.get(measured_tier(x["id"]) or x["tier"], 8)))
     # A pinned source leads, and the rest keep the order measurement gave
     # them — the pin decides the primary, not the whole fallback ladder.
     _pin = PRIMARY_PIN.get(k)
@@ -1536,6 +1609,7 @@ for chan, items in _uk_reg.items():                 # BBC ONE x16 -> one tile
     # the picture, so two copies of the same region are separated by what
     # they actually decode rather than by which was read first.
     items.sort(key=lambda it: (rank(it), -_probed.get(str(it[0]), 0),
+                               -measured_fps(it[0]),
                                TIER_RANK.get(measured_tier(it[0])
                                              or tier_of(_nm.get(it[0], '')), 8)))
     uk_collapse[chan] = {"section": "ENTERTAINMENT", "region": "UK",
@@ -3419,6 +3493,7 @@ for _mkey, _t in metro_tiles.items():
     _srcs.sort(key=lambda sid: (
         is_black(sid),
         -_probed.get(str(sid), 0),
+        -measured_fps(sid),
         TIER_RANK.get(measured_tier(sid) or tier_of(_nm.get(sid, '')), 8),
         _quality_rank(asc(_nm.get(sid, '')), _t['metro'], _t['network']),
     ))

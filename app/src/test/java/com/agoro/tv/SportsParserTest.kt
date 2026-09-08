@@ -1440,4 +1440,128 @@ class SportsParserTest {
         )
         assertEquals("Ligue 1", e?.league)
     }
+
+    // --- the schedule's OTHER spellings, and its badges -----------------------
+
+    /**
+     * The bug this was written for: Real Madrid v Inter counted down to the
+     * wrong hour on the Sport tab.
+     *
+     * ESPN bills the away side "Internazionale" and the pack writes "Inter".
+     * The two share no word, so the fixture went unmatched, the row kept the
+     * pack's kick-off, and a 2pm match said it started in 56 minutes at
+     * half eleven.
+     */
+    @Test
+    fun `a short name matches where the display name cannot`() {
+        val now = ms(2026, 9, 8, 11, 36, "America/Chicago")
+        val slot = SportsParser.parse(
+            1, "Next | Real Madrid vs. Inter | all | 08-09-2026 | 17:32 (GMT) | UCL",
+            now, mapOf("Champions League" to listOf("Real Madrid", "Inter")),
+        )!!
+        assertEquals("the pack's own clock, which is wrong",
+            ms(2026, 9, 8, 17, 32, "UTC"), slot.startMs)
+
+        val fixtures = listOf(ScheduleFixture(
+            league = "Champions League", home = "Real Madrid", away = "Internazionale",
+            start = "2026-09-08T19:00Z", state = "pre",
+            awayAlt = listOf("Inter Milan"),
+        ))
+        val fixed = SportsParser.applySchedule(listOf(slot), fixtures, now).single()
+        assertEquals("2pm Central, as ESPN has it",
+            ms(2026, 9, 8, 19, 0, "UTC"), fixed.startMs)
+        assertFalse("has not kicked off at half eleven", fixed.isLive(now))
+    }
+
+    /** The badge comes off the fixture, so no name lookup can lose it. */
+    @Test
+    fun `the schedule's badges land on the right clubs`() {
+        val now = ms(2026, 9, 8, 12, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "Next | Real Madrid vs. Inter | all | 08-09-2026 | 19:00 (GMT) | UCL",
+            now, mapOf("Champions League" to listOf("Real Madrid", "Inter")),
+        )!!
+        val fixed = SportsParser.applySchedule(listOf(slot), listOf(ScheduleFixture(
+            league = "Champions League", home = "Real Madrid", away = "Internazionale",
+            start = "2026-09-08T19:00Z", awayAlt = listOf("Inter Milan"),
+            homeLogo = "https://espn.test/86.png", awayLogo = "https://espn.test/110.png",
+        )), now).single()
+        assertEquals("https://espn.test/86.png", fixed.homeCrest)
+        assertEquals("https://espn.test/110.png", fixed.awayCrest)
+    }
+
+    /**
+     * The packs disagree about which side leads, and a badge on the wrong
+     * club is worse than no badge at all.
+     */
+    @Test
+    fun `badges follow the slot's order, not the schedule's`() {
+        val now = ms(2026, 9, 8, 12, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "Next | Inter vs. Real Madrid | all | 08-09-2026 | 19:00 (GMT) | UCL",
+            now, mapOf("Champions League" to listOf("Real Madrid", "Inter")),
+        )!!
+        assertEquals("Inter", slot.home)
+        val fixed = SportsParser.applySchedule(listOf(slot), listOf(ScheduleFixture(
+            league = "Champions League", home = "Real Madrid", away = "Internazionale",
+            start = "2026-09-08T19:00Z", awayAlt = listOf("Inter Milan"),
+            homeLogo = "https://espn.test/86.png", awayLogo = "https://espn.test/110.png",
+        )), now).single()
+        assertEquals("Inter's badge, because Inter is on the left",
+            "https://espn.test/110.png", fixed.homeCrest)
+        assertEquals("https://espn.test/86.png", fixed.awayCrest)
+    }
+
+    /** No badge published is null, not an empty string the card would fetch. */
+    @Test
+    fun `a fixture with no badges leaves the crest alone`() {
+        val now = ms(2026, 9, 8, 12, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "Next | Real Madrid vs. Inter | all | 08-09-2026 | 19:00 (GMT) | UCL",
+            now, mapOf("Champions League" to listOf("Real Madrid", "Inter")),
+        )!!
+        val fixed = SportsParser.applySchedule(listOf(slot), listOf(ScheduleFixture(
+            league = "Champions League", home = "Real Madrid", away = "Internazionale",
+            start = "2026-09-08T19:00Z", awayAlt = listOf("Inter Milan"),
+        )), now).single()
+        assertNull(fixed.homeCrest)
+        assertNull(fixed.awayCrest)
+    }
+
+    /**
+     * An alias must not hand one club to another. ESPN's short name for AC
+     * Milan is "Milan", which IS a subset of Inter's "Inter Milan" — and the
+     * matcher counts a subset as the same club.
+     */
+    @Test
+    fun `Milan is not Inter Milan`() {
+        val now = ms(2026, 9, 8, 12, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "Next | Milan vs. Napoli | all | 08-09-2026 | 18:45 (GMT) | SA",
+            now, mapOf("Serie A" to listOf("Milan", "Napoli")),
+        )!!
+        val fixed = SportsParser.applySchedule(listOf(slot), listOf(
+            ScheduleFixture("Serie A", "Internazionale", "Napoli", "2026-09-08T15:00Z",
+                awayAlt = listOf("Inter Milan")),
+            ScheduleFixture("Serie A", "AC Milan", "Napoli", "2026-09-08T18:45Z",
+                homeAlt = listOf("Milan"), homeLogo = "https://espn.test/ac.png"),
+        ), now).single()
+        assertEquals("the exact spelling wins over the subset",
+            ms(2026, 9, 8, 18, 45, "UTC"), fixed.startMs)
+        assertEquals("https://espn.test/ac.png", fixed.homeCrest)
+    }
+
+    /** Aliases are optional; a file published before they existed still matches. */
+    @Test
+    fun `a fixture with no aliases still matches on its display name`() {
+        val now = ms(2026, 9, 4, 12, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "Next | Arsenal vs. Brighton | all | 04-09-2026 | 14:00 (GMT) | EPL",
+            now, leagues,
+        )!!
+        val fixed = SportsParser.applySchedule(listOf(slot), listOf(ScheduleFixture(
+            "Premier League", "Arsenal", "Brighton", "2026-09-04T16:30Z",
+        )), now).single()
+        assertEquals(ms(2026, 9, 4, 16, 30, "UTC"), fixed.startMs)
+    }
 }

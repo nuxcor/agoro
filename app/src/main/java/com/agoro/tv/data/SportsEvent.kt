@@ -70,6 +70,17 @@ data class SportsEvent(
     val languageFeed: Boolean = false,
     /** The same match on other slots, best first, for the player to fall back to. */
     val alternates: List<Int> = emptyList(),
+    /**
+     * The club badges, taken off the matched schedule fixture.
+     *
+     * Null where the schedule could not place the slot, which is when the
+     * name-keyed crest index is still the only source. Preferred over it
+     * because it needs no lookup: the badge arrives on the same record as the
+     * clock, so it cannot be lost to the two sides spelling a club
+     * differently. See [SportsParser.applySchedule].
+     */
+    val homeCrest: String? = null,
+    val awayCrest: String? = null,
 ) {
     val title: String get() = "$home v $away"
 
@@ -1600,8 +1611,10 @@ object SportsParser {
         val byToken = HashMap<String, MutableList<Indexed>>()
         for (f in fixtures) {
             val start = f.startMs ?: continue
-            val entry = Indexed(tokens(f.home), tokens(f.away), f, start)
-            for (t in entry.home + entry.away) {
+            val entry = Indexed(
+                spellings(f.home, f.homeAlt), spellings(f.away, f.awayAlt), f, start,
+            )
+            for (t in (entry.home + entry.away).flatten()) {
                 byToken.getOrPut(t) { ArrayList() }.add(entry)
             }
         }
@@ -1656,11 +1669,19 @@ object SportsParser {
             if (kotlin.math.abs(best.start - anchor) > SCHEDULE_MAX_SHIFT_MS) {
                 return@mapNotNull onMatchday(event, playingDays, nowMs)
             }
+            // Which way round the schedule lists them, because the packs do
+            // not agree on which side leads and a badge on the wrong club is
+            // worse than no badge at all.
+            val swapped = !straight(home, away, best)
             event.copy(
                 league = best.fixture.league.ifBlank { event.league },
                 scheduleKey = sideKey(best.fixture.home) + "|" + sideKey(best.fixture.away),
                 startMs = best.start,
                 live = best.start <= nowMs,
+                homeCrest = (if (swapped) best.fixture.awayLogo else best.fixture.homeLogo)
+                    .ifBlank { null },
+                awayCrest = (if (swapped) best.fixture.homeLogo else best.fixture.awayLogo)
+                    .ifBlank { null },
                 // The one fact only the body keeping score has: whether it is
                 // over. See [isOnNow].
                 state = best.fixture.state,
@@ -1701,19 +1722,40 @@ object SportsParser {
     private const val MATCHDAY_WINDOW_MS = 24 * 60 * 60 * 1000L
 
     private class Indexed(
-        val home: Set<String>,
-        val away: Set<String>,
+        /** Every spelling of the home side, each reduced to its words. */
+        val home: List<Set<String>>,
+        val away: List<Set<String>>,
         val fixture: ScheduleFixture,
         val start: Long,
     )
 
+    /**
+     * A club as all the names it answers to, duplicates and blanks gone.
+     *
+     * ESPN's display name is only one of them, and on its own it is not
+     * enough to find a club: it bills Inter "Internazionale" where every pack
+     * writes "Inter", and those two share no word at all.
+     */
+    private fun spellings(name: String, alt: List<String>): List<Set<String>> {
+        val out = ArrayList<Set<String>>(alt.size + 1)
+        for (spelling in listOf(name) + alt) {
+            val t = tokens(spelling)
+            if (t.isNotEmpty() && t !in out) out.add(t)
+        }
+        return out
+    }
+
+    /** The schedule lists them in the order the slot does. */
+    private fun straight(home: Set<String>, away: Set<String>, f: Indexed): Boolean =
+        sameSide(home, f.home) && sameSide(away, f.away)
+
     /** Both sides match, either way round — the packs disagree on which leads. */
     private fun pairs(home: Set<String>, away: Set<String>, f: Indexed): Boolean =
-        (sameSide(home, f.home) && sameSide(away, f.away)) ||
-            (sameSide(home, f.away) && sameSide(away, f.home))
+        straight(home, away, f) || (sameSide(home, f.away) && sameSide(away, f.home))
 
     private fun exactPair(home: Set<String>, away: Set<String>, f: Indexed): Boolean =
-        (home == f.home && away == f.away) || (home == f.away && away == f.home)
+        (f.home.contains(home) && f.away.contains(away)) ||
+            (f.away.contains(home) && f.home.contains(away))
 
     /**
      * How far a slot may be moved onto a schedule's clock: one match, plus the
@@ -1741,8 +1783,10 @@ object SportsParser {
      * is how "Bielefeld" and "Arminia Bielefeld" are the same team and
      * "Manchester United" and "Manchester City" are not.
      */
-    private fun sameSide(a: Set<String>, b: Set<String>): Boolean =
-        a.isNotEmpty() && b.isNotEmpty() && (a.containsAll(b) || b.containsAll(a))
+    private fun sameSide(a: Set<String>, spellings: List<Set<String>>): Boolean =
+        a.isNotEmpty() && spellings.any { b ->
+            b.isNotEmpty() && (a.containsAll(b) || b.containsAll(a))
+        }
 
     /**
      * The fixtures worth putting on screen: on now, or starting within the cue.

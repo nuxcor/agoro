@@ -65,12 +65,35 @@ import com.agoro.tv.ui.theme.Space
  * a 10-foot label allows: the guide reads its rows out of what is left, and
  * this is the only navigation in the app that costs the content anything.
  */
-private val ITEM_PADDING_H = 14.dp
-private val ITEM_PADDING_V = 7.dp
+private val ITEM_PADDING_H = 16.dp
+private val ITEM_PADDING_V = 9.dp
 
 /** The gold rule under the tab you are on. Drawn in its own fixed-height slot. */
-private val MARKER_HEIGHT = 3.dp
-private val MARKER_WIDTH = 20.dp
+private val MARKER_HEIGHT = 4.dp
+private val MARKER_WIDTH = 26.dp
+
+/**
+ * The header's own type scale — titleMedium, a step above the labelLarge it
+ * used to be.
+ *
+ * The band was drawn as small as a 10-foot label allows, because every dp of
+ * it comes off the content. That is the right instinct and it was taken one
+ * step too far: this is the app's primary navigation, the thing a viewer
+ * looks at first and from across a room, and 16sp read as a toolbar rather
+ * than as the top level of the app. It is worth the twelve dp.
+ */
+private val LABEL_STYLE
+    @Composable get() = MaterialTheme.typography.titleMedium
+
+/** Alone in its control, so it carries the weight a word would. */
+private val ICON_ONLY_SIZE = 28.dp
+
+/** Beside a word, so it defers to it — the update control is the only one. */
+private val ICON_WITH_LABEL_SIZE = 22.dp
+
+/** The app mark. Sized by height; the 55:76 viewport carries the aspect. */
+private val BRAND_HEIGHT = 28.dp
+private val BRAND_WIDTH = 20.dp
 
 enum class HomeTab(val label: String, val icon: ImageVector) {
     // Enum order is header order, left to right.
@@ -114,7 +137,7 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
  *
  * What it costs is the only thing worth weighing: a band of vertical space
  * the content no longer has. That is why the labels are text and not
- * icon-and-label stacks, and why the whole band comes to about 60dp.
+ * icon-and-label stacks, and why the whole band comes to about 78dp.
  *
  * Travel highlights, OK or DOWN commits. There is no select-on-travel: it
  * would recompose a whole grid on every LEFT press, and the box this runs on
@@ -319,7 +342,7 @@ private fun TopNavItem(
                     Icon(
                         painter = painterResource(R.drawable.ic_logo),
                         contentDescription = label,
-                        modifier = Modifier.height(22.dp).width(16.dp),
+                        modifier = Modifier.height(BRAND_HEIGHT).width(BRAND_WIDTH),
                     )
                 }
                 if (icon != null) {
@@ -328,12 +351,14 @@ private fun TopNavItem(
                         // The label still has to exist for anyone not reading
                         // the screen; it just isn't drawn.
                         contentDescription = if (labelled) null else label,
-                        modifier = Modifier.size(if (labelled) 18.dp else 22.dp),
+                        modifier = Modifier.size(
+                            if (labelled) ICON_WITH_LABEL_SIZE else ICON_ONLY_SIZE,
+                        ),
                     )
                 }
                 if (labelled) Text(
                     text = label,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = LABEL_STYLE,
                     // One line, always. A header that grows a second line
                     // moves every tab beside it and shortens the content
                     // below; the update label is the only string here long

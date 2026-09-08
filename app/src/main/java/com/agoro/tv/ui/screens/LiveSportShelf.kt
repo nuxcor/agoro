@@ -3,6 +3,7 @@ package com.agoro.tv.ui.screens
 import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.SportsEvent
+import com.agoro.tv.data.SportsParser
 
 /**
  * A fixture that has kicked off, paired with the slot carrying it.
@@ -26,6 +27,16 @@ internal class LiveFixture(
      * moves. A fixture with no trusted kick-off gets no bar at all rather than
      * a made-up one.
      */
+    /**
+     * How far through the match, for the card's bar. Null when no kick-off is
+     * trusted — a made-up bar is worse than none, because the bar is the one
+     * thing on the card that claims to be measured.
+     */
+    fun progress(nowMs: Long): Float? {
+        val start = event.startMs ?: return null
+        return ((nowMs - start).toFloat() / FIXTURE_WINDOW_MS).coerceIn(0f, 1f)
+    }
+
     fun asProgram(): EpgProgram? {
         val start = event.startMs ?: return null
         return EpgProgram(
@@ -75,6 +86,13 @@ internal fun liveSportShelf(
         // One card per slot: packs list the same match on several feeds, and a
         // shelf of the same fixture six times is not a shelf.
         .distinctBy { it.slot.id }
+        // And then one card per MATCH, which is not the same thing. Club
+        // Brugge v Aston Villa stood on Home twice, once as "AU (STAN 09)" and
+        // once as "UEFA Champio…" — two slots, two ids, one game. The Sport
+        // tab folds these with bestPerFixture; a shelf that is a glance rather
+        // than a schedule has more reason to, not less. fixtureKey prefers the
+        // schedule's identity, which is what makes two spellings one match.
+        .distinctBy { SportsParser.fixtureKey(it.event) }
         .take(SHELF_LIMIT)
         .toList()
 }

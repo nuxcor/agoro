@@ -44,6 +44,30 @@ data class ScheduleFixture(
      * score.
      */
     val state: String = "",
+    /**
+     * What else the home side answers to — ESPN's short name and nickname.
+     *
+     * The display name on its own is not enough to find a club. ESPN bills
+     * Inter "Internazionale" and every pack writes "Inter"; the two share no
+     * word, so the fixture went unmatched and the row kept the pack's
+     * kick-off, which is the one this file exists to overrule. Real Madrid v
+     * Inter stood on the Sport tab counting down to the wrong hour.
+     *
+     * Empty for fixtures published before the field existed.
+     */
+    val homeAlt: List<String> = emptyList(),
+    val awayAlt: List<String> = emptyList(),
+    /**
+     * The club badges, from the same record as the clock.
+     *
+     * The crest index is keyed by the spelling the ROSTER uses, so looking a
+     * badge up by name needs the matcher's name and the index's name to agree
+     * — and rewriting fixtures to ESPN's spelling once took the badge off
+     * twenty rows at a stroke. Carried on the fixture there is no lookup left
+     * to miss. Empty when ESPN published none.
+     */
+    val homeLogo: String = "",
+    val awayLogo: String = "",
 ) {
     val startMs: Long? by lazy { parseZulu(start) }
 
