@@ -14,6 +14,7 @@ import com.agoro.tv.ui.theme.Space
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
@@ -57,6 +58,39 @@ import com.agoro.tv.ui.components.SectionTitle
 import com.agoro.tv.ui.components.WideItem
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.data.isFavorite
+
+/**
+ * How wide the search bar gets, however wide the panel is.
+ *
+ * A search bar is a thing you type into, not a banner. Run edge to edge it
+ * read as a form, and the three letters you had typed sat alone at the left
+ * of 800dp of empty box.
+ */
+private val SEARCH_BAR_WIDTH = 620.dp
+
+/** A capsule. A search box is the one control that is a shape people know. */
+private val SEARCH_BAR_SHAPE = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
+
+/**
+ * The bar's own colours.
+ *
+ * Separate from [NuxFieldDefaults], which the dialogs share and which is right
+ * for them — a form field in a dialog wants a visible outline at rest. This
+ * one wants none at rest, and a WHITE ring on focus: the theme's rule is that
+ * focus is white and gold means brand, and the shared defaults ring this in
+ * gold on the one screen that is nothing but a text box.
+ */
+@androidx.compose.runtime.Composable
+private fun searchBarColors() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedTextColor = NuxColors.OnSurface,
+    unfocusedTextColor = NuxColors.OnSurface,
+    focusedContainerColor = NuxColors.SurfaceRaised,
+    unfocusedContainerColor = NuxColors.SurfaceVariant,
+    focusedBorderColor = NuxColors.FocusBorder,
+    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    cursorColor = NuxColors.Primary,
+)
+
 
 @Composable
 fun SearchTab(
@@ -213,7 +247,11 @@ fun SearchTab(
 
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                // NOT the full panel. A search bar is a thing you type into,
+                // not a banner: run edge to edge on a 960dp canvas it read as
+                // a form to fill in, and the eye had to cross 800dp of empty
+                // box to find the three letters in it.
+                .widthIn(max = SEARCH_BAR_WIDTH)
                 // Coming back UP to the query row is leaving the shelves, so
                 // the hero stops describing a poster — same rule the channel
                 // and programme rows follow, from the other direction. Without
@@ -226,7 +264,20 @@ fun SearchTab(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                label = { androidx.compose.material3.Text("Search channels, movies and shows") },
+                // A PLACEHOLDER, not a label. The floating label notched
+                // itself into the top border and sat there permanently once
+                // there was text, so the bar wore a caption cut through its
+                // own outline — the single ugliest thing on the screen, and
+                // pure Material desktop convention that a TV never needed.
+                // The placeholder says the same words and then gets out of
+                // the way.
+                placeholder = {
+                    androidx.compose.material3.Text(
+                        "Search channels, films and shows",
+                        color = NuxColors.OnSurfaceDim,
+                    )
+                },
+                shape = SEARCH_BAR_SHAPE,
                 singleLine = true,
                 // A magnifier at the leading edge. The field used to be a bare
                 // outlined box running the width of the panel, which on a TV
@@ -244,7 +295,15 @@ fun SearchTab(
                     .weight(1f)
                     .focusRequester(fieldFocus)
                     .dpadFieldNavigation(),
-                colors = NuxFieldDefaults.colors(),
+                // Its own colours rather than NuxFieldDefaults, which the
+                // dialogs share and which is right for them: a form field in
+                // a dialog wants a visible outline at rest. This one wants
+                // none — and its focused border is WHITE, because the theme's
+                // own rule is that focus is white and gold means brand. The
+                // shared defaults ring it in gold, which on the one screen
+                // that is nothing but a text box made the box the loudest
+                // thing in the app.
+                colors = searchBarColors(),
             )
             if (canSpeak) {
                 androidx.tv.material3.OutlinedButton(
