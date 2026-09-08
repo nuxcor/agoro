@@ -64,6 +64,7 @@ import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.Movie
 import com.agoro.tv.data.Series
 import com.agoro.tv.ui.components.ChannelShelfCard
+import com.agoro.tv.ui.components.SportShelfCard
 import com.agoro.tv.ui.components.ContextMenu
 import com.agoro.tv.ui.components.MenuAction
 import com.agoro.tv.ui.components.PosterCard
@@ -825,17 +826,16 @@ fun HomeLoungeTab(
                     ) {
                         itemsIndexed(liveSport, key = { _, f -> f.slot.id }) { index, fixture ->
                             Box(modifier = Modifier.itemEntrance(index, entrance)) {
-                                ChannelShelfCard(
-                                    channel = fixture.slot,
-                                    // The fixture rides in the now-playing
-                                    // slot, which is exactly what it is. The
-                                    // card draws a progress bar from it too,
-                                    // so the tile says how far into the match
-                                    // you would be joining — the one thing
-                                    // that matters about a game already under
-                                    // way, and the one thing the slot's own
-                                    // name never says.
-                                    now = fixture.asProgram(),
+                                // A fixture card, not a channel card. The
+                                // slot is a pipe: its logo is the PACK's, so
+                                // three matches on one pack drew one picture
+                                // three times, and its name is marketing text
+                                // that truncated before it reached the
+                                // fixture. The clubs are what the card is for.
+                                SportShelfCard(
+                                    event = fixture.event,
+                                    quality = fixture.slot.quality,
+                                    progress = fixture.progress(sportMinute),
                                     modifier = cardFocusModifier(row, index),
                                     onClick = {
                                         vm.playEvent(

@@ -112,7 +112,11 @@ class LiveSportShelfTest {
 
     @Test
     fun `the shelf is capped`() {
-        val many = (1..40).map { fixture(it) }
+        // Forty DIFFERENT matches. They used to be forty copies of Arsenal v
+        // Chelsea, which measured the cap against a list the shelf now folds
+        // to one card — the fixture-level dedupe is the right answer to that
+        // input, so the cap has to be asked with the input it is about.
+        val many = (1..40).map { fixture(it, home = "Club $it", away = "Town $it") }
         val slots = (1..40).map { slot(it) }
         assertEquals(20, liveSportShelf(many, slots, now).size)
     }
@@ -139,5 +143,78 @@ class LiveSportShelfTest {
         )
         val card = liveSportShelf(listOf(timeless), listOf(slot(2)), now).single()
         assertNull(card.asProgram())
+    }
+
+    // --- one card per MATCH, and the bar the card draws --------------------
+
+    /**
+     * The duplicate Home was actually drawing. Club Brugge v Aston Villa stood
+     * on the shelf twice — once as "AU (STAN 09)" and once as "UEFA Champio…"
+     * — two slots, two ids, one game. distinctBy(slot.id) cannot see it.
+     */
+    @Test
+    fun `the same match on two slots makes one card`() {
+        val out = liveSportShelf(
+            listOf(
+                fixture(1, "Club Brugge", "Aston Villa"),
+                fixture(2, "Club Brugge", "Aston Villa"),
+            ),
+            listOf(slot(1), slot(2)),
+            now,
+        )
+        assertEquals(1, out.size)
+        assertEquals("the first slot survives", "live:1", out.single().slot.id)
+    }
+
+    /** Two spellings of one club are still one match, via the schedule's key. */
+    @Test
+    fun `one match spelled two ways makes one card`() {
+        val key = "CLUB BRUGGE|ASTON VILLA"
+        val out = liveSportShelf(
+            listOf(
+                fixture(1, "Club Brugge", "Aston Villa").copy(scheduleKey = key),
+                fixture(2, "Brugge", "Villa").copy(scheduleKey = key),
+            ),
+            listOf(slot(1), slot(2)),
+            now,
+        )
+        assertEquals(1, out.size)
+    }
+
+    /** Different matches are not folded, however close together they sit. */
+    @Test
+    fun `two different matches make two cards`() {
+        val out = liveSportShelf(
+            listOf(
+                fixture(1, "Club Brugge", "Aston Villa"),
+                fixture(2, "AEK Athens", "LASK Linz"),
+            ),
+            listOf(slot(1), slot(2)),
+            now,
+        )
+        assertEquals(2, out.size)
+    }
+
+    @Test
+    fun `the bar says how far into the match you are joining`() {
+        // Half an hour into the two-hour window the card assumes.
+        val card = liveSportShelf(listOf(fixture(1)), listOf(slot(1)), now).single()
+        assertEquals(0.25f, card.progress(now)!!, 0.001f)
+    }
+
+    @Test
+    fun `a fixture with no trusted kick-off draws no bar`() {
+        // A made-up bar is worse than none: the bar is the one thing on the
+        // card that claims to be measured.
+        val card = liveSportShelf(
+            listOf(fixture(1, startMs = null).copy(live = true)), listOf(slot(1)), now,
+        ).single()
+        assertNull(card.progress(now))
+    }
+
+    @Test
+    fun `the bar never runs past the end of its window`() {
+        val card = liveSportShelf(listOf(fixture(1)), listOf(slot(1)), now).single()
+        assertEquals(1f, card.progress(now + 10 * 60 * 60 * 1000L)!!, 0.001f)
     }
 }
