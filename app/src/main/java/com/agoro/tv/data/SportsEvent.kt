@@ -1100,6 +1100,17 @@ object SportsParser {
      * Hove Albion" for "Brighton", "VfB Stuttgart" for "Stuttgart") took the
      * badge off twenty of today's fixtures.
      */
+    /**
+     * Two spellings of one club, by the same rule the schedule matcher uses.
+     *
+     * Exposed rather than copied: [BroadcasterFeed] has to decide whether a
+     * guide entry names the same club a slot does, and that is the identical
+     * question [applySchedule] answers about ESPN's spelling against a pack's.
+     * Two implementations of a rule this tolerant is two rules that drift.
+     */
+    internal fun sameClub(a: String, b: String): Boolean =
+        sameSide(tokens(a), listOf(tokens(b)))
+
     internal fun fixtureKey(event: SportsEvent): String =
         event.scheduleKey ?: (sideKey(event.home) + "|" + sideKey(event.away))
 

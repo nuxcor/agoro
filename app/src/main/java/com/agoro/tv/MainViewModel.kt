@@ -164,9 +164,45 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun playEvent(streamId: Int, alternates: List<Int> = emptyList(), title: String? = null) {
         val slots = content.value.let { it as? ContentState.Ready }?.bundle?.events ?: return
-        val best = slots.firstOrNull { it.xtreamId == streamId } ?: return
+        val slot = slots.firstOrNull { it.xtreamId == streamId } ?: return
         val fallbacks = alternates.mapNotNull { alt -> slots.firstOrNull { it.xtreamId == alt } }
-        val shown = title?.takeIf { it.isNotBlank() } ?: best.displayName
+        val shown = title?.takeIf { it.isNotBlank() } ?: slot.displayName
+        // The broadcaster's own channel leads where the guide says it is
+        // carrying this fixture.
+        //
+        // A PPV slot is a pipe with a name on it, and the names lie: measured
+        // on 2026-09-08, one advertising Real Madrid v Inter was playing
+        // TENNIS, a second was playing Lille v Real Betis, and the two slots
+        // for the earlier ties were both black filler. TNT Sports 1 carried
+        // the same match at h264 1080p50 all evening and the fixture row could
+        // not offer it, because ManifestCuration only puts a PPV-section
+        // channel into `events` and the sport pipeline reads nothing else.
+        //
+        // Resolved HERE rather than in the fixtures flow on purpose. The guide
+        // changes every minute; folding it into that flow would re-run the
+        // sport pipeline on every tick and would change each event's stream id,
+        // which is its identity for the fold and the shelf. Pressing play is
+        // the only moment the answer is needed.
+        //
+        // displayChannels, never bundle.channels: the raw list is not filtered
+        // by the parental PIN, and a locked channel reachable through a
+        // fixture row is the lock bypassed.
+        val sides = title?.let { com.agoro.tv.data.SportsParser.readFixture(it) }
+        val broadcasters = if (sides == null) emptyList() else {
+            val guide = nowNext.value
+            com.agoro.tv.data.broadcastersFor(
+                sides.first, sides.second,
+                com.agoro.tv.data.broadcasterIndex(displayChannels.value) {
+                    guide[it.id]?.now?.title
+                },
+            )
+        }
+        val best = broadcasters.firstOrNull() ?: slot
+        // Everything that did not lead stays behind it, the slot included: the
+        // guide can be wrong, and a viewer who lands on the wrong channel must
+        // still be able to reach the feed the row was named for.
+        val rest = (broadcasters.drop(1) + listOfNotNull(slot.takeIf { best !== it }) + fallbacks)
+            .distinctBy { it.id }
         playback = PlaybackRequest(
             items = listOf(
                 PlayableItem(
@@ -176,9 +212,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     artwork = best.logo,
                     channelId = best.id,
                     recordUrl = best.recordUrl,
-                    fallbackUrls = fallbacks.map { it.url },
-                    fallbackTitles = fallbacks.map { slot ->
-                        com.agoro.tv.data.SportsParser.feedNote(slot.name)
+                    fallbackUrls = rest.map { it.url },
+                    fallbackTitles = rest.map { alt ->
+                        com.agoro.tv.data.SportsParser.feedNote(alt.name)
                             ?.let { "$shown · $it" } ?: shown
                     },
                 )
