@@ -64,7 +64,11 @@ internal fun liveSportShelf(
     if (fixtures.isNullOrEmpty() || events.isEmpty()) return emptyList()
     val slots = events.associateBy { it.xtreamId }
     return fixtures.asSequence()
-        .filter { it.isLive(nowMs) }
+        // isOnNow, not isLive: isLive has no upper bound, so a match that
+        // kicked off stays 'live' until the schedule forgets it. That is a
+        // mis-styled badge on the Sport tab and a finished match sitting on
+        // this shelf for hours.
+        .filter { it.isOnNow(nowMs) }
         // The slot is what actually plays, so a fixture whose slot is not in
         // this bundle has nothing behind it and must not draw a card.
         .mapNotNull { event -> slots[event.streamId]?.let { LiveFixture(event, it) } }

@@ -52,6 +52,14 @@ data class SportsEvent(
      * spelling, because that is what the crest index is keyed on.
      */
     val scheduleKey: String? = null,
+    /**
+     * ESPN's own verdict, when the schedule matched: "pre", "in" or "post".
+     *
+     * Empty for a slot the schedule could not place, and for fixtures
+     * published before the field existed. See [isOnNow] for why a kick-off
+     * alone cannot answer the question this does.
+     */
+    val state: String = "",
     /** A studio or tactical-camera companion feed rather than the match itself. */
     val sideFeed: Boolean = false,
     /**
@@ -72,7 +80,39 @@ data class SportsEvent(
      */
     fun isLive(nowMs: Long): Boolean = startMs?.let { it <= nowMs } ?: live
 
+    /**
+     * Actually on RIGHT NOW — kicked off and not yet finished.
+     *
+     * [isLive] only answers the first half. It has no upper bound, so a match
+     * stays "live" for as long as it stays in the schedule: on the Sport tab
+     * that only mis-styles a badge on a dated list, but used as a FILTER it
+     * put finished matches on the Home shelf and left them there. Getafe v
+     * Celta Vigo, hours after full time.
+     *
+     * ESPN's [state] settles it where the schedule matched the slot, and that
+     * is the only honest source: match lengths cannot stand in for it, because
+     * football runs two hours, an NFL game three and a half, and a Test match
+     * days. [ON_NOW_FALLBACK_MS] is for slots the schedule never placed and
+     * for fixtures published before the field existed — generous enough not to
+     * cut a long game short, short enough that yesterday is gone.
+     */
+    fun isOnNow(nowMs: Long): Boolean = when (state) {
+        "post" -> false
+        "in" -> true
+        else -> startMs?.let { it <= nowMs && nowMs - it < ON_NOW_FALLBACK_MS } ?: live
+    }
+
     companion object {
+        /**
+         * How long a fixture counts as on-now when nothing knows better.
+         *
+         * Only reached without ESPN's state. Three hours covers a football
+         * match with its build-up and most of an NFL game; a Test match is
+         * beyond anything a single number can serve, and showing it for three
+         * hours is still better than showing it until the schedule forgets it.
+         */
+        const val ON_NOW_FALLBACK_MS = 3L * 60 * 60 * 1000
+
         const val TIER_UNKNOWN = 9
 
         /** No opinion about the source, which is true of nearly every slot. */
@@ -1621,6 +1661,9 @@ object SportsParser {
                 scheduleKey = sideKey(best.fixture.home) + "|" + sideKey(best.fixture.away),
                 startMs = best.start,
                 live = best.start <= nowMs,
+                // The one fact only the body keeping score has: whether it is
+                // over. See [isOnNow].
+                state = best.fixture.state,
             )
         }
     }

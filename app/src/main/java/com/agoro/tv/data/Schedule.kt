@@ -34,6 +34,16 @@ data class ScheduleFixture(
     val away: String = "",
     /** ISO-8601 Zulu, e.g. "2026-09-04T23:30Z". */
     val start: String = "",
+    /**
+     * ESPN's own verdict: "pre", "in" or "post". Empty for fixtures published
+     * before this field existed, and for anything ESPN did not say.
+     *
+     * It is here because a kick-off alone cannot answer "is it on NOW". Match
+     * lengths cannot either — football runs two hours, an NFL game three and a
+     * half, a Test match days — so the only honest source is the one keeping
+     * score.
+     */
+    val state: String = "",
 ) {
     val startMs: Long? by lazy { parseZulu(start) }
 

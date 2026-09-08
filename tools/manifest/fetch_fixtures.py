@@ -102,7 +102,7 @@ def main():
             date = event.get("date")
             if not (home and away and date):
                 continue
-            out.append({
+            record = {
                 "league": league,
                 "home": home,
                 "away": away,
@@ -110,7 +110,18 @@ def main():
                 # local arithmetic. No zone is ever inferred from a name here,
                 # which is the entire point of this file.
                 "start": date,
-            })
+            }
+            # Whether it has FINISHED, which nothing else here can answer.
+            #
+            # A kick-off alone only says a match has begun; the app was reading
+            # "started" as "on now" and a fixture stayed on now forever. Match
+            # lengths are no help either — football runs two hours, an NFL game
+            # three and a half, a Test match days — so the only honest source
+            # is the one keeping score. ESPN's state is "pre", "in" or "post".
+            state = (((event.get("status") or {}).get("type") or {}).get("state"))
+            if state in ("pre", "in", "post"):
+                record["state"] = state
+            out.append(record)
             n += 1
         counts[league] = n
         print(f"  {league:<18} {n:>3} fixtures")
