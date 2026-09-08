@@ -23,7 +23,12 @@ data class ProgressEntry(
     val updatedAtMs: Long = 0,
 )
 
-/** The blob that crosses the wire, versioned so the shape can change later. */
+/**
+ * The blob that crosses the wire, versioned so the shape can change later.
+ *
+ * Keyed by [ProgressSync.syncKey] — "movie:101" — and never by the stream
+ * URL, which carries the provider's username and password in its path.
+ */
 @Serializable
 data class ProgressPayload(
     val version: Int = 1,
@@ -61,6 +66,40 @@ object ProgressSync {
      * useless, it is wrong.
      */
     fun syncable(url: String): Boolean = SYNCED_KINDS.any { url.contains(it) }
+
+    /**
+     * What a title is called ON THE WIRE — "movie:101", "series:202".
+     *
+     * NEVER the URL, and this is the whole reason the function exists.
+     * Xtream puts the credentials in the PATH of every stream:
+     *
+     *     http://host/movie/<username>/<password>/101.mkv
+     *
+     * The app stores progress keyed by that URL, which is fine while it never
+     * leaves the box. Sending it would have uploaded the provider username and
+     * password, in the clear, as map keys — to hold a number saying how far
+     * into a film somebody is. The stream id is all the other TV needs, it is
+     * the same id on both, and it is not a secret.
+     *
+     * Null for anything that is not a film or an episode.
+     */
+    fun syncKey(url: String): String? {
+        val kind = SYNCED_KINDS.firstOrNull { url.contains(it) } ?: return null
+        val id = url.substringAfterLast('/').substringBeforeLast('.')
+        if (id.isBlank()) return null
+        return kind.trim('/') + ":" + id
+    }
+
+    /**
+     * Wire name → the local URL that answers to it.
+     *
+     * The map back, built from URLs this box already holds. A title watched
+     * only on the OTHER TV has no local URL yet and simply does not appear —
+     * the caller reconstructs those from the catalogue, which is the only
+     * place that knows the file extension.
+     */
+    fun urlsBySyncKey(urls: Iterable<String>): Map<String, String> =
+        urls.mapNotNull { url -> syncKey(url)?.let { it to url } }.toMap()
 
     /**
      * The account this progress belongs to, as an opaque id.
@@ -125,7 +164,6 @@ object ProgressSync {
     fun outgoing(entries: Map<String, ProgressEntry>): ProgressPayload =
         ProgressPayload(
             entries = entries.asSequence()
-                .filter { syncable(it.key) }
                 .sortedByDescending { it.value.updatedAtMs }
                 .take(MAX_ENTRIES)
                 .associate { it.key to it.value },
@@ -148,9 +186,9 @@ object ProgressSync {
     ): Map<String, ProgressEntry> {
         val urls = positions.keys + watched.keys
         return urls.asSequence()
-            .filter { syncable(it) }
-            .associateWith { url ->
-                ProgressEntry(
+            .mapNotNull { url -> syncKey(url)?.let { it to url } }
+            .associate { (key, url) ->
+                key to ProgressEntry(
                     positionMs = positions[url] ?: 0,
                     durationMs = durations[url] ?: 0,
                     watchedAtMs = watched[url] ?: 0,
