@@ -367,6 +367,8 @@ fun GuideTab(
     // Declared out here rather than beside the strip it points at: BACK reads
     // it, and BACK is handled from here. See [guideBackAction] for the order.
     val chipsFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    /** Where UP out of the strip goes; null when nothing is above. */
+    val toTopNav = com.agoro.tv.ui.components.LocalTopNavFocus.current
     GuideBackHandler(
         awayFromNow = awayFromNow,
         handle = gridHandle,
@@ -467,6 +469,20 @@ fun GuideTab(
                 // every time you came up from the grid.
                 .focusRequester(chipsFocus)
                 .focusRestorer()
+                // UP out of the strip belongs to the navigation above it. This
+                // sits BEFORE the DOWN handler below so each direction is
+                // answered by the modifier that owns it. Explicit rather than
+                // geometric for the reason recorded above: a scrolled LazyRow
+                // is exactly where the search goes wrong.
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown &&
+                        event.key.nativeKeyCode ==
+                        android.view.KeyEvent.KEYCODE_DPAD_UP && toTopNav != null
+                    ) {
+                        toTopNav.invoke()
+                        true
+                    } else false
+                }
                 .then(
                     if (maxDayOffset > 0) {
                         Modifier.onPreviewKeyEvent { event ->

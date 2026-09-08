@@ -367,6 +367,8 @@ fun HomeLoungeTab(
     // re-executed the tab — seven flow reads, a dozen remembers, a new
     // LazyColumn content lambda — and invalidated every composed card to
     // find out that one of them had gained a requester.
+    // Where UP at the top of the shelves goes. Null when nothing is above.
+    val toTopNav = com.agoro.tv.ui.components.LocalTopNavFocus.current
     var focusedRow by rememberSaveable { mutableStateOf(0) }
     var focusedIndex by rememberSaveable { mutableStateOf(0) }
     // The focused row by NAME as well as by index: a shelf appearing above
@@ -712,15 +714,26 @@ fun HomeLoungeTab(
         modifier = Modifier
             .fillMaxSize()
             .onPreviewKeyEvent { event ->
-                // UP from the first row is CONSUMED and goes nowhere. The
-                // hero above it does not take focus, and left to the
-                // geometric search the move escapes to the nav rail, where
-                // the dwell then switches the whole screen — pressing up at
-                // the top of your shelves should not navigate you off them.
-                // It used to land on the Search pill, which is gone: search
-                // is a rail row now and the pill was the duplicate.
-                event.type == KeyEventType.KeyDown &&
+                // UP from the first row goes to the top navigation.
+                //
+                // It used to be consumed and go NOWHERE: the hero above takes
+                // no focus, and the geometric search escaped to the nav rail,
+                // where dwell-select then switched the whole screen. Both
+                // halves of that are gone — there is no dwell, and the thing
+                // above the shelves is now a header the viewer can see. UP
+                // toward something visible has to reach it, or the header is
+                // only reachable by BACK, which is the drawer's habit
+                // surviving into a design that no longer needs it.
+                //
+                // Still an explicit request rather than geometry, and still
+                // consumed either way: with nothing above to reach, UP at the
+                // top of your shelves must not fall through and scroll them.
+                if (event.type == KeyEventType.KeyDown &&
                     event.key == Key.DirectionUp && focusedRow == 0
+                ) {
+                    toTopNav?.invoke()
+                    true
+                } else false
             },
     ) {
         // Emitted straight from rowKeys, so a shelf's position in this list IS

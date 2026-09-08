@@ -77,24 +77,24 @@ internal fun airLabel(iso: String?, todayIso: String): String? {
  * column past the picture and make rows different heights, which is the
  * arrangement EpisodeRow's own comment exists to prevent.
  *
- * Width is not the objection it looks like either: the slot already ships
- * "Resume from 1h 12m" at 18 characters, and the longest thing below is
- * "12 Mar 2024 · 1h 2m" at 19.
+ * Width is not the objection it looks like either: the longest thing it can
+ * print is "12 Mar 2024 · 1h 2m", at 19 characters.
  *
  * Runtime goes LAST because the string is right-anchored, so the final token
  * is the one whose column stays stable down the list; dates are not ("1 Mar"
  * against "12 Mar 2024").
  *
- * A resume position takes the line alone. It is the only thing in the slot
- * the viewer can act on, and where they are beats what the episode is.
+ * A part-watched episode says nothing extra here. It used to read "Resume
+ * from 1h 12m", which is the progress bar across the foot of the still
+ * translated into words — and it cost the row the two facts the bar cannot
+ * give: what the episode is called out to, and how long it runs. The bar
+ * already says where you are, in the place you are already looking.
  */
 internal fun episodeMeta(
-    resumeMs: Long,
     runtimeMinutes: Int?,
     airDate: String?,
     todayIso: String,
 ): String? {
-    if (resumeMs > 0) return "Resume from ${formatOffset(resumeMs)}"
     val parts = listOfNotNull(airLabel(airDate, todayIso), runtimeLabel(runtimeMinutes))
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
