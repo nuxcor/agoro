@@ -1399,6 +1399,107 @@ object SportsParser {
         feedLanguage(name) ?: "studio feed".takeIf { isSideFeed(name) }
 
     /**
+     * Which SOURCE a slot is, short enough to sit in a row: "ESPN+ PPV 39",
+     * "UEFA 04", "FLSP 912".
+     *
+     * A fixture is carried by several slots and the player can be on any of
+     * them, so the viewer has to be able to see which — and to say which, when
+     * the one that opened is playing another match entirely. The fixture title
+     * is the same on every one of them and the raw slot name is a paragraph
+     * ("NEXT | FC BARCELONA VS. ATHLETIC CLUB (MATCHDAY #1) | Thu 27 Aug 14:55
+     * EDT (US) | 8K EXCLUSIVE | US: ESPN+ PPV 39"), so neither can do it.
+     *
+     * The pack, in the four places the four formats put it. Cosmetic — a label
+     * that reads wrong is a label, not a wrong stream — so every rule here is
+     * allowed to give up, and the caller falls back to the slot's own name.
+     */
+    fun packLabel(name: String): String? {
+        val fields = name.split('|').map { it.trim() }.filter { it.isNotEmpty() }
+        // "… | 8K EXCLUSIVE | US: ESPN+ PPV 39" — the listings packs sign off
+        // with a territory and their own name, in the last field.
+        fields.lastOrNull()?.let { last ->
+            packSignOff.matchEntire(last)?.let { return tidyLabel(it.groupValues[1]) }
+        }
+        // "Flo (FLSP) 179: 2025 Erie Otters vs Soo Greyhounds - 22/10 19:07".
+        // Before the brackets below, which would read this one as "FLSP" and
+        // drop the number that says WHICH Flo pipe it is.
+        floSource.find(name)?.let { return tidyLabel(it.groupValues[1] + " " + it.groupValues[2]) }
+        // "US (ESPN+ 352) | …", "(FLSP 912) | …", "(US) (BTN+ 089) | …",
+        // "(Apple) (MLS) 048 | …": the bracketed packs lead with themselves.
+        // The group carrying a number is the one that identifies the pipe —
+        // "(US)" is a territory, "(BTN+ 089)" is the source.
+        val head = (fields.firstOrNull() ?: name.trim())
+            .let { if (fields.size > 1) it else it.substringBefore(':').trim() }
+        val brackets = bracketedSource.findAll(head).map { it.groupValues[1].trim() }.toList()
+        if (brackets.isNotEmpty()) {
+            val numbered = brackets.lastOrNull { it.any(Char::isDigit) }
+            // "(Apple) (MLS) 048" leaves its number outside the brackets.
+            val trailing = trailingNumber.find(head)?.groupValues?.get(1)
+            val label = numbered
+                ?: brackets.last().let { if (trailing != null) "$it $trailing" else it }
+            return tidyLabel(label)
+        }
+        // "Mount Olive vs Coker @ Aug 27 4:30 PM :Flo College  37", ":MAX US
+        // 74": the MLS-shaped packs sign off after a colon instead. Before the
+        // head below, because those names lead with the FIXTURE — "US Open:
+        // Court 4 …  :Tennis 12" is the Tennis pack, not a pack called US Open.
+        colonSignOff.find(name)?.let { return tidyLabel(it.groupValues[1]) }
+        // "UK: LIGUE 1 PPV | MATCH 1" — the same sign-off, at the front.
+        packSignOff.matchEntire(head)?.let { m ->
+            if (m.groupValues[1].any(Char::isLetter)) return tidyLabel(m.groupValues[1])
+        }
+        // "UEFA | 04 - Viking v Dinamo Zagreb", "MLB 03 | Astros x Yankees",
+        // "NCAAF 18: …": a bare pack name, and where the pack numbers its
+        // pipes in the next field, that number too.
+        headPack.matchEntire(head)?.let {
+            if (head.uppercase(Locale.ROOT) in notAPack) return null
+            val number = fields.getOrNull(1)
+                ?.let { next -> leadingSlotNumber.find(next)?.value?.filter(Char::isDigit) }
+            return tidyLabel(if (number.isNullOrBlank()) head else "$head $number")
+        }
+        // Shaped like nothing here — a fixture with no pack on it, or a 24/7
+        // channel shelved under PPV. The slot's own name says more than a
+        // guess would.
+        return null
+    }
+
+    /** "US: ESPN+ PPV 39", "UK: MAX PPV 100" — territory, colon, pack. */
+    private val packSignOff = Regex("""(?i)[A-Z]{2}:\s*([A-Za-z0-9+.\s]{2,24})""")
+
+    /** "(ESPN+ 352)", "(BTN+ 089)", "(FLSP 912)", "(MLS)". */
+    private val bracketedSource = Regex("""\(([A-Za-z][A-Za-z+.\s]{0,12}\d{0,4})\)""")
+
+    /** "(Apple) (MLS) 048" — the pipe number, left outside the brackets. */
+    private val trailingNumber = Regex("""\)\s*(\d{1,4})\s*$""")
+
+    /** "UEFA", "PSF06", "MLB 03", "Live Football 27" — a pack, on its own. */
+    private val headPack = Regex("""[A-Za-z][A-Za-z+.]{1,11}(?:\s[A-Za-z+.]{1,11})?\s*\d{0,3}""")
+
+    /**
+     * Words a slot leads with that are not its source.
+     *
+     * The pipe packs open with the state of the fixture — "Next | Sheffield
+     * Wednesday vs. Bradford City | all | 20-08-2026" — and the rest lead with
+     * a territory: "US: 24/7 FAMILY GUY" is not a pack called US. Counted on
+     * the curated list, the territories alone were 200 slots all labelled the
+     * same two letters, which is the one thing a feed name may not be — the
+     * whole job here is telling one pipe from another.
+     */
+    private val notAPack = setOf(
+        "LIVE", "NEXT", "NOW", "END", "ENDED", "FINISHED", "VIP", "NEW",
+        "US", "UK", "GB", "AU", "CA", "NZ", "IE", "NF", "EU", "FR", "DE", "ES", "IT", "PT", "NL",
+    )
+
+    /** "Flo (FLSP) 179:". */
+    private val floSource = Regex("""^[A-Za-z]+\s*\(([A-Z]{2,6})\)\s*(\d{1,4})\s*:""")
+
+    /** ":Flo College  37", ":MAX US 74", ":MLS  02" — the trailing sign-off. */
+    private val colonSignOff = Regex(""":\s*([A-Za-z][A-Za-z+.\s]{1,16}\d{0,4})\s*$""")
+
+    private fun tidyLabel(raw: String): String? =
+        raw.trim().replace(runsOfSpace, " ").takeIf { it.length in 2..24 }
+
+    /**
      * What the slot claims its picture is. The advertised token is all there
      * is here — these slots are never probed, because a pipe's measurement
      * belongs to whatever match happened to be running at the time.

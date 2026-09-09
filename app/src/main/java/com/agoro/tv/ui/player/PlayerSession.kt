@@ -402,6 +402,33 @@ class PlayerSession internal constructor(
     private var retriesLeft = reconnectDelaysMs(initialRequest.isLive).size
     private var liveFormatStage = 0
     private var sourceStage = 0
+
+    /**
+     * The sources this item can be played from, as they were when it was
+     * tuned — the one playing included.
+     *
+     * Snapshotted, because [swapSource] rewrites the item's own url and title
+     * to whichever rung it moved onto: reading the ladder off the item after
+     * that gives a list whose head is the fallback it is already on, with the
+     * source the viewer actually chose gone from it. Rebuilt only when the
+     * ITEM changes, never on a reconnect or a rejoin.
+     */
+    private var feeds: List<com.agoro.tv.data.FeedSource> by mutableStateOf(
+        initialRequest.items.getOrNull(initialRequest.startIndex)
+            ?.let { com.agoro.tv.data.feedsOf(it) }.orEmpty()
+    )
+
+    /**
+     * Which of [feeds] is on screen, for the banner and the feed switcher.
+     *
+     * Kept by url rather than by counting swaps: the error ladder's
+     * [sourceStage] is reset by a rejoin while the stream on screen stays
+     * where it was, so a count would drift and the viewer would be told they
+     * are on a feed they are not.
+     */
+    var currentFeed: Int by mutableIntStateOf(0)
+        private set
+
     /** Whether this item has already been retried without TLS; see [swapScheme]. */
     private var schemeDowngraded = false
     private var ladderItemIndex = initialRequest.startIndex
@@ -831,6 +858,15 @@ class PlayerSession internal constructor(
         seekJob = null
         seekTargetMs = null
         seekPresses = 0
+        // A different item is a different ladder; the SAME item arriving again
+        // is a rejoin or a reconnect, and its sources were snapshotted before
+        // the swap that may since have rewritten the item's url. Rebuilding
+        // then would take the feed the viewer is watching out of the list.
+        if (index != ladderItemIndex || feeds.isEmpty()) {
+            feeds = request.items.getOrNull(index)
+                ?.let { com.agoro.tv.data.feedsOf(it) }.orEmpty()
+            currentFeed = 0
+        }
         ladderItemIndex = index
         retriesLeft = reconnectDelaysMs(request.isLive).size
         liveFormatStage = 0
@@ -930,11 +966,71 @@ class PlayerSession internal constructor(
         val title = item.fallbackTitles.getOrNull(sourceStage) ?: item.title
         sourceStage++
         liveFormatStage = 0
+        // By url, not by the stage that just moved: see [currentFeed].
+        val landed = feeds.indexOfFirst { it.url == next }.takeIf { it >= 0 }
+        landed?.let { currentFeed = it }
         request = request.copy(
-            items = PatchedList(request.items, idx, item.copy(url = next, title = title)),
+            items = PatchedList(
+                request.items, idx,
+                item.copy(
+                    url = next,
+                    title = title,
+                    // The banner's logo, its now/next and the favourite star
+                    // all hang off this. A ladder that moves the stream and
+                    // leaves the id behind draws one channel's guide over
+                    // another channel's picture.
+                    channelId = landed?.let { feeds[it].channelId } ?: item.channelId,
+                ),
+            ),
         )
         return true
     }
+
+    /** How many sources this item offers; 1 or 0 means there is nothing to switch to. */
+    val feedCount: Int get() = feeds.size
+
+    /** What the source on screen is called, or null when it was never named. */
+    val feedLabel: String? get() = feeds.getOrNull(currentFeed)?.label
+
+    /** The url on screen, for remembering which feed the viewer settled on. */
+    val feedUrl: String? get() = feeds.getOrNull(currentFeed)?.url
+
+    /**
+     * Puts another of this fixture's feeds up, because the viewer asked.
+     *
+     * The failure ladder cannot do this job. It moves on an ERROR, and a pipe
+     * carrying the wrong match is not an error: it opens, it decodes, it plays
+     * ninety minutes of football that is not the football the viewer pressed.
+     * Nothing in the app can see that — the slot names are the only evidence
+     * there is about what a PPV pipe is carrying, and they are exactly what
+     * was wrong — so the viewer is the detector, and this is the control.
+     *
+     * The error ladder is left pointing PAST the chosen feed rather than at
+     * the top: a hand-picked source that then dies should fall onward, not
+     * back onto the ones already stepped over.
+     */
+    fun useFeed(index: Int): Boolean {
+        val feed = feeds.getOrNull(index) ?: return false
+        val idx = currentIndex
+        val item = request.items.getOrNull(idx) ?: return false
+        currentFeed = index
+        sourceStage = index
+        liveFormatStage = 0
+        retriesLeft = reconnectDelaysMs(request.isLive).size
+        clearError()
+        tuning = true
+        request = request.copy(
+            items = PatchedList(
+                request.items, idx,
+                item.copy(url = feed.url, title = feed.title, channelId = feed.channelId),
+            ),
+        )
+        return true
+    }
+
+    /** The next feed round, wrapping — the switcher is one repeated press. */
+    fun nextFeed(): Boolean =
+        feeds.size > 1 && useFeed((currentFeed + 1) % feeds.size)
 
     /**
      * Re-opens the current stream over http after https failed.

@@ -328,6 +328,34 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
     val channel: LiveChannel? = item?.channelId?.let { vm.channelById(it) }
     val isVod = !request.isLive
 
+    // Which of this fixture's feeds is on screen. Only where the sources were
+    // NAMED, which is the fixture path and nothing else: a channel's
+    // alternates are one stream at several qualities, the app's own business
+    // to climb, and calling them feeds would offer the viewer a choice between
+    // three spellings of the same thing. Null for a single source too — a
+    // switcher with nowhere to go is a row that answers a question by
+    // repeating it.
+    val feedLabel: String? =
+        if (item?.sourceNames.isNullOrEmpty() || session.feedCount <= 1) null
+        else "${session.currentFeed + 1} of ${session.feedCount}" +
+            (session.feedLabel?.let { " · $it" } ?: "") +
+            // What this feed actually decoded to, once it has.
+            //
+            // The app cannot know a pipe's picture before opening it, and it
+            // cannot infer it either: stream 1940147 measured 1080p on
+            // 2026-09-08 and 720p on the 9th, because a PPV pack re-streams
+            // whatever its source hands it that night. Nothing about the
+            // pack, the slot name or last night's probe predicts tonight.
+            // What CAN be said honestly is what is on screen right now — so
+            // the switcher shows it, and stepping round the feeds is how a
+            // viewer finds the good one. Measured on the two Champions League
+            // ties of 2026-09-09: 720p30, 1080p25, 1080p30, 1080p50, 1080p60
+            // and a 720p50 HEVC, all of the same match.
+            (session.videoSize?.second?.takeIf { it > 0 }?.let { height ->
+                val fps = session.videoFrameRate?.takeIf { it > 1f }?.let { "${it.toInt()}" }
+                " · ${height}p${fps.orEmpty()}"
+            } ?: "")
+
     // Engine lives until something asks for a rebuild; see engineGeneration.
     val engine = remember(session.engineGeneration) {
         // A channel the app has seen decode at 4K OR in HDR tunnels from its
@@ -1338,6 +1366,7 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                     showKeyHints = request.isLive && hintsVersionSeen < KEY_HINTS_VERSION &&
                         session.bannerShows <= 3 && session.layer != PlayerLayer.Controls,
                     logoDeferred = session.pendingTuneIndex != null,
+                    feedLabel = feedLabel,
                 )
             }
 
@@ -1579,7 +1608,15 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
             exit = PlayerMotion.exitToRight(),
         ) {
             ChannelOptionsMenu(
-                channelName = channel?.displayName ?: item?.title.orEmpty(),
+                // The match, when there is one: a fixture's channel is
+                // whichever pipe is carrying it this minute, and heading the
+                // menu with that leaves the thing the viewer pressed unnamed
+                // on every screen at once.
+                channelName = if (feedLabel != null) {
+                    item?.title?.takeIf { it.isNotBlank() } ?: channel?.displayName.orEmpty()
+                } else {
+                    channel?.displayName ?: item?.title.orEmpty()
+                },
                 isFavoritable = request.isLive && channel != null,
                 isFavorite = channel != null && channel.isFavorite(favorites),
                 hasCatchup = request.isLive && (channel?.archiveDays ?: 0) > 0,
@@ -1587,10 +1624,22 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                 sleepLabel = if (session.sleepChoiceMinutes == 0) "Off"
                 else "${session.sleepChoiceMinutes}m",
                 canHide = request.isLive && channel != null,
+                feedLabel = feedLabel,
                 onFavoriteToggle = { channel?.let { vm.toggleFavorite(it) } },
                 onCatchup = { session.layer = PlayerLayer.Catchup },
                 onTracks = { session.layer = PlayerLayer.Tracks },
                 onAspectCycle = { applyAspect((session.scaleMode + 1) % ASPECT_LABELS.size) },
+                onNextFeed = {
+                    if (session.nextFeed()) {
+                        // Remembered against the fixture, so pressing its row
+                        // again this evening opens the feed the viewer found
+                        // rather than the one the app guessed at.
+                        session.feedUrl?.let { vm.rememberFeedChoice(item?.title.orEmpty(), it) }
+                        session.statusMessage = session.feedLabel
+                            ?.let { "Feed ${session.currentFeed + 1} of ${session.feedCount} · $it" }
+                            ?: "Trying another feed"
+                    }
+                },
                 onSleepCycle = {
                     val index = SLEEP_CHOICES.indexOf(session.sleepChoiceMinutes)
                         .coerceAtLeast(0)

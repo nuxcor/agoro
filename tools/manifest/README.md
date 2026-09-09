@@ -231,6 +231,7 @@ gh api "repos/klunn91/team-logos/git/trees/master?recursive=1" \
   --jq '.tree[]|select(.path|test("\\.(png|svg)$"))|.path' > crest_tree_us.txt
 ```
 | Measure | `probe_tiers.py` | `manifest.json`, panel streams | `probed_tiers.json` |
+| Measure PPV | `probe_slots.py` | `manifest.json`, panel streams | `probed_slots.json` |
 | Artwork gaps | `bind_logos.py` | `manifest.json`, tv-logos tree | `manifest.json` (in place) |
 
 Providers lie about tiers, so `probe_tiers.py` ffprobes what each tile source
@@ -238,6 +239,33 @@ actually decodes and the build prefers the measurement. Iterate
 probe → rebuild until no primary is unprobed (a demoted liar promotes a
 source that may itself be unmeasured); `--all` extends the truth to the
 fallback ladders. One connection at a time — panels meter them.
+
+`probe_tiers.py` and `black_check.py` both skip the PPV shelf — they measure
+the line-up, and a PPV slot is not on it — which left 6 of 7,791 slots measured
+and `SportsParser.byFeed` ranking fixtures on the pack's own name. `probe_slots
+.py` sweeps that shelf and only that shelf:
+
+```sh
+AGORO_HOST=... AGORO_USER=... AGORO_PASS=... python3 probe_slots.py \
+    --fixtures-only            # ffprobe only the slots named "A vs B"
+python3 probe_slots.py --black-only   # the cheap half; safe any time
+```
+
+**Run it while the fixtures are on.** A PPV slot is a pipe the provider
+re-points at a new event and renames — stream 1025280 was Freiburg v
+Motherwell on 8 September and Barcelona v Feyenoord on the 9th — so a slot
+measured at 04:00 says nothing about the match it carries at 20:00, and one
+measured black between fixtures is not a broken slot. Every record therefore
+carries the name it was taken against and the build honours it only while the
+panel still gives that slot that name, and only for 48 hours. A reading that
+fails either test is dropped rather than aged: `byFeed` reads 0 as "never
+measured" and falls back to the pack name, which is worse than a measurement
+but not wrong, and last night's black flag on tonight's live match would be.
+
+Black comes first because it is nearly free — the front answers with a 302 to
+`/video/black.ts` before any stream opens, so it costs one request, no
+bandwidth and no slot on a one-connection line. Only the slots redirecting to a
+real upstream are worth ffprobe, which does open the stream and runs serially.
 
 Then copy the result over the shipped asset:
 

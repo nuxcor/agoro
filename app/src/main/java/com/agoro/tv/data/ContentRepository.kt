@@ -1614,6 +1614,55 @@ class ContentRepository(context: Context) {
         }
     }
 
+    /**
+     * What the panel calls the streams in these live categories RIGHT NOW.
+     *
+     * Empty for M3U sources, and empty for anything that fails or is too slow
+     * — the caller must treat a blank answer as "no news", never as "nothing
+     * matches", because the fallback is the catalogue it already has. See
+     * [XtreamClient.liveNamesIn] for why a fixture needs this at all.
+     *
+     * Categories are fetched together: they are four small requests on the
+     * player_api endpoint, which is not the streaming endpoint and is not
+     * counted against a one-connection line.
+     */
+    suspend fun currentLiveNames(
+        categoryIds: Collection<String>,
+        timeoutMs: Long = 4_000L,
+    ): Map<Int, String> {
+        if (categoryIds.isEmpty()) return emptyMap()
+        val source = activeSource.first() as? PlaylistSource.Xtream ?: return emptyMap()
+        val client = xtreamClient(source)
+        return try {
+            kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+                kotlinx.coroutines.coroutineScope {
+                    categoryIds.distinct()
+                        .map { id ->
+                            async {
+                                try {
+                                    client.liveNamesIn(id)
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    // A cancelled fetch is not an empty
+                                    // category; see the house rule in
+                                    // ProgressSyncClient.
+                                    throw e
+                                } catch (e: Exception) {
+                                    emptyMap()
+                                }
+                            }
+                        }
+                        .let { kotlinx.coroutines.awaitAll(*it.toTypedArray()) }
+                        .fold(HashMap<Int, String>()) { acc, part -> acc.apply { putAll(part) } }
+                }
+            }.orEmpty()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("Agoro", "Slot re-read failed: ${e.message}")
+            emptyMap()
+        }
+    }
+
     /** Provider account health, or null for M3U sources. */
     suspend fun accountInfo(): XtreamClient.AccountInfo? {
         val source = activeSource.first() as? PlaylistSource.Xtream ?: return null

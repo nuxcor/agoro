@@ -351,7 +351,71 @@ data class PlayableItem(
      * MainViewModel.playEvent; read by PlayerSession.swapSource.
      */
     val fallbackTitles: List<String> = emptyList(),
+    /**
+     * What each source in the ladder IS — "TNT Sports 3", "ESPN+ PPV 39" —
+     * named end to end: index 0 is the source this item opened on, and index
+     * n+1 names [fallbackUrls] n.
+     *
+     * Empty for a channel, whose sources are one channel at several qualities
+     * and where naming them would be noise. A fixture's are different feeds of
+     * a match, and the pipe carrying one routinely turns out to be showing
+     * another match altogether — that is the report this exists for. The
+     * viewer cannot say "this is the wrong game, give me another feed" while
+     * every source is called the same thing, and the app cannot tell them
+     * which one they landed on. See [feedsOf].
+     */
+    val sourceNames: List<String> = emptyList(),
+    /**
+     * The channel each source came from, index for index with [sourceNames],
+     * blank where it came from a PPV slot rather than a channel the app lists.
+     *
+     * The banner draws its logo, its now/next and the favourite star off the
+     * item's [channelId], so a ladder that moves the stream and leaves the id
+     * behind puts one channel's guide over another channel's picture — and on
+     * a fixture the guide is the very thing being checked. See [feedsOf].
+     */
+    val sourceChannelIds: List<String> = emptyList(),
 )
+
+/**
+ * One source a [PlayableItem] can be played from.
+ *
+ * [title] is what the screen calls the match while this source is up, which
+ * for a fixture's alternates is not the same on every rung — one of them is
+ * the Spanish call and one is the studio show. [label] is what the SOURCE is
+ * called, which is the thing that distinguishes them.
+ */
+data class FeedSource(
+    val url: String,
+    val title: String,
+    val label: String,
+    /** The channel this feed is, or null for a PPV slot the app does not list. */
+    val channelId: String? = null,
+)
+
+/**
+ * An item's sources, lead first, as one list.
+ *
+ * The item holds its ladder in three parallel fields for the player's failure
+ * path, which only ever asks for the next rung. A viewer stepping through
+ * feeds by hand needs the whole thing at once, including the one that is
+ * playing — and needs it to survive a swap, which rewrites the item's own url
+ * and title. Built once when an item is tuned, and kept.
+ *
+ * Tolerant of ragged lists on purpose: [PlayableItem.fallbackTitles] and
+ * [PlayableItem.sourceNames] are empty for every caller but the fixture one,
+ * and an index that is not there falls back to the item's own title and to a
+ * plain count.
+ */
+fun feedsOf(item: PlayableItem): List<FeedSource> =
+    (listOf(item.url) + item.fallbackUrls).mapIndexed { i, url ->
+        FeedSource(
+            url = url,
+            title = if (i == 0) item.title else item.fallbackTitles.getOrNull(i - 1) ?: item.title,
+            label = item.sourceNames.getOrNull(i) ?: "Feed ${i + 1}",
+            channelId = item.sourceChannelIds.getOrNull(i)?.takeIf { it.isNotBlank() },
+        )
+    }
 
 data class PlaybackRequest(
     val items: List<PlayableItem>,

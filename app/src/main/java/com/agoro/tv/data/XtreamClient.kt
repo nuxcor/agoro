@@ -205,6 +205,35 @@ class XtreamClient(
             )
         }
 
+    /**
+     * The current NAMES of one live category's streams, and nothing else.
+     *
+     * A PPV slot is a pipe the provider re-points at a new event and renames:
+     * measured on this panel, stream 1025280 was "UEFA | 01 - Freiburg vs
+     * Motherwell" one afternoon and "UEFA | 01 - Barcelona vs Feyenoord" the
+     * next. The name IS the schedule, so a catalogue hours old can send a
+     * fixture row at a pipe that has since moved to another match — which is
+     * the "I pressed Barcelona and got Stuttgart" report.
+     *
+     * One category rather than the catalogue: the whole live list is 7 MB and
+     * a minute of parsing on the box, while the four PPV categories a fixture
+     * lives in are 13-80 KB and answer in half a second. Cheap enough to ask
+     * at the moment of pressing play, which is the only moment the answer is
+     * known to be true.
+     */
+    suspend fun liveNamesIn(categoryId: String): Map<Int, String> {
+        val root = call("get_live_streams", mapOf("category_id" to categoryId))
+        val arr = root as? JsonArray ?: return emptyMap()
+        val out = HashMap<Int, String>(arr.size)
+        for (el in arr) {
+            val obj = el as? JsonObject ?: continue
+            val id = obj.int("stream_id") ?: continue
+            val name = obj.str("name") ?: continue
+            out[id] = name
+        }
+        return out
+    }
+
     /** Full EPG listing for one channel; titles/descriptions arrive base64-encoded. */
     suspend fun epg(streamId: Int): List<EpgProgram> {
         val root = call("get_simple_data_table", mapOf("stream_id" to streamId.toString()))

@@ -1944,4 +1944,82 @@ class SportsParserTest {
         ).single()
         assertEquals(1025279, best.streamId)
     }
+
+    // --- packLabel ---------------------------------------------------------
+    //
+    // Every name below is a real slot. A fixture is carried by several of
+    // these at once and the player can be on any of them, so the label's only
+    // job is to tell one pipe from another in a row a viewer reads from the
+    // sofa. It is allowed to give up — the caller falls back to the slot's own
+    // name — and it must never answer with something a hundred other slots
+    // also answer.
+
+    @Test
+    fun `the listings packs sign off in the last field`() {
+        assertEquals(
+            "ESPN+ PPV 39",
+            SportsParser.packLabel(
+                "NEXT | FC BARCELONA VS. ATHLETIC CLUB (MATCHDAY #1) | Thu 27 Aug 14:55 EDT (US) | 8K EXCLUSIVE | US: ESPN+ PPV 39"
+            ),
+        )
+        assertEquals(
+            "SOCCER PPV 9",
+            SportsParser.packLabel(
+                "Next | Club Brugge vs. Aston Villa | all | 08-09-2026 | 17:55 (GMT) | 8K EXCLUSIVE | US: SOCCER PPV 9"
+            ),
+        )
+        assertEquals("MAX PPV 100", SportsParser.packLabel("- NO EVENT STREAMING - | 8K EXCLUSIVE | UK: MAX PPV 100"))
+    }
+
+    @Test
+    fun `the bracketed packs lead with themselves`() {
+        assertEquals(
+            "ESPN+ 068",
+            SportsParser.packLabel("US (ESPN+ 068) | Soccer: Barcelona vs. Ath. Club (2026-08-27 14:55:10)"),
+        )
+        // The bracket carrying a number is the source; "(US)" is a territory.
+        assertEquals(
+            "BTN+ 089",
+            SportsParser.packLabel("(US) (BTN+ 089) | Soccer (M): Delaware at Maryland (2026-09-04 19:20:00)"),
+        )
+        // The Apple pack leaves its number outside the brackets.
+        assertEquals("MLS 048", SportsParser.packLabel("(Apple) (MLS) 048 |  (2098-12-31 08:00:40)"))
+        // Read before the brackets, or the number that says WHICH Flo pipe
+        // this is would be dropped and 286 slots would share one label.
+        assertEquals("FLSP 179", SportsParser.packLabel("Flo (FLSP) 179: 2025 Erie Otters vs Soo Greyhounds - 22/10 19:07"))
+    }
+
+    @Test
+    fun `a bare pack takes the pipe number from the field after it`() {
+        assertEquals("UEFA 04", SportsParser.packLabel("UEFA  | 04  - Viking v Dinamo Zagreb 8:00 pm"))
+        assertEquals("NFL 14", SportsParser.packLabel("NFL  | 14 - 8/28 9pm Vikings at Broncos"))
+        assertEquals("PSF16", SportsParser.packLabel("PSF16 | 16:00 Fulham vs Stuttgart"))
+        assertEquals("NBA 02", SportsParser.packLabel("NBA 02: Knicks (NYK) x Timberwolves (MIN) start:2026-01-18 00:20:00"))
+    }
+
+    @Test
+    fun `the trailing sign-off beats the fixture in front of it`() {
+        // "US Open" leads this name and is not a pack; the Tennis pack is.
+        assertEquals(
+            "Tennis 12",
+            SportsParser.packLabel("US Open: Court 4 - Qualifying Third Round @ Aug 27 11:00 AM :Tennis  12"),
+        )
+        assertEquals(
+            "Flo College 37",
+            SportsParser.packLabel("Mount Olive vs Coker @ Aug 27 4:30 PM :Flo College  37"),
+        )
+    }
+
+    /**
+     * The label has to SEPARATE feeds. A word every slot in a territory wears
+     * is worth nothing here, and neither is the fixture's own state.
+     */
+    @Test
+    fun `a territory and a status word are not a source`() {
+        assertNull(SportsParser.packLabel("US: 24/7 FAMILY GUY"))
+        assertNull(SportsParser.packLabel("Next | Sheffield Wednesday vs. Bradford City | all | 20-08-2026 | 15:00 (GMT)"))
+        // Nothing recognisable at all, rather than a guess: the caller shows
+        // the slot's own name, which says more than half a fixture would.
+        assertNull(SportsParser.packLabel("Barcelona vs Feyenoord"))
+    }
 }

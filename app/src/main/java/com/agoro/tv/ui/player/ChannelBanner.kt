@@ -65,6 +65,17 @@ internal fun ChannelBanner(
      * channel skimmed, for logos that were on screen for a tenth of a second.
      */
     logoDeferred: Boolean = false,
+    /**
+     * "2 of 6 · ESPN+ PPV 39" while a fixture is playing on one of several
+     * feeds, null otherwise.
+     *
+     * A fixture's sources are separate pipes and one of them being the wrong
+     * match is routine, so the banner has to say which is up — and the heading
+     * has to be the MATCH, not whichever channel is carrying it, or a viewer
+     * who steps to the next feed watches the name of the thing they pressed
+     * disappear.
+     */
+    feedLabel: String? = null,
 ) {
     val nowNextMap by vm.nowNext.collectAsState()
     val favorites by vm.favorites.collectAsState()
@@ -127,7 +138,11 @@ internal fun ChannelBanner(
                     )
                 }
                 Text(
-                    text = channel?.displayName ?: item?.title.orEmpty(),
+                    text = if (feedLabel != null) {
+                        item?.title?.takeIf { it.isNotBlank() } ?: channel?.displayName.orEmpty()
+                    } else {
+                        channel?.displayName ?: item?.title.orEmpty()
+                    },
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = NuxColors.OnSurface,
                     maxLines = 1,
@@ -172,6 +187,20 @@ internal fun ChannelBanner(
                     style = MaterialTheme.typography.bodyMedium,
                     color = NuxColors.OnSurfaceDim,
                     maxLines = 1,
+                )
+            }
+            if (feedLabel != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    // The switcher that changes it lives in the options menu,
+                    // and it is not a thing anyone would think to look for
+                    // there, so the line that raises the question also says
+                    // where the answer is.
+                    text = "Feed $feedLabel  ·  OK → Try another feed",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = NuxColors.OnSurfaceDim,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             nowNext?.next?.let { next ->
