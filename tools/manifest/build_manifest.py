@@ -8,7 +8,7 @@ Encodes the agreed decisions:
   - movie genre from the panel's own get_vod_info metadata
   - hand-mapped categories the classifier could not place
 """
-import json, re, collections, datetime, os, sys, unicodedata
+import json, re, collections, datetime, os, sys, time, unicodedata
 
 HOST = "pro.dzidzi.online"
 # Allow-list AND shelf order: the app renders territories in this sequence, so
@@ -600,6 +600,54 @@ def is_black(sid):
 _media = {}
 if os.path.exists('probed_media.json'):
     _media = {str(k): v for k, v in json.load(open('probed_media.json')).items() if v}
+
+# The PPV shelf's own measurements, from probe_slots.py's probed_slots.json.
+#
+# Separate from the two files above because a PPV slot is a pipe the provider
+# re-points at a new event and renames, so its measurement describes an EVENT
+# and not a stream: stream 1025280 was "UEFA | 01 - Freiburg vs Motherwell" on
+# 8 September and "UEFA | 01- Barcelona vs Feyenoord" on the 9th. Every record
+# therefore carries the slot name it was taken against, and is honoured only
+# while the panel still gives that slot that name — see _slot_reading below.
+_slots = {}
+if os.path.exists('probed_slots.json'):
+    _slots = {str(k): v for k, v in json.load(open('probed_slots.json')).items() if v}
+
+# Beyond this a reading is dropped even if the name still matches, because a
+# stable name is not a promise of stable content — a "24/7" pipe keeps its
+# name through every change of what it carries. The name is the primary guard
+# and this is the backstop. Two days: long enough that last night's probe still
+# counts toward today's build, short enough that no reading survives a week of
+# matchdays.
+_SLOT_MAX_AGE = 48 * 3600
+
+
+def _slot_reading(sid, name, now):
+    """This slot's measurement, if it is still about what the slot now holds.
+
+    Returns {} rather than stale numbers whenever the binding fails. Empty is
+    the honest answer and the app already handles it: 0 means "never measured"
+    to SportsParser.byFeed, which then falls back to the pack's own name —
+    worse ranking, but not a WRONG one, and a wrong one is what putting last
+    night's black flag on tonight's live match would be.
+    """
+    rec = _slots.get(str(sid))
+    if not rec or rec.get('name') != name:
+        return {}
+    out = {}
+    if rec.get('height') and now - (rec.get('at') or 0) <= _SLOT_MAX_AGE:
+        out['height'] = rec['height']
+        if rec.get('fps'):
+            out['fps'] = rec['fps']
+        # Carried for a ranking that does not yet read it: this box cannot
+        # decode HEVC at all, so an HEVC slot is not a lower rung on the
+        # ladder but an unplayable one. Measuring it now means byFeed can use
+        # it without another sweep of the shelf.
+        if rec.get('codec'):
+            out['codec'] = rec['codec']
+    if rec.get('black') and now - (rec.get('black_at') or 0) <= _SLOT_MAX_AGE:
+        out['black'] = True
+    return out
 
 
 def measured_fps(sid):
@@ -3680,22 +3728,32 @@ for _k, _urls in DIRECT_FEED.items():
 # rate ride along because height alone could not separate these either — five
 # of six slots measured 1080p and the frame rates were 50, 30 and 25.
 #
-# Sparse by construction. Neither sweep covers PPV slots by default:
-# probe_tiers.py and black_check.py both need --ids pointed at them, so most
-# slots carry nothing here and the app keeps the behaviour it had for those.
+# Covered by probe_slots.py, which sweeps this shelf and nothing else. It was
+# sparse by construction until 2026-09-09 — probe_tiers.py and black_check.py
+# both skip PPV, so 6 of 7,791 slots carried anything and byFeed's three
+# measured keys were zero for every fixture. A slot still measures as nothing
+# when the probe has not reached it or its reading no longer binds, and the app
+# keeps its old behaviour for those.
 _sport_quality = {}
+_now = int(time.time())
 for _s in ls:
     _sid = str(_s['stream_id'])
     if (cat_live.get(str(_s.get('category_id'))) or {}).get('section') != 'PPV':
         continue
-    _med = _media.get(_sid) or {}
-    _rec = {}
-    if _med.get('height'):
-        _rec['height'] = _med['height']
-    if _med.get('fps'):
-        _rec['fps'] = _med['fps']
-    if _black.get(_sid):
-        _rec['black'] = True
+    # probe_slots.py first: it is the only sweep that measures this shelf, and
+    # the only one whose records can be checked against what the slot holds
+    # now. The two general sweeps are the fallback for a slot it never reached
+    # — they were pointed here by hand with --ids and carry no name, so they
+    # can only be taken on trust.
+    _rec = _slot_reading(_sid, _s.get('name') or '', _now)
+    if not _rec:
+        _med = _media.get(_sid) or {}
+        if _med.get('height'):
+            _rec['height'] = _med['height']
+        if _med.get('fps'):
+            _rec['fps'] = _med['fps']
+        if _black.get(_sid):
+            _rec['black'] = True
     if _rec:
         _sport_quality[_sid] = _rec
 
