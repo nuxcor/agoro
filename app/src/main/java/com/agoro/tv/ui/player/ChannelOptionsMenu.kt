@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,16 +61,32 @@ internal fun ChannelOptionsMenu(
     aspectLabel: String,
     sleepLabel: String,
     canHide: Boolean,
+    /**
+     * "2 of 6 · ESPN+ PPV 39", or null where this item has one source and
+     * there is nothing to switch between.
+     */
+    feedLabel: String?,
     onFavoriteToggle: () -> Unit,
     onCatchup: () -> Unit,
     onTracks: () -> Unit,
     onAspectCycle: () -> Unit,
     onSleepCycle: () -> Unit,
+    onNextFeed: () -> Unit,
     onHide: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val firstFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { firstFocus.requestFocusRetrying() }
+    // One anchor, named once. The rule used to be spelled out at each row that
+    // might be top — "focusRequester if the row above me is absent" — and a
+    // third row that can lead is a third place for that to be got wrong.
+    val firstRow = when {
+        feedLabel != null -> "feed"
+        isFavoritable -> "favorite"
+        else -> "tracks"
+    }
+    fun anchor(key: String) =
+        if (key == firstRow) Modifier.focusRequester(firstFocus) else Modifier
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -103,6 +120,20 @@ internal fun ChannelOptionsMenu(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxHeight(),
                 ) {
+                    // First, where it exists. A viewer opens this menu during a
+                    // fixture for one reason — the picture is not the match
+                    // they pressed — and that is the row that answers it.
+                    if (feedLabel != null) {
+                        item(key = "feed") {
+                            OptionRow(
+                                icon = Icons.Default.SwapHoriz,
+                                label = "Try another feed",
+                                value = feedLabel,
+                                onClick = onNextFeed,
+                                modifier = anchor("feed"),
+                            )
+                        }
+                    }
                     if (isFavoritable) {
                         item(key = "favorite") {
                             OptionRow(
@@ -110,7 +141,7 @@ internal fun ChannelOptionsMenu(
                                 label = if (isFavorite) "Remove favorite" else "Favorite",
                                 iconTint = if (isFavorite) NuxColors.Primary else NuxColors.OnSurface,
                                 onClick = onFavoriteToggle,
-                                modifier = Modifier.focusRequester(firstFocus),
+                                modifier = anchor("favorite"),
                             )
                         }
                     }
@@ -128,7 +159,7 @@ internal fun ChannelOptionsMenu(
                             icon = Icons.Default.Subtitles,
                             label = "Playback options",
                             onClick = onTracks,
-                            modifier = if (isFavoritable) Modifier else Modifier.focusRequester(firstFocus),
+                            modifier = anchor("tracks"),
                         )
                     }
                     item(key = "aspect") {

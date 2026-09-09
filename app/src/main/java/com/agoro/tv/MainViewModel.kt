@@ -212,12 +212,28 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 },
             )
         }
-        val best = broadcasters.firstOrNull() ?: slot
         // Everything that did not lead stays behind it, the slot included: the
         // guide can be wrong, and a viewer who lands on the wrong channel must
         // still be able to reach the feed the row was named for.
-        val rest = (broadcasters.drop(1) + listOfNotNull(slot.takeIf { best !== it }) + fallbacks)
-            .distinctBy { it.id }
+        //
+        // Named, every one of them. A fixture's sources are not one stream at
+        // several qualities — they are different pipes, any of which may be
+        // showing another match — so the viewer has to be able to see which
+        // one they are on and step off it. See PlayableItem.sourceNames.
+        val named = broadcasters.map { it to it.displayName } +
+            (listOf(slot) + fallbacks).map {
+                it to (com.agoro.tv.data.SportsParser.packLabel(it.name) ?: it.displayName)
+            }
+        // The viewer's own answer to "this is the wrong game" outranks every
+        // ranking this app can do from a name. Sorted rather than moved to the
+        // front so the order behind it is untouched — sortedByDescending is
+        // stable — and it simply does not apply once the playlist has been
+        // refetched and the chosen pipe is gone.
+        val chosen = chosenFeeds[shown]
+        val sources = named.distinctBy { it.first.id }
+            .sortedByDescending { it.first.url == chosen }
+        val (best, _) = sources.first()
+        val rest = sources.drop(1)
         playback = PlaybackRequest(
             items = listOf(
                 PlayableItem(
@@ -227,16 +243,43 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     artwork = best.logo,
                     channelId = best.id,
                     recordUrl = best.recordUrl,
-                    fallbackUrls = rest.map { it.url },
-                    fallbackTitles = rest.map { alt ->
+                    fallbackUrls = rest.map { it.first.url },
+                    fallbackTitles = rest.map { (alt, _) ->
                         com.agoro.tv.data.SportsParser.feedNote(alt.name)
                             ?.let { "$shown · $it" } ?: shown
                     },
+                    sourceNames = sources.map { (alt, label) ->
+                        com.agoro.tv.data.SportsParser.feedNote(alt.name)
+                            ?.let { "$label · $it" } ?: label
+                    },
+                    sourceChannelIds = sources.map { it.first.id },
                 )
             ),
             startIndex = 0,
             isLive = true,
         )
+    }
+
+    /**
+     * Which feed the viewer settled on for a fixture, so pressing its row
+     * again opens the same one.
+     *
+     * The row leads on the best source the app can pick from names, guide
+     * entries and last night's measurements, and the whole reason the feed
+     * switcher exists is that this is sometimes the wrong match. Having found
+     * the one that is actually the game, a viewer who comes back to the row
+     * ten minutes later must not have to find it again.
+     *
+     * By fixture title and by url, both of which outlive the fold: stream ids
+     * are stable but the row's LEAD moves as the guide and the measurements
+     * change under it. In memory and for this session only — a pipe is
+     * reassigned to another event by tomorrow, and a choice about this
+     * afternoon's match is worth nothing then.
+     */
+    private val chosenFeeds = mutableMapOf<String, String>()
+
+    fun rememberFeedChoice(fixture: String, url: String) {
+        if (fixture.isNotBlank() && url.isNotBlank()) chosenFeeds[fixture] = url
     }
 
     /**
