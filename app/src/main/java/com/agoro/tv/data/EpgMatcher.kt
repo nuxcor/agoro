@@ -54,6 +54,60 @@ object EpgMatcher {
         return folded.split(Regex("""[^a-z0-9]+""")).filter { it.isNotBlank() }
     }
 
+    /**
+     * Whether a channel is wearing ANOTHER channel's schedule — the parent's
+     * guide on a sibling pipe.
+     *
+     * [resolve]'s first stage takes the channel's own `epg_channel_id` on
+     * trust, and a provider hands one out per FAMILY as readily as per
+     * channel. Measured on this panel on 2026-09-09: "US: TUDN ZONA" arrives
+     * tagged `TUDN.us`, so the app read TUDN's schedule — "Fútbol UEFA
+     * Champions League : Liverpool vs. Atlético Madrid" — onto a pipe that
+     * was carrying a Radio MARCA studio show, frame-checked at 20:48 UTC.
+     * That is the whole of the "Liverpool vs Madrid is on TUDN with no match
+     * playing" report: the schedule was TUDN's and the pipe was not.
+     *
+     * The evidence is in the name. A pipe called by the guide channel's name
+     * PLUS a word — ZONA, PLUS, EXTRA, an OTT feed number — is the same
+     * family and a different channel, and the extra word is the whole
+     * difference. Names that simply differ ("Manchester United" against
+     * "MUTV", a US affiliate against its network) are not this: a binding
+     * nothing in the name supports is one a human made deliberately, and
+     * second-guessing it here would throw away the guide's best work.
+     *
+     * An exact agreement with ANY alternate settles it, whatever the others
+     * say — these packs list a channel under half a dozen spellings and the
+     * short one is often just sloppy ("Viaplay 1" for Viaplay Sports 1).
+     *
+     * Judgement, not proof: it says the binding is unsupported by the name,
+     * never that the pipe is wrong. Callers rank with it — see
+     * [broadcastersFor], where such a channel may still carry a fixture and
+     * simply does not get to LEAD one.
+     */
+    fun wearsAnothersSchedule(channelName: String, guideNames: List<String>): Boolean {
+        val own = normalizeTokens(channelName).toSet()
+        if (own.isEmpty() || guideNames.isEmpty()) return false
+        var sibling = false
+        for (name in guideNames) {
+            val guide = normalizeTokens(name).toSet()
+            if (guide.isEmpty()) continue
+            if (guide == own) return false
+            val extra = own - guide
+            if (guide.all { it in own } && extra.any { it !in genericWords }) sibling = true
+        }
+        return sibling
+    }
+
+    /**
+     * Words that name no channel on their own, so adding one to a guide
+     * channel's name does not make a different channel of it: "Sky Sports
+     * News HQ" is "Sky Sports News" renamed, and half the packs write "TV"
+     * where the provider does not. Deliberately short — every word left off
+     * this list is one that separates two real channels, and "Plus" and
+     * "Extra" separate several.
+     */
+    private val genericWords = setOf("tv", "channel", "network", "live", "hq")
+
     data class Resolution(
         /** channel.id → lowercase xmltv id (always a key of [XmltvData.programmes]). */
         val byChannelId: Map<String, String>,

@@ -33,7 +33,9 @@ class BroadcasterFeedTest {
     )
 
     private val channels = listOf(tnt1, tnt2, tnt3, tnt4)
-    private val index = broadcasterIndex(channels) { guide[it.id] }
+
+    /** Nothing known about the binding, which is no reason to doubt it. */
+    private val index = broadcasterIndex(channels, { guide[it.id] }, { emptyList() })
 
     @Test
     fun `the guide finds the channel carrying the match`() {
@@ -96,7 +98,7 @@ class BroadcasterFeedTest {
 
     @Test
     fun `a channel with no guide entry is skipped`() {
-        val blind = broadcasterIndex(channels) { null }
+        val blind = broadcasterIndex(channels, { null }, { emptyList() })
         assertTrue(blind.isEmpty())
         assertTrue(broadcastersFor("Real Madrid", "Inter", blind).isEmpty())
     }
@@ -107,6 +109,96 @@ class BroadcasterFeedTest {
         assertEquals(
             listOf(tnt1.id, tnt2.id, tnt3.id),
             index.map { it.channel.id },
+        )
+    }
+
+    // --- 2026-09-09, Liverpool v Atlético Madrid --------------------------
+    //
+    // "liverpool vs madrid is on tudn, a spanish station, with no match
+    // playing, tnt is carying it though".
+    //
+    // Every string below was fetched rather than typed: the channel names and
+    // their epg ids from player_api, the guide titles and the display-name
+    // alternates from the epg6 pack the app fetches first, and both pipes
+    // were opened at 20:48 UTC — "US: TUDN ZONA" was a Radio MARCA studio
+    // show at h264 1080p30, "NOW: TNT SPORT 1" was LIV 2-1 ATM at 89:41,
+    // h264 1080p50.
+    //
+    // Swept over the whole kept line-up, these were the ONLY two channels
+    // whose guide named this fixture, and the app opened TUDN ZONA because it
+    // sits at position 378 against TNT's 5,596.
+
+    private val tudnZona = ch(1860592, "US: TUDN ZONA ᴿᴬᵂ")
+    private val nowTnt1 = ch(1527617, "NOW: TNT SPORT 1")
+
+    /** `tudn.us`, and it is TUDN's schedule, not TUDN Zona's. */
+    private val tudnGuideNames = listOf("GO TUDN", "TUDN", "Tudn")
+
+    /** `tntsports1.uk`. The NowTV spelling is the one that answers here. */
+    private val tnt1GuideNames = listOf(
+        "TNT SPORTS 1 HEVC 4K", "TNT SPORTS 1 HEVC HD", "TNT SPORTS 1 ᴴᴰ ◉",
+        "TNT SPORTS 1 ᴿᴬᵂ ⁵⁰ FPS", "TNT Sports 1", "TNT Sports 1 (1080p50)",
+        "TNTSports1.uk", "UK-NOWTV| TNT SPORT (UHD/4K)", "UK-NOWTV| TNT SPORT 1 FHD",
+        "UK-NOWTV| TNT SPORT 1 HD",
+    )
+
+    private val septemberNinth = broadcasterIndex(
+        listOf(tudnZona, nowTnt1),
+        {
+            when (it.id) {
+                tudnZona.id -> "Fútbol UEFA Champions League : Liverpool vs. Atlético Madrid ᴸᶦᵛᵉ"
+                else -> "Live UCL: Liverpool v Atletico"
+            }
+        },
+        { if (it.id == tudnZona.id) tudnGuideNames else tnt1GuideNames },
+    )
+
+    /** The report, and the fix: the channel that had the match leads. */
+    @Test
+    fun `the channel wearing its family's guide does not lead a fixture`() {
+        val got = broadcastersFor("Liverpool", "Atlético Madrid", septemberNinth)
+        assertEquals(listOf(nowTnt1.id, tudnZona.id), got.map { it.id })
+    }
+
+    /** Sorted, not filtered — a doubted feed is still a feed to step onto. */
+    @Test
+    fun `the doubted channel stays in the ladder`() {
+        val got = broadcastersFor("Liverpool", "Atlético Madrid", septemberNinth)
+        assertTrue(got.any { it.id == tudnZona.id })
+    }
+
+    /**
+     * The accented and unaccented spellings are one club, and the guide's
+     * "Atletico" is the same side as the schedule's "Atlético Madrid".
+     */
+    @Test
+    fun `both packs' spellings reach the same fixture`() {
+        assertEquals(
+            listOf(nowTnt1.id, tudnZona.id),
+            broadcastersFor("Liverpool", "Atletico Madrid", septemberNinth).map { it.id },
+        )
+    }
+
+    /**
+     * With nothing to doubt, the order is left exactly as the catalogue had
+     * it: this rule demotes a family binding, it does not re-rank channels.
+     */
+    @Test
+    fun `two channels with their own guides keep the catalogue's order`() {
+        val trusted = broadcasterIndex(
+            listOf(tudnZona, nowTnt1),
+            {
+                when (it.id) {
+                    tudnZona.id ->
+                        "Fútbol UEFA Champions League : Liverpool vs. Atlético Madrid ᴸᶦᵛᵉ"
+                    else -> "Live UCL: Liverpool v Atletico"
+                }
+            },
+            { if (it.id == tudnZona.id) listOf("TUDN Zona") else tnt1GuideNames },
+        )
+        assertEquals(
+            listOf(tudnZona.id, nowTnt1.id),
+            broadcastersFor("Liverpool", "Atlético Madrid", trusted).map { it.id },
         )
     }
 }

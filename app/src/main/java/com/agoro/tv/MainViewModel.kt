@@ -206,10 +206,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val atMs = System.currentTimeMillis()
             com.agoro.tv.data.broadcastersFor(
                 sides.first, sides.second,
-                com.agoro.tv.data.broadcasterIndex(displayChannels.value) { channel ->
-                    repo.programsFor(channel)
-                        .firstOrNull { atMs in it.startMs until it.endMs }?.title
-                },
+                com.agoro.tv.data.broadcasterIndex(
+                    displayChannels.value,
+                    nowTitle = { channel ->
+                        repo.programsFor(channel)
+                            .firstOrNull { atMs in it.startMs until it.endMs }?.title
+                    },
+                    // What the schedule on that channel is a schedule FOR. A
+                    // provider hands an epg id out per family as readily as
+                    // per channel, and the guide is then a claim about the
+                    // parent: "US: TUDN ZONA" wearing TUDN's Champions League
+                    // listing while playing a Spanish radio show is the whole
+                    // of the "on TUDN with no match playing" report.
+                    guideNames = { channel -> repo.guideNamesFor(channel) },
+                ),
             )
         }
         val ppv = listOf(slot) + fallbacks

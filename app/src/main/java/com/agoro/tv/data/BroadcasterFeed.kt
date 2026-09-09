@@ -22,6 +22,15 @@ internal class BroadcasterFeed(
     /** The two sides the guide entry named, for the match below. */
     val home: String,
     val away: String,
+    /**
+     * Whether the guide entry is this channel's own, or its family's.
+     *
+     * See [EpgMatcher.wearsAnothersSchedule]. False means the schedule read
+     * here belongs to a broader channel of the same name — TUDN's on "TUDN
+     * ZONA" — which is a claim about what the parent is showing and no claim
+     * at all about this pipe.
+     */
+    val ownGuide: Boolean,
 )
 
 /**
@@ -37,16 +46,35 @@ internal fun broadcasterIndex(
     channels: List<LiveChannel>,
     /** The channel's current programme title, or null when nothing is known. */
     nowTitle: (LiveChannel) -> String?,
+    /**
+     * The names the guide channel this one is bound to goes by, for
+     * [EpgMatcher.wearsAnothersSchedule]. Empty where nothing is known, which
+     * reads as "no reason to doubt it" — the same silence-is-not-a-verdict
+     * rule [reReadSlots] applies to a category nobody asked about.
+     */
+    guideNames: (LiveChannel) -> List<String>,
 ): List<BroadcasterFeed> = channels.mapNotNull { channel ->
     val title = nowTitle(channel)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
     val sides = SportsParser.readFixture(title) ?: return@mapNotNull null
-    BroadcasterFeed(channel, sides.first, sides.second)
+    BroadcasterFeed(
+        channel, sides.first, sides.second,
+        ownGuide = !EpgMatcher.wearsAnothersSchedule(channel.name, guideNames(channel)),
+    )
 }
 
 /**
  * The channels showing this fixture right now, best-known first.
  *
  * Matched by [sameFixture], the same rule a slot name is read against.
+ *
+ * A channel whose guide entry is its FAMILY's rather than its own goes last.
+ * On 2026-09-09 exactly two channels in the line-up read as Liverpool v
+ * Atlético Madrid: "US: TUDN ZONA", wearing TUDN's schedule and playing a
+ * Spanish radio show, and "NOW: TNT SPORT 1", which was showing the match at
+ * 1080p50. The app led on the first because it sits 5,218 rows earlier in the
+ * catalogue, which is the only thing that ordered these before now. Sorted,
+ * not filtered, and stably: a doubtful guide entry is still the best evidence
+ * available when it is the only one, and the rest of the ladder is untouched.
  */
 internal fun broadcastersFor(
     home: String,
@@ -54,7 +82,7 @@ internal fun broadcastersFor(
     index: List<BroadcasterFeed>,
 ): List<LiveChannel> = index.filter { feed ->
     sameFixture(feed.home, feed.away, home, away)
-}.map { it.channel }
+}.sortedBy { if (it.ownGuide) 0 else 1 }.map { it.channel }
 
 /**
  * Whether two already-parsed pairs of sides are the same fixture.

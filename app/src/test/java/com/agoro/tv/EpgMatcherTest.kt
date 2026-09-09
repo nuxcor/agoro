@@ -5,7 +5,9 @@ import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.XmltvData
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -296,5 +298,106 @@ class EpgMatcherTest {
             data,
         )
         assertEquals("courttv.us", resolution.byChannelId["live:1"])
+    }
+
+    // --- a family's guide on a sibling pipe --------------------------------
+    //
+    // Channel names off player_api and guide alternates out of the packs, on
+    // 2026-09-09. Run over the 311 kept channels bound to a guide channel in
+    // the packs the app fetches, this reads 21 of them as a family binding.
+
+    /**
+     * The reported bug. The provider tags "US: TUDN ZONA" with `TUDN.us`, so
+     * the app read TUDN's Champions League listing onto a pipe that was
+     * playing a Spanish radio show — frame-checked at 20:48 UTC.
+     */
+    @Test
+    fun `a qualifier the guide channel does not carry is another channel`() {
+        assertTrue(
+            EpgMatcher.wearsAnothersSchedule(
+                "US: TUDN ZONA ᴿᴬᵂ",
+                listOf("GO TUDN", "TUDN", "Tudn"),
+            )
+        )
+    }
+
+    /** Same shape, another pack, another sport: the parent is SuperSport Football. */
+    @Test
+    fun `a plus feed is not the channel it is a plus of`() {
+        assertTrue(
+            EpgMatcher.wearsAnothersSchedule(
+                "SUPERSPORT FOOTBALL PLUS",
+                listOf("SuperSport Football", "DStv SuperSport Football"),
+            )
+        )
+    }
+
+    /**
+     * And the channel that WAS carrying the match. The provider writes "NOW:
+     * TNT SPORT 1" and the pack lists "UK-NOWTV| TNT SPORT 1 HD" among ten
+     * spellings — one exact agreement is the answer, whatever the others say.
+     */
+    @Test
+    fun `an exact agreement among the alternates settles it`() {
+        assertFalse(
+            EpgMatcher.wearsAnothersSchedule(
+                "NOW: TNT SPORT 1",
+                listOf(
+                    "TNT SPORTS 1 HEVC 4K", "TNT Sports 1", "TNTSports1.uk",
+                    "UK-NOWTV| TNT SPORT (UHD/4K)", "UK-NOWTV| TNT SPORT 1 HD",
+                ),
+            )
+        )
+    }
+
+    /**
+     * A binding no name supports is one a human made deliberately — the
+     * manifest binds Manchester United's channel to MUTV and a US affiliate
+     * to its network — and this rule has nothing to say about those.
+     */
+    @Test
+    fun `names that simply differ are left alone`() {
+        assertFalse(
+            EpgMatcher.wearsAnothersSchedule(
+                "MANCHESTER UNITED",
+                listOf("MUTV", "Manchester United TV"),
+            )
+        )
+    }
+
+    /** "TV" and "HQ" name no channel on their own. */
+    @Test
+    fun `a generic word is not a qualifier`() {
+        assertFalse(
+            EpgMatcher.wearsAnothersSchedule("PREMIER LEAGUE TV", listOf("Premier League"))
+        )
+        assertFalse(
+            EpgMatcher.wearsAnothersSchedule(
+                "NOW: SKY SPORTS NEWS HQ ᴴᴰ",
+                listOf("Sky Sports News"),
+            )
+        )
+    }
+
+    /**
+     * A known false positive, kept honest: Viaplay Sports 1 IS
+     * `viaplaysports1.uk`, and the pack's short spelling of it — "VIAPLAY 1" —
+     * reads as a parent this channel has added a word to. It costs a lead,
+     * never a feed, which is why this rule ranks rather than refuses.
+     */
+    @Test
+    fun `a pack's short spelling can read as a parent`() {
+        assertTrue(
+            EpgMatcher.wearsAnothersSchedule(
+                "VIAPLAY SPORTS 1",
+                listOf("UK| VIAPLAY 1 HEVC FHD", "UK| VIAPLAY 1 HEVC HD", "viaplaysports1.uk"),
+            )
+        )
+    }
+
+    /** Nothing known about the binding is not a reason to doubt it. */
+    @Test
+    fun `no guide names is no verdict`() {
+        assertFalse(EpgMatcher.wearsAnothersSchedule("US: TUDN ZONA", emptyList()))
     }
 }
