@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-09T04:38:45Z",
+ "generated": "2026-09-09T20:54:58Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -28,7 +28,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/83.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/142.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -40,19 +40,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/134.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/510.png",
-   "state": "pre"
-  },
-  {
-   "league": "Carabao Cup",
-   "home": "Chelsea",
-   "away": "Leeds United",
-   "start": "2026-09-09T19:00Z",
-   "awayAlt": [
-    "Leeds"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/363.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/357.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -64,7 +52,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/364.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/1068.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -73,7 +61,7 @@
    "start": "2026-09-09T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/114.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -88,7 +76,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/160.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/521.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -100,7 +88,19 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2250.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/432.png",
-   "state": "pre"
+   "state": "in"
+  },
+  {
+   "league": "Carabao Cup",
+   "home": "Chelsea",
+   "away": "Leeds United",
+   "start": "2026-09-09T19:15Z",
+   "awayAlt": [
+    "Leeds"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/363.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/357.png",
+   "state": "in"
   },
   {
    "league": "MLS",
