@@ -46,6 +46,34 @@ data class SportsEvent(
      */
     val wrongSport: Boolean = false,
     /**
+     * Both sides were read as bare nicknames that more than one sport uses,
+     * and nothing else in the slot said which sport it is.
+     *
+     * "US (Peacock 071) | Cardinals at Giants (2026-09-08 20:00:00)" is a
+     * BASEBALL game — St. Louis at San Francisco — and it reached the screen
+     * as an NFL fixture. The Peacock pack writes nicknames and no sport word,
+     * so [SportsParser.namedSport] has nothing to refuse on, and the NFL
+     * roster carries a Cardinals and a Giants; two hits, both gridiron, no
+     * contradiction to find. Its neighbours in the same listing are `Cowboys vs. Giants` and
+     * `Padres at Giants`, one real NFL and one real MLB, in exactly the same
+     * shape.
+     *
+     * The manifest already names these — sport.ambiguous is Giants,
+     * Cardinals, Jets, Panthers, Kings, Rangers — but the roster match could
+     * only consult it when ONE side matched. Two ambiguous
+     * nicknames facing each other is the case it could not see, and it is the
+     * case that puts a whole other sport on the screen.
+     *
+     * The flag is not a refusal on its own: a genuine NFL Cardinals v Giants
+     * would carry it too. It says the league was GUESSED from names that are
+     * not evidence, so [SportsParser.applySchedule] holds the row to a real
+     * fixture — and to nothing weaker. Not its competition's matchday, and
+     * not an absent schedule either. Cleared the moment something with
+     * standing says otherwise: the slot naming its own sport, the slot billing
+     * a competition, or the schedule pairing both clubs.
+     */
+    val nicknamePair: Boolean = false,
+    /**
      * The published schedule's identity for this fixture, when it matched one.
      *
      * Folding only. The displayed [home] and [away] keep the roster's
@@ -556,10 +584,27 @@ object SportsParser {
         // roster only ever knew which league a club belongs to.
         val billed = billedLeague(name)
         val sides = resolveSides(rawHome, rawAway, idx, ambiguous, aliases)
-            ?.let { if (billed != null) Sides(billed, it.home, it.away) else it }
+            // Billing drops the nickname flag on purpose: when the slot names
+            // the competition itself, the league is no longer a guess made out
+            // of two shared nicknames.
+            ?.let { if (billed != null) it.copy(league = billed, nicknamePair = false) else it }
             ?: billed?.let { Sides(it, billedSide(rawHome), billedSide(rawAway)) }
             ?: return null
         val (league, home, away) = sides
+        // A pack that NAMES the sport it is showing has not guessed, whatever
+        // its two clubs are called. "NFL  | 08 - 8/28 7:30pm Giants at Jets"
+        // is two flagged nicknames and a real fixture, and the shelf says so
+        // itself. Only a slot that says nothing — Peacock — or one that
+        // contradicts itself is left holding the flag.
+        //
+        // Both halves have to be KNOWN for the shelf to clear it. Written as
+        // `namedSport(name) != sportOf(league)` this cleared the flag whenever
+        // BOTH were null, which is a slot that named no sport under a league
+        // this file does not map — an NHL roster is one manifest edit away,
+        // and Kings, Rangers and Panthers are in `ambiguous` precisely
+        // because of it. Two nulls agreeing is not a pack saying anything.
+        val said = namedSport(name)
+        val nicknameGuess = sides.nicknamePair && !(said != null && said == sportOf(league))
         val start = readStart(name, nowMs)
 
         // A fixture with no readable kick-off is only shown when the pack has
@@ -574,6 +619,7 @@ object SportsParser {
                     startMs = null, live = false,
                     tierRank = tierOf(name), sourceRank = sourceOf(name),
                     wrongSport = isWrongSport(name, league),
+                    nicknamePair = nicknameGuess,
                     sideFeed = isSideFeed(name), languageFeed = isLanguageFeed(name),
                 )
             }
@@ -583,6 +629,7 @@ object SportsParser {
                     startMs = null, live = true,
                     tierRank = tierOf(name), sourceRank = sourceOf(name),
                     wrongSport = isWrongSport(name, league),
+                    nicknamePair = nicknameGuess,
                     sideFeed = isSideFeed(name), languageFeed = isLanguageFeed(name),
                 )
             } else {
@@ -594,12 +641,19 @@ object SportsParser {
             streamId, league, home, away, start,
             live = start <= nowMs, tierRank = tierOf(name), sourceRank = sourceOf(name),
             wrongSport = isWrongSport(name, league),
+            nicknamePair = nicknameGuess,
             sideFeed = isSideFeed(name), languageFeed = isLanguageFeed(name),
         )
     }
 
     /** League plus the two sides as they should be shown. */
-    private data class Sides(val league: String, val home: String, val away: String)
+    private data class Sides(
+        val league: String,
+        val home: String,
+        val away: String,
+        /** See [SportsEvent.nicknamePair]. */
+        val nicknamePair: Boolean = false,
+    )
 
     /**
      * [leagueIn], and while the roster is open: the club's name AS THE ROSTER
@@ -779,6 +833,20 @@ object SportsParser {
             (it.third.contains(' ') || leadingSurplus(side, it.third) <= NICKNAME_LEAD)
     }
 
+    /**
+     * A roster hit on a nickname the manifest says more than one sport uses.
+     *
+     * ONE definition, read by both branches of [resolveSides]. They were
+     * written as two — a bare `in ambiguous` where a single side matched, a
+     * stricter single-word test where both did — and two readings of the same
+     * manifest field is how they drift apart on the first multi-word entry
+     * anyone adds. See [sameClub] for the same lesson in this file.
+     */
+    private fun isBareAmbiguous(
+        hit: Triple<String, String, String>,
+        ambiguous: Set<String>,
+    ): Boolean = hit.third in ambiguous
+
     private fun resolveSides(
         home: String,
         away: String,
@@ -813,7 +881,7 @@ object SportsParser {
                 if (hs != null && As != null && hs != As) return null
                 hHit.first
             }
-            hit.third in ambiguous -> return null
+            isBareAmbiguous(hit, ambiguous) -> return null
             hit.second.trim().contains(' ') -> hit.first
             else -> return null
         }
@@ -822,8 +890,18 @@ object SportsParser {
         // — so "Luton Town @ Aug 27 2" reached the row as a club name, and the
         // fold key with it, which stopped the same fixture on two slots from
         // folding into one row.
-        return Sides(league, hHit?.let { fullName(it, idx, aliases) } ?: billedSide(home),
-            aHit?.let { fullName(it, idx, aliases) } ?: billedSide(away))
+        return Sides(
+            league,
+            hHit?.let { fullName(it, idx, aliases) } ?: billedSide(home),
+            aHit?.let { fullName(it, idx, aliases) } ?: billedSide(away),
+            // Both sides matched on a nickname the manifest has flagged as
+            // shared, which means the league above is a guess made out of two
+            // words. The single-hit branch REFUSES an ambiguous nickname; this
+            // one cannot, because a real NFL fixture looks exactly the same.
+            // See [SportsEvent.nicknamePair] for what the guess costs.
+            nicknamePair = hHit != null && aHit != null &&
+                isBareAmbiguous(hHit, ambiguous) && isBareAmbiguous(aHit, ambiguous),
+        )
     }
 
     /**
@@ -1721,13 +1799,27 @@ object SportsParser {
      * Unmatched fixtures are returned exactly as they came. A schedule that
      * does not cover a competition — and it covers thirteen — must never be a
      * reason for a match to vanish.
+     *
+     * With one exception, and it is the only one: a [SportsEvent.nicknamePair]
+     * row, whose league was read out of two nicknames that two sports share
+     * and nothing else. That row is kept only where the schedule PAIRS both
+     * clubs. Not on its competition's matchday, and not on an empty fixture
+     * list — see [onMatchday] for why silence cannot be read as permission
+     * when what is being asserted is the sport.
      */
     fun applySchedule(
         events: List<SportsEvent>,
         fixtures: List<ScheduleFixture>,
         nowMs: Long,
     ): List<SportsEvent> {
-        if (events.isEmpty() || fixtures.isEmpty()) return events
+        if (events.isEmpty()) return events
+        // No schedule, no confirmation — and a [SportsEvent.nicknamePair] row
+        // has nothing else going for it. Returning the whole list here made
+        // the guard inert for the entire cold start: MainViewModel combines
+        // this with a schedule flow that begins null, so the first emission
+        // put "Cardinals at Giants" back on the Sport tab as an NFL fixture
+        // every launch, and permanently on a box whose schedule never lands.
+        if (fixtures.isEmpty()) return events.filterNot { it.nicknamePair }
         // Indexed by token, not scanned. A few hundred events against a few
         // hundred fixtures is 10^5 set comparisons an emission otherwise, on a
         // box where [worthParsing] exists because that order of work is felt.
@@ -1741,7 +1833,7 @@ object SportsParser {
                 byToken.getOrPut(t) { ArrayList() }.add(entry)
             }
         }
-        if (byToken.isEmpty()) return events
+        if (byToken.isEmpty()) return events.filterNot { it.nicknamePair }
         // When each competition is actually playing. A club roster can only
         // say which competition a club BELONGS to, so two Champions League
         // entrants meeting in their own domestic league are billed Champions
@@ -1781,8 +1873,14 @@ object SportsParser {
             // nothing: two legs of one tie a week apart are both matches
             // between the same clubs, and the row is about one of them.
             val anchor = event.startMs ?: nowMs
+            // Past this point the schedule has PAIRED both clubs, which is
+            // the proof [SportsEvent.nicknamePair] was holding out for: the
+            // league is no longer a guess, whatever happens to the clock
+            // below. Carrying the flag into these two bail-outs deleted a real
+            // fixture over a pack's bad time.
+            val paired = event.copy(nicknamePair = false)
             val best = pool.minByOrNull { kotlin.math.abs(it.start - anchor) }
-                ?: return@mapNotNull onMatchday(event, playingDays, nowMs)
+                ?: return@mapNotNull onMatchday(paired, playingDays, nowMs)
             // And never further than a match away from where the slot said it
             // was. Without this a clockless slot admitted on the word LIVE —
             // anchored on now — can be moved to a meeting between the same two
@@ -1790,13 +1888,13 @@ object SportsParser {
             // screen: a match being played that shows nowhere. [parseIndexed]
             // guards its own clocks the same way, with SANE_WINDOW_MS.
             if (kotlin.math.abs(best.start - anchor) > SCHEDULE_MAX_SHIFT_MS) {
-                return@mapNotNull onMatchday(event, playingDays, nowMs)
+                return@mapNotNull onMatchday(paired, playingDays, nowMs)
             }
             // Which way round the schedule lists them, because the packs do
             // not agree on which side leads and a badge on the wrong club is
             // worse than no badge at all.
             val swapped = !straight(home, away, best)
-            event.copy(
+            paired.copy(
                 league = best.fixture.league.ifBlank { event.league },
                 scheduleKey = sideKey(best.fixture.home) + "|" + sideKey(best.fixture.away),
                 startMs = best.start,
@@ -1824,12 +1922,39 @@ object SportsParser {
      * Only for competitions the schedule actually carries. A league with no
      * fixtures in the window — an off-season, or one ESPN returned nothing for
      * — cannot say anything about a matchday, and silence is not evidence.
+     *
+     * A [SportsEvent.nicknamePair] row gets no matchday reprieve at all, and
+     * the refusal is deliberately ABOVE the silence rule above rather than
+     * below it.
+     *
+     * The matchday rule is tolerant because ESPN and the packs SPELL clubs
+     * differently — Internazionale against Inter, RB Leipzig against
+     * RasenBallsport — so an unmatched European row is usually a real fixture
+     * whose names did not line up. That argument does not reach here: these
+     * rows matched on a bare US nickname, and the nickname is exactly what
+     * ESPN and the roster already agree on, so a genuine fixture between the
+     * two WILL pair. What survives on the matchday instead is a baseball game
+     * standing in an NFL week — "Cardinals at Giants", 8 September, kept only
+     * because the season opener was 22 hours away.
+     *
+     * And silence is not evidence FOR a guess either, which is why the order
+     * matters. Put this after the `playingDays` lookup and an NFL with no
+     * fixtures at all — the whole February-to-August off-season, when the
+     * baseball is on every night — takes the row back. A row asserting a
+     * SPORT out of two shared words is the one thing an empty schedule cannot
+     * be read as permitting. The cost is the narrow case the other way: a
+     * genuine both-ambiguous fixture (Giants at Jets) on a pack that names no
+     * sport, during a spell when ESPN returned no fixtures for its league, is
+     * dropped rather than shown. There were none in NFL week 1, and any pack
+     * that says "NFL" carries the row regardless — the flag is cleared before
+     * this is ever reached.
      */
     private fun onMatchday(
         event: SportsEvent,
         playingDays: Map<String, List<Long>>,
         nowMs: Long,
     ): SportsEvent? {
+        if (event.nicknamePair) return null
         val days = playingDays[event.league] ?: return event
         val anchor = event.startMs ?: nowMs
         val near = days.any { kotlin.math.abs(it - anchor) <= MATCHDAY_WINDOW_MS }
