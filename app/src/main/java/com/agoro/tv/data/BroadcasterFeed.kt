@@ -46,17 +46,96 @@ internal fun broadcasterIndex(
 /**
  * The channels showing this fixture right now, best-known first.
  *
- * Both sides have to match, either way round — the guide and the pack do not
- * agree on which leads, and one side matching is how Manchester United takes a
- * Manchester City tie. Club spellings go through [SportsParser.sameClub], the
- * same tolerance the schedule matcher uses, because a guide writes "Inter"
- * where ESPN writes "Internazionale" exactly as the packs do.
+ * Matched by [sameFixture], the same rule a slot name is read against.
  */
 internal fun broadcastersFor(
     home: String,
     away: String,
     index: List<BroadcasterFeed>,
 ): List<LiveChannel> = index.filter { feed ->
-    (SportsParser.sameClub(feed.home, home) && SportsParser.sameClub(feed.away, away)) ||
-        (SportsParser.sameClub(feed.home, away) && SportsParser.sameClub(feed.away, home))
+    sameFixture(feed.home, feed.away, home, away)
 }.map { it.channel }
+
+/**
+ * Whether two already-parsed pairs of sides are the same fixture.
+ *
+ * Both sides have to match, either way round — the guide and the pack do not
+ * agree on which leads, and one side matching is how Manchester United takes a
+ * Manchester City tie. Club spellings go through [SportsParser.sameClub], the
+ * same tolerance the schedule matcher uses, because a guide writes "Inter"
+ * where ESPN writes "Internazionale" exactly as the packs do.
+ *
+ * Takes the sides rather than the strings they came from, so [broadcasterIndex]
+ * can keep parsing each guide title once and [namesFixture] can parse a slot
+ * name on demand — two callers with different parse costs, one rule.
+ */
+internal fun sameFixture(
+    aHome: String,
+    aAway: String,
+    bHome: String,
+    bAway: String,
+): Boolean =
+    (SportsParser.sameClub(aHome, bHome) && SportsParser.sameClub(aAway, bAway)) ||
+        (SportsParser.sameClub(aHome, bAway) && SportsParser.sameClub(aAway, bHome))
+
+/**
+ * Whether a slot or guide entry names THIS fixture.
+ *
+ * Reads the sides out of the name and asks [sameFixture], which is the rule
+ * [broadcastersFor] applies to the guide — the two are asking the same
+ * question of two different lists, and a fixture the guide would match but a
+ * slot would not is a bug in one of them, not a difference between them.
+ */
+internal fun namesFixture(name: String, home: String, away: String): Boolean {
+    val sides = SportsParser.readFixture(name) ?: return false
+    return sameFixture(sides.first, sides.second, home, away)
+}
+
+/**
+ * The fixture's slots, re-read against what the panel calls them NOW.
+ *
+ * A PPV slot is a pipe, and the provider re-points it: stream 1025280 carried
+ * Freiburg v Motherwell on 8 September and Barcelona v Feyenoord on the 9th.
+ * The app's catalogue can be twelve hours old, so the row's ids are a claim
+ * about what those pipes carried when the list was fetched — and when the
+ * provider shuffles a matchday between two pipes, pressing one fixture opens
+ * the other. That is the "sometimes it shows the Barcelona game, another time
+ * it's showing Stuttgart" report, and no ranking can fix it: the row is
+ * pointing at the wrong pipe.
+ *
+ * @param fresh what the panel calls each stream right now, for the categories
+ *   that answered. EMPTY means the panel said nothing, which is not evidence
+ *   about anything — the candidates are returned untouched.
+ * @param inFetchedCategory whether a stream id belongs to a category that was
+ *   actually re-read. An id from a category nobody asked about is unjudged and
+ *   is kept; an id from a category that WAS re-read and did not come back has
+ *   gone from the panel.
+ * @param alsoConsider every stream id the app holds for the categories that
+ *   were re-read, so a pipe that has MOVED onto this fixture can be found.
+ */
+internal fun reReadSlots(
+    home: String,
+    away: String,
+    candidates: List<Int>,
+    fresh: Map<Int, String>,
+    inFetchedCategory: (Int) -> Boolean,
+    alsoConsider: List<Int>,
+): List<Int> {
+    if (fresh.isEmpty()) return candidates
+    val kept = candidates.filter { id ->
+        val name = fresh[id]
+        when {
+            // Named, and still this match: the pipe has not moved.
+            name != null -> namesFixture(name, home, away)
+            // Re-read and absent: the pipe is gone from the panel.
+            inFetchedCategory(id) -> false
+            // Never asked about — a category this fixture does not live in,
+            // or one that failed. Silence is not a verdict.
+            else -> true
+        }
+    }
+    // And the pipe the match moved TO. Only ids the app already holds: a slot
+    // it has never seen has no url, no logo and no place in the bundle.
+    val found = alsoConsider.filter { it !in kept && namesFixture(fresh[it].orEmpty(), home, away) }
+    return kept + found
+}

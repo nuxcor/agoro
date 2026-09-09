@@ -212,6 +212,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 },
             )
         }
+        val ppv = listOf(slot) + fallbacks
+        val request = fixtureRequest(shown, broadcasters, ppv)
+        playback = request
+        // And then ask the panel what those pipes are called RIGHT NOW.
+        //
+        // After publishing, not before: the check is half a second on a good
+        // line and the press has to feel instant. If the pipes have moved the
+        // player is re-tuned under the tune card, which is the same second and
+        // the same screen the viewer is already looking at.
+        recheckSlots(request, shown, sides, broadcasters, ppv)
+    }
+
+    /**
+     * The fixture, its feeds ordered and named, as one playable item.
+     *
+     * Shared by the press and by the re-read that follows it, so a correction
+     * lands with exactly the same rules — the chosen feed, the labels, the
+     * per-rung titles — as the press it corrects.
+     */
+    private fun fixtureRequest(
+        shown: String,
+        broadcasters: List<LiveChannel>,
+        ppv: List<LiveChannel>,
+    ): PlaybackRequest {
         // Everything that did not lead stays behind it, the slot included: the
         // guide can be wrong, and a viewer who lands on the wrong channel must
         // still be able to reach the feed the row was named for.
@@ -221,7 +245,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // showing another match — so the viewer has to be able to see which
         // one they are on and step off it. See PlayableItem.sourceNames.
         val named = broadcasters.map { it to it.displayName } +
-            (listOf(slot) + fallbacks).map {
+            ppv.map {
                 it to (com.agoro.tv.data.SportsParser.packLabel(it.name) ?: it.displayName)
             }
         // The viewer's own answer to "this is the wrong game" outranks every
@@ -234,7 +258,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             .sortedByDescending { it.first.url == chosen }
         val (best, _) = sources.first()
         val rest = sources.drop(1)
-        playback = PlaybackRequest(
+        return PlaybackRequest(
             items = listOf(
                 PlayableItem(
                     url = best.url,
@@ -258,6 +282,102 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             startIndex = 0,
             isLive = true,
         )
+    }
+
+    /**
+     * Re-reads this fixture's slots against the panel's current names, and
+     * re-tunes if the pipes have moved.
+     *
+     * Measured on this provider: stream 1025280 was "UEFA | 01 - Freiburg vs
+     * Motherwell" on 8 September and "UEFA | 01 - Barcelona vs Feyenoord" on
+     * the 9th — seven of the pack's 37 pipes were re-pointed between one
+     * afternoon and the next. The catalogue behind a fixture row is up to
+     * twelve hours old, so its ids are a claim about the past, and a matchday
+     * shuffled between two pipes is a viewer pressing one match and watching
+     * another.
+     *
+     * Only the PPV slots are re-read. A broadcaster channel is a channel: TNT
+     * Sports 3 is TNT Sports 3 tomorrow, and what it is SHOWING is a guide
+     * question, already asked above.
+     *
+     * Silent when nothing has changed, when the panel does not answer, when
+     * the viewer has moved on to something else in the meantime, and when the
+     * correction lands behind the picture rather than on it.
+     */
+    private fun recheckSlots(
+        published: PlaybackRequest,
+        shown: String,
+        sides: Pair<String, String>?,
+        broadcasters: List<LiveChannel>,
+        ppv: List<LiveChannel>,
+    ) {
+        if (sides == null || ppv.isEmpty()) return
+        viewModelScope.launch {
+            val categories = ppv.mapNotNull { it.categoryId }.distinct()
+            val fresh = repo.currentLiveNames(categories)
+            if (fresh.isEmpty()) return@launch
+            val events = (content.value as? ContentState.Ready)?.bundle?.events ?: return@launch
+            // Off the main thread: "also consider" is every slot in the PPV
+            // categories this fixture lives in — 200 of them in SOCCER PPV
+            // alone — and each one is read by the same regexes the parser uses.
+            val corrected = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                val inCategory = events.filter { it.categoryId in categories }
+                com.agoro.tv.data.reReadSlots(
+                    home = sides.first,
+                    away = sides.second,
+                    candidates = ppv.mapNotNull { it.xtreamId },
+                    fresh = fresh,
+                    inFetchedCategory = { id ->
+                        inCategory.any { ch -> ch.xtreamId == id }
+                    },
+                    alsoConsider = inCategory.mapNotNull { it.xtreamId },
+                )
+            }
+            if (corrected == ppv.mapNotNull { it.xtreamId }) return@launch
+            // The viewer pressed something else while the panel was answering.
+            if (playback !== published) return@launch
+            val byId = events.mapNotNull { ch -> ch.xtreamId?.let { it to ch } }.toMap()
+            val slots = corrected.mapNotNull { byId[it] }
+            if (slots.isEmpty() && broadcasters.isEmpty()) {
+                // Every pipe this row knew has moved on and nothing replaced
+                // it. Leaving the wrong match playing under the right title is
+                // the one outcome this whole path exists to prevent, but there
+                // is nothing to put up instead — so say so and leave it.
+                android.util.Log.w("Agoro", "Re-read left $shown with no slot at all")
+                return@launch
+            }
+            // Only when the correction changes what is PLAYING.
+            //
+            // Publishing re-prepares the player from the top, and this answer
+            // can be four seconds old — long enough that the viewer is
+            // watching the match, not the tune card. Two of the three ways a
+            // re-read comes back changed leave the head alone: a fixture with
+            // a broadcaster channel leads on that channel, which no PPV
+            // re-read can touch, and a row whose own pipe is still right can
+            // still gain a second pipe that has MOVED onto the match. In both
+            // the correction only reorders the ladder behind the picture, and
+            // a stale rung further down is a far smaller harm than cutting a
+            // working stream to fix it.
+            //
+            // When the head does change, the pipe on screen is the one that
+            // no longer names this fixture — the wrong match, playing under
+            // the right title, which is the entire reason this path exists.
+            val fixed = fixtureRequest(shown, broadcasters, slots)
+            val wasPlaying = published.items.firstOrNull()?.url
+            if (fixed.items.firstOrNull()?.url == wasPlaying) {
+                android.util.Log.i(
+                    "Agoro",
+                    "Slots for $shown moved behind the picture: " +
+                        "${ppv.mapNotNull { it.xtreamId }} -> $corrected",
+                )
+                return@launch
+            }
+            android.util.Log.i(
+                "Agoro",
+                "Slots for $shown moved: ${ppv.mapNotNull { it.xtreamId }} -> $corrected",
+            )
+            playback = fixed
+        }
     }
 
     /**

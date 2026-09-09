@@ -338,7 +338,23 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
     val feedLabel: String? =
         if (item?.sourceNames.isNullOrEmpty() || session.feedCount <= 1) null
         else "${session.currentFeed + 1} of ${session.feedCount}" +
-            (session.feedLabel?.let { " · $it" } ?: "")
+            (session.feedLabel?.let { " · $it" } ?: "") +
+            // What this feed actually decoded to, once it has.
+            //
+            // The app cannot know a pipe's picture before opening it, and it
+            // cannot infer it either: stream 1940147 measured 1080p on
+            // 2026-09-08 and 720p on the 9th, because a PPV pack re-streams
+            // whatever its source hands it that night. Nothing about the
+            // pack, the slot name or last night's probe predicts tonight.
+            // What CAN be said honestly is what is on screen right now — so
+            // the switcher shows it, and stepping round the feeds is how a
+            // viewer finds the good one. Measured on the two Champions League
+            // ties of 2026-09-09: 720p30, 1080p25, 1080p30, 1080p50, 1080p60
+            // and a 720p50 HEVC, all of the same match.
+            (session.videoSize?.second?.takeIf { it > 0 }?.let { height ->
+                val fps = session.videoFrameRate?.takeIf { it > 1f }?.let { "${it.toInt()}" }
+                " · ${height}p${fps.orEmpty()}"
+            } ?: "")
 
     // Engine lives until something asks for a rebuild; see engineGeneration.
     val engine = remember(session.engineGeneration) {
