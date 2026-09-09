@@ -1,9 +1,13 @@
 package com.agoro.tv
 
+import com.agoro.tv.data.BroadcasterFeed
+import com.agoro.tv.data.EpgMatcher
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.broadcasterIndex
 import com.agoro.tv.data.broadcastersFor
+import com.agoro.tv.data.fixtureSources
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -20,7 +24,7 @@ class BroadcasterFeedTest {
         url = "http://x/$id.ts", categoryId = "uk-sports", xtreamId = id,
     )
 
-    private val tnt1 = ch(1527617, "UK: TNT SPORT 1")
+    private val tnt1 = ch(1562525, "UK: TNT SPORT 1")
     private val tnt2 = ch(1562524, "UK: TNT SPORT 2")
     private val tnt3 = ch(1562523, "UK: TNT SPORT 3")
     private val tnt4 = ch(1562522, "UK: TNT SPORT 4")
@@ -33,13 +37,15 @@ class BroadcasterFeedTest {
     )
 
     private val channels = listOf(tnt1, tnt2, tnt3, tnt4)
+    private val index = broadcasterIndex(channels) { guide[it.id] }
 
-    /** Nothing known about the binding, which is no reason to doubt it. */
-    private val index = broadcasterIndex(channels, { guide[it.id] }, { emptyList() })
+    /** Nothing known about a binding is no reason to doubt it. */
+    private fun carrying(home: String, away: String, idx: List<BroadcasterFeed> = index) =
+        broadcastersFor(home, away, idx) { true }
 
     @Test
     fun `the guide finds the channel carrying the match`() {
-        val got = broadcastersFor("Real Madrid", "Inter Milan", index)
+        val got = carrying("Real Madrid", "Inter Milan").own
         assertEquals(listOf(tnt1.id), got.map { it.id })
     }
 
@@ -50,7 +56,7 @@ class BroadcasterFeedTest {
      */
     @Test
     fun `a shorter spelling in the guide is the same club`() {
-        val got = broadcastersFor("Real Madrid", "Inter Milan", index)
+        val got = carrying("Real Madrid", "Inter Milan").own
         assertEquals(listOf(tnt1.id), got.map { it.id })
     }
 
@@ -63,14 +69,14 @@ class BroadcasterFeedTest {
      */
     @Test
     fun `spellings that share no whole word are not guessed at`() {
-        val got = broadcastersFor("Real Madrid", "Internazionale", index)
+        val got = carrying("Real Madrid", "Internazionale").own
         assertTrue(got.isEmpty())
     }
 
     /** The guide and the pack do not agree on which side leads. */
     @Test
     fun `either way round is the same fixture`() {
-        val got = broadcastersFor("Inter Milan", "Real Madrid", index)
+        val got = carrying("Inter Milan", "Real Madrid").own
         assertEquals(listOf(tnt1.id), got.map { it.id })
     }
 
@@ -85,22 +91,22 @@ class BroadcasterFeedTest {
 
     @Test
     fun `another tie on a sister channel is not this fixture`() {
-        val got = broadcastersFor("Real Madrid", "Inter Milan", index)
+        val got = carrying("Real Madrid", "Inter Milan").own
         assertTrue(got.none { it.id == tnt2.id || it.id == tnt3.id })
     }
 
     /** One side is never enough — that is how a derby takes the wrong tie. */
     @Test
     fun `one matching side does not match the fixture`() {
-        val got = broadcastersFor("Real Madrid", "Manchester City", index)
+        val got = carrying("Real Madrid", "Manchester City").own
         assertTrue(got.isEmpty())
     }
 
     @Test
     fun `a channel with no guide entry is skipped`() {
-        val blind = broadcasterIndex(channels, { null }, { emptyList() })
+        val blind = broadcasterIndex(channels) { null }
         assertTrue(blind.isEmpty())
-        assertTrue(broadcastersFor("Real Madrid", "Inter", blind).isEmpty())
+        assertTrue(carrying("Real Madrid", "Inter", blind).isEmpty())
     }
 
     /** A programme that is not a fixture never enters the index at all. */
@@ -119,52 +125,57 @@ class BroadcasterFeedTest {
     //
     // Every string below was fetched rather than typed: the channel names and
     // their epg ids from player_api, the guide titles and the display-name
-    // alternates from the epg6 pack the app fetches first, and both pipes
-    // were opened at 20:48 UTC — "US: TUDN ZONA" was a Radio MARCA studio
-    // show at h264 1080p30, "NOW: TNT SPORT 1" was LIV 2-1 ATM at 89:41,
-    // h264 1080p50.
+    // alternates from the packs themselves, and both pipes were opened at
+    // 20:48 UTC — "US: TUDN ZONA" was a Radio MARCA studio show at h264
+    // 1080p30, "NOW: TNT SPORT 1" was LIV 2-1 ATM at 89:41, h264 1080p50.
     //
     // Swept over the whole kept line-up, these were the ONLY two channels
     // whose guide named this fixture, and the app opened TUDN ZONA because it
     // sits at position 378 against TNT's 5,596.
+    //
+    // The alternates are epg6's, which is the list the app holds: XmltvMerger
+    // folds them with putIfAbsent and epg6 is fetched first. The fuller lists
+    // in epg14 and epg15 never reach this — see EpgMatcherTest.
 
     private val tudnZona = ch(1860592, "US: TUDN ZONA ᴿᴬᵂ")
     private val nowTnt1 = ch(1527617, "NOW: TNT SPORT 1")
 
     /** `tudn.us`, and it is TUDN's schedule, not TUDN Zona's. */
-    private val tudnGuideNames = listOf("GO TUDN", "TUDN", "Tudn")
+    private val tudnGuideNames = listOf("TUDN", "Tudn")
 
-    /** `tntsports1.uk`. The NowTV spelling is the one that answers here. */
+    /** `tntsports1.uk`, spelled plural where the provider spells it singular. */
     private val tnt1GuideNames = listOf(
-        "TNT SPORTS 1 HEVC 4K", "TNT SPORTS 1 HEVC HD", "TNT SPORTS 1 ᴴᴰ ◉",
-        "TNT SPORTS 1 ᴿᴬᵂ ⁵⁰ FPS", "TNT Sports 1", "TNT Sports 1 (1080p50)",
-        "TNTSports1.uk", "UK-NOWTV| TNT SPORT (UHD/4K)", "UK-NOWTV| TNT SPORT 1 FHD",
-        "UK-NOWTV| TNT SPORT 1 HD",
+        "TNT Sports 1", "TNT Sports 1 (1080p50)", "TNT Sports 1 (1080p25)",
+        "TNT Sports 1 (720p25)", "TNT Sports 1 (576p25)", "TNT Sports 1 (480p25)",
     )
 
-    private val septemberNinth = broadcasterIndex(
-        listOf(tudnZona, nowTnt1),
-        {
-            when (it.id) {
-                tudnZona.id -> "Fútbol UEFA Champions League : Liverpool vs. Atlético Madrid ᴸᶦᵛᵉ"
-                else -> "Live UCL: Liverpool v Atletico"
-            }
-        },
-        { if (it.id == tudnZona.id) tudnGuideNames else tnt1GuideNames },
+    private val septemberNinth = broadcasterIndex(listOf(tudnZona, nowTnt1)) {
+        when (it.id) {
+            tudnZona.id -> "Fútbol UEFA Champions League : Liverpool vs. Atlético Madrid ᴸᶦᵛᵉ"
+            else -> "Live UCL: Liverpool v Atletico"
+        }
+    }
+
+    /** The rule as the app asks it, off the names above. */
+    private fun asShipped(channel: LiveChannel): Boolean = !EpgMatcher.wearsAnothersSchedule(
+        channel.name,
+        if (channel.id == tudnZona.id) tudnGuideNames else tnt1GuideNames,
     )
 
     /** The report, and the fix: the channel that had the match leads. */
     @Test
     fun `the channel wearing its family's guide does not lead a fixture`() {
-        val got = broadcastersFor("Liverpool", "Atlético Madrid", septemberNinth)
-        assertEquals(listOf(nowTnt1.id, tudnZona.id), got.map { it.id })
+        val got = broadcastersFor("Liverpool", "Atlético Madrid", septemberNinth, ::asShipped)
+        assertEquals(listOf(nowTnt1.id), got.own.map { it.id })
+        assertEquals(listOf(tudnZona.id), got.family.map { it.id })
     }
 
-    /** Sorted, not filtered — a doubted feed is still a feed to step onto. */
+    /** Split, not filtered — a doubted feed is still a feed to step onto. */
     @Test
     fun `the doubted channel stays in the ladder`() {
-        val got = broadcastersFor("Liverpool", "Atlético Madrid", septemberNinth)
-        assertTrue(got.any { it.id == tudnZona.id })
+        val got = broadcastersFor("Liverpool", "Atlético Madrid", septemberNinth, ::asShipped)
+        assertFalse(got.isEmpty())
+        assertTrue(got.family.any { it.id == tudnZona.id })
     }
 
     /**
@@ -173,10 +184,9 @@ class BroadcasterFeedTest {
      */
     @Test
     fun `both packs' spellings reach the same fixture`() {
-        assertEquals(
-            listOf(nowTnt1.id, tudnZona.id),
-            broadcastersFor("Liverpool", "Atletico Madrid", septemberNinth).map { it.id },
-        )
+        val got = broadcastersFor("Liverpool", "Atletico Madrid", septemberNinth, ::asShipped)
+        assertEquals(listOf(nowTnt1.id), got.own.map { it.id })
+        assertEquals(listOf(tudnZona.id), got.family.map { it.id })
     }
 
     /**
@@ -185,20 +195,46 @@ class BroadcasterFeedTest {
      */
     @Test
     fun `two channels with their own guides keep the catalogue's order`() {
-        val trusted = broadcasterIndex(
-            listOf(tudnZona, nowTnt1),
-            {
-                when (it.id) {
-                    tudnZona.id ->
-                        "Fútbol UEFA Champions League : Liverpool vs. Atlético Madrid ᴸᶦᵛᵉ"
-                    else -> "Live UCL: Liverpool v Atletico"
-                }
-            },
-            { if (it.id == tudnZona.id) listOf("TUDN Zona") else tnt1GuideNames },
-        )
+        val got = broadcastersFor("Liverpool", "Atlético Madrid", septemberNinth) { true }
+        assertEquals(listOf(tudnZona.id, nowTnt1.id), got.own.map { it.id })
+        assertTrue(got.family.isEmpty())
+    }
+
+    // --- the order the row offers them in ---------------------------------
+
+    /**
+     * The reported bug with one channel removed. On a night when TNT is not in
+     * the line-up, the only broadcaster is the one wearing TUDN's schedule —
+     * and it used to lead anyway, opening the radio show while a slot named
+     * for the fixture sat behind it.
+     */
+    @Test
+    fun `a doubted broadcaster does not outrank the slots named for the fixture`() {
+        val withoutTnt = broadcasterIndex(listOf(tudnZona)) {
+            "Fútbol UEFA Champions League : Liverpool vs. Atlético Madrid ᴸᶦᵛᵉ"
+        }
+        val got = broadcastersFor("Liverpool", "Atlético Madrid", withoutTnt, ::asShipped)
+        assertTrue("no channel is trusted to lead", got.own.isEmpty())
         assertEquals(
-            listOf(tudnZona.id, nowTnt1.id),
-            broadcastersFor("Liverpool", "Atlético Madrid", trusted).map { it.id },
+            listOf("SOCCER PPV 13", "UEFA 04", tudnZona.id),
+            fixtureSources(
+                own = got.own.map { it.id },
+                slots = listOf("SOCCER PPV 13", "UEFA 04"),
+                family = got.family.map { it.id },
+            ),
+        )
+    }
+
+    /** And a broadcaster on its own guide still leads every slot. */
+    @Test
+    fun `the broadcaster's own channel leads the slots`() {
+        assertEquals(
+            listOf("tnt", "SOCCER PPV 13", "tudn zona"),
+            fixtureSources(
+                own = listOf("tnt"),
+                slots = listOf("SOCCER PPV 13"),
+                family = listOf("tudn zona"),
+            ),
         )
     }
 }

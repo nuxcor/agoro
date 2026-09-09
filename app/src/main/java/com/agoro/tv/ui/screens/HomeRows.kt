@@ -915,18 +915,19 @@ internal fun channelHero(channel: LiveChannel, nowNext: MainViewModel.NowNext?):
  * Madrid / Champions League" since the shelf was built, off the same fixture
  * this now reads.
  *
- * The slot still supplies the quality badge, which is the one thing on the
- * card that IS the pipe's. No plot: a fixture has no synopsis, and the guide
- * entry behind the slot is more of the same marketing text.
+ * Two chips and no plot. The quality badge is deliberately absent: the card
+ * two inches below already draws it, and it is read out of the same marketing
+ * paragraph this exists to stop billing — [QualityTag] has no rule for "8K",
+ * so tonight's "…| 8K EXCLUSIVE | US: SOCCER PPV 13" would have shown NO chip
+ * while a slot advertising "FHD" showed one, and the repo has measured "8K
+ * EXCLUSIVE" at 1080p30. A fixture has no synopsis either, and the guide entry
+ * behind the slot is more of the same text, so the plot line stays empty
+ * rather than filling with it.
  */
 internal fun fixtureHero(fixture: LiveFixture): HeroInfo = HeroInfo(
     title = fixture.event.title,
     poster = null,
     backdrop = null,
-    chips = listOfNotNull(
-        "Live",
-        fixture.event.league.takeIf { it.isNotBlank() },
-        fixture.slot.quality,
-    ),
+    chips = listOfNotNull("Live", fixture.event.league.takeIf { it.isNotBlank() }),
     plot = null,
 )

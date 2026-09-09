@@ -51,8 +51,16 @@ object EpgMatcher {
     fun normalizeTokens(name: String): List<String> {
         val stripped = QualityTag.baseName(ContentClassifier.stripChannelTags(name))
         val folded = fold(stripped.ifBlank { name })
-        return folded.split(Regex("""[^a-z0-9]+""")).filter { it.isNotBlank() }
+        return folded.split(wordBreak).filter { it.isNotBlank() }
     }
+
+    /**
+     * Hoisted. This ran per alternate per guide channel at resolve time and now
+     * runs again per guide alternate on the fixture press path, and a Regex
+     * compiled inside the call was the only allocation in it — the same reason
+     * [QualityTag] hoists its own.
+     */
+    private val wordBreak = Regex("""[^a-z0-9]+""")
 
     /**
      * Whether a channel is wearing ANOTHER channel's schedule — the parent's
@@ -70,14 +78,27 @@ object EpgMatcher {
      * The evidence is in the name. A pipe called by the guide channel's name
      * PLUS a word — ZONA, PLUS, EXTRA, an OTT feed number — is the same
      * family and a different channel, and the extra word is the whole
-     * difference. Names that simply differ ("Manchester United" against
-     * "MUTV", a US affiliate against its network) are not this: a binding
-     * nothing in the name supports is one a human made deliberately, and
-     * second-guessing it here would throw away the guide's best work.
+     * difference. Names that simply DIFFER ("Manchester United" against
+     * "MUTV", a US affiliate against its network) are left alone: nothing in
+     * the name argues either way there, and the binding is as likely to be
+     * the manifest's deliberate work as a guess.
+     *
+     * That last sentence used to say "one a human made deliberately", which
+     * was too strong: [resolve]'s own tie-break stage binds on a token set
+     * differing by ONE, so some of the bindings this leaves alone are the
+     * matcher's guesses and some of the ones it demotes are the matcher's
+     * confident work. Both are ranked here rather than refused for exactly
+     * that reason.
      *
      * An exact agreement with ANY alternate settles it, whatever the others
      * say — these packs list a channel under half a dozen spellings and the
-     * short one is often just sloppy ("Viaplay 1" for Viaplay Sports 1).
+     * short one is often just sloppy ("Viaplay 1" for Viaplay Sports 1). The
+     * comparison is stemmed, because the packs do not agree on the plural:
+     * epg6 has `tntsports1.uk` as "TNT Sports 1" while the provider writes
+     * "NOW: TNT SPORT 1", and only the NowTV pack — which loses the merge,
+     * see [XmltvMerger] — spells it the provider's way. Unstemmed, the
+     * channel that actually had the match was saved from demotion by an
+     * accident of grammar rather than by agreeing.
      *
      * Judgement, not proof: it says the binding is unsupported by the name,
      * never that the pipe is wrong. Callers rank with it — see
@@ -85,11 +106,11 @@ object EpgMatcher {
      * simply does not get to LEAD one.
      */
     fun wearsAnothersSchedule(channelName: String, guideNames: List<String>): Boolean {
-        val own = normalizeTokens(channelName).toSet()
+        val own = normalizeTokens(channelName).mapTo(HashSet()) { stem(it) }
         if (own.isEmpty() || guideNames.isEmpty()) return false
         var sibling = false
         for (name in guideNames) {
-            val guide = normalizeTokens(name).toSet()
+            val guide = normalizeTokens(name).mapTo(HashSet()) { stem(it) }
             if (guide.isEmpty()) continue
             if (guide == own) return false
             val extra = own - guide
@@ -99,12 +120,31 @@ object EpgMatcher {
     }
 
     /**
+     * "sports" and "sport" as one word, and nothing more clever than that.
+     *
+     * Only ever applied to BOTH sides of the same comparison, so it can merge
+     * two spellings and never two channels: the pairs it collapses differ by
+     * a trailing "s" and no broadcaster distinguishes two feeds that way.
+     * Three letters minimum, so "news" does not become "new".
+     */
+    private fun stem(word: String): String =
+        if (word.length > 3 && word.endsWith("s")) word.dropLast(1) else word
+
+    /**
      * Words that name no channel on their own, so adding one to a guide
      * channel's name does not make a different channel of it: "Sky Sports
      * News HQ" is "Sky Sports News" renamed, and half the packs write "TV"
      * where the provider does not. Deliberately short — every word left off
      * this list is one that separates two real channels, and "Plus" and
      * "Extra" separate several.
+     *
+     * Territory words are deliberately NOT here. A name like "USA TUDN" would
+     * read as a qualifier and cost that channel the lead, but on this panel
+     * every line-up channel wears its territory with a separator that
+     * [ContentClassifier.stripChannelTags] already takes off ("US: TUDN ZONA")
+     * — the only bare-territory names in the catalogue are US Open PPV slots,
+     * which never reach this. Adding words no name here needs would be
+     * guessing at the next panel's shape.
      */
     private val genericWords = setOf("tv", "channel", "network", "live", "hq")
 

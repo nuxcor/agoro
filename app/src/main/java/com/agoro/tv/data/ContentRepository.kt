@@ -1368,9 +1368,12 @@ class ContentRepository(context: Context) {
     fun guideNamesFor(channel: LiveChannel): List<String> {
         val data = (_epg.value as? EpgState.Ready)?.data ?: return emptyList()
         val guideId = guideIdFor(channel) ?: return emptyList()
-        return data.altNames[guideId]
-            ?: data.channelNames[guideId]?.let { listOf(it) }
-            ?: emptyList()
+        // altNames only. It is keyed by the LOWERCASE id, which is what
+        // guideIdFor returns, and it is written in the same pass as
+        // channelNames — which is keyed by the RAW id, so a `?:` fallback onto
+        // it would never fire for an id like "TUDN.us" and would read as a
+        // safety net that is not there.
+        return data.altNames[guideId].orEmpty()
     }
 
     /**

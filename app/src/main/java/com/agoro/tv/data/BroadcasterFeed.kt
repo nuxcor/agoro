@@ -22,15 +22,6 @@ internal class BroadcasterFeed(
     /** The two sides the guide entry named, for the match below. */
     val home: String,
     val away: String,
-    /**
-     * Whether the guide entry is this channel's own, or its family's.
-     *
-     * See [EpgMatcher.wearsAnothersSchedule]. False means the schedule read
-     * here belongs to a broader channel of the same name — TUDN's on "TUDN
-     * ZONA" — which is a claim about what the parent is showing and no claim
-     * at all about this pipe.
-     */
-    val ownGuide: Boolean,
 )
 
 /**
@@ -46,43 +37,81 @@ internal fun broadcasterIndex(
     channels: List<LiveChannel>,
     /** The channel's current programme title, or null when nothing is known. */
     nowTitle: (LiveChannel) -> String?,
-    /**
-     * The names the guide channel this one is bound to goes by, for
-     * [EpgMatcher.wearsAnothersSchedule]. Empty where nothing is known, which
-     * reads as "no reason to doubt it" — the same silence-is-not-a-verdict
-     * rule [reReadSlots] applies to a category nobody asked about.
-     */
-    guideNames: (LiveChannel) -> List<String>,
 ): List<BroadcasterFeed> = channels.mapNotNull { channel ->
     val title = nowTitle(channel)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
     val sides = SportsParser.readFixture(title) ?: return@mapNotNull null
-    BroadcasterFeed(
-        channel, sides.first, sides.second,
-        ownGuide = !EpgMatcher.wearsAnothersSchedule(channel.name, guideNames(channel)),
-    )
+    BroadcasterFeed(channel, sides.first, sides.second)
 }
 
 /**
- * The channels showing this fixture right now, best-known first.
+ * The channels showing this fixture right now, split by whether the guide
+ * entry that says so is the channel's OWN.
  *
- * Matched by [sameFixture], the same rule a slot name is read against.
+ * [own] is the evidence a fixture row should lead on. [family] is a channel
+ * wearing a broader relative's schedule — TUDN's on "TUDN ZONA" — which is a
+ * claim about the parent and no claim at all about this pipe; see
+ * [EpgMatcher.wearsAnothersSchedule] and [fixtureSources] for where it lands.
  *
- * A channel whose guide entry is its FAMILY's rather than its own goes last.
- * On 2026-09-09 exactly two channels in the line-up read as Liverpool v
- * Atlético Madrid: "US: TUDN ZONA", wearing TUDN's schedule and playing a
- * Spanish radio show, and "NOW: TNT SPORT 1", which was showing the match at
- * 1080p50. The app led on the first because it sits 5,218 rows earlier in the
- * catalogue, which is the only thing that ordered these before now. Sorted,
- * not filtered, and stably: a doubtful guide entry is still the best evidence
- * available when it is the only one, and the rest of the ladder is untouched.
+ * Split rather than filtered. On 2026-09-09 exactly two channels in the
+ * line-up read as Liverpool v Atlético Madrid — "US: TUDN ZONA", playing a
+ * Spanish radio show, and "NOW: TNT SPORT 1", showing the match at 1080p50 —
+ * and the app opened the first because it sits 5,218 rows earlier in the
+ * catalogue, which is the only thing that ordered these before now. But a
+ * doubted feed is still a feed, and the viewer has to be able to reach it.
+ */
+internal class Broadcasters(
+    val own: List<LiveChannel>,
+    val family: List<LiveChannel>,
+) {
+    fun isEmpty() = own.isEmpty() && family.isEmpty()
+}
+
+/**
+ * The channels showing this fixture right now, matched by [sameFixture] — the
+ * same rule a slot name is read against.
+ *
+ * [ownGuide] is asked only of the channels that survive the match, not of
+ * every fixture-shaped entry in the index. This runs on the press, on the main
+ * thread, and on a Champions League night the index holds dozens of channels
+ * while a fixture is carried by two or three; asking the guide for the names
+ * of all of them was work for answers nobody reads.
  */
 internal fun broadcastersFor(
     home: String,
     away: String,
     index: List<BroadcasterFeed>,
-): List<LiveChannel> = index.filter { feed ->
-    sameFixture(feed.home, feed.away, home, away)
-}.sortedBy { if (it.ownGuide) 0 else 1 }.map { it.channel }
+    ownGuide: (LiveChannel) -> Boolean,
+): Broadcasters {
+    val carrying = index.filter { feed -> sameFixture(feed.home, feed.away, home, away) }
+        .map { it.channel }
+    val (own, family) = carrying.partition(ownGuide)
+    return Broadcasters(own = own, family = family)
+}
+
+/**
+ * A fixture's sources in the order the row should offer them.
+ *
+ * The broadcaster's own channel leads, because a channel showing the match on
+ * its own schedule is the best evidence this app has — measured 2026-09-08,
+ * every SOCCER PPV slot checked was black, tennis, or a different fixture
+ * while TNT carried the match at 1080p50.
+ *
+ * A channel wearing its FAMILY's schedule does not lead, and it does not
+ * outrank the slots either. It used to sit at the head whenever it was the
+ * only broadcaster, which is the reported bug with one channel removed: press
+ * Liverpool v Atlético Madrid on a night when TNT is not in the line-up and
+ * the row would open the Spanish radio show again, with a PPV slot named for
+ * the fixture sitting behind it. Between a pipe whose own name claims THIS
+ * match and a pipe whose relative's schedule claims it, the first is the
+ * better guess — and by the time this is asked the slots have been re-read
+ * against the panel's current names, which the family binding never is.
+ *
+ * Takes the three groups already labelled, so the one thing it decides is the
+ * one thing it is named for; pure and outside the view model so that decision
+ * is testable without one.
+ */
+internal fun <T> fixtureSources(own: List<T>, slots: List<T>, family: List<T>): List<T> =
+    own + slots + family
 
 /**
  * Whether two already-parsed pairs of sides are the same fixture.

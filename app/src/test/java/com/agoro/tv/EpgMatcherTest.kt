@@ -316,7 +316,8 @@ class EpgMatcherTest {
         assertTrue(
             EpgMatcher.wearsAnothersSchedule(
                 "US: TUDN ZONA ᴿᴬᵂ",
-                listOf("GO TUDN", "TUDN", "Tudn"),
+                // epg6's list for tudn.us — the pack that wins the merge.
+                listOf("TUDN", "Tudn"),
             )
         )
     }
@@ -339,21 +340,60 @@ class EpgMatcherTest {
      */
     @Test
     fun `an exact agreement among the alternates settles it`() {
+        // epg15's list for tntsports1.uk, and the NowTV spelling in it is an
+        // exact agreement with what the provider calls the channel.
         assertFalse(
             EpgMatcher.wearsAnothersSchedule(
                 "NOW: TNT SPORT 1",
                 listOf(
-                    "TNT SPORTS 1 HEVC 4K", "TNT Sports 1", "TNTSports1.uk",
-                    "UK-NOWTV| TNT SPORT (UHD/4K)", "UK-NOWTV| TNT SPORT 1 HD",
+                    "TNTSports1.uk", "UK-NOWTV| TNT SPORT (UHD/4K)",
+                    "UK-NOWTV| TNT SPORT 1 FHD", "UK-NOWTV| TNT SPORT 1 HD",
                 ),
             )
         )
     }
 
     /**
-     * A binding no name supports is one a human made deliberately — the
-     * manifest binds Manchester United's channel to MUTV and a US affiliate
-     * to its network — and this rule has nothing to say about those.
+     * And the list the app ACTUALLY holds for that id, which is a different
+     * list.
+     *
+     * `XmltvMerger` folds alternates with `putIfAbsent`, so the first pack to
+     * carry a guide id keeps the whole list; the packs are fetched in binding
+     * order, epg6 leads, and the NowTV spellings above live only in epg15.
+     * What survives is epg6's — every one of them "TNT Sports 1", plural,
+     * against a provider who writes "TNT SPORT 1". The stem is what makes
+     * these agree; without it the channel that had the match was saved from
+     * demotion only because "sports" is not a subset of "sport".
+     */
+    @Test
+    fun `the pack that wins the merge spells it differently, and that still agrees`() {
+        assertFalse(
+            EpgMatcher.wearsAnothersSchedule(
+                "NOW: TNT SPORT 1",
+                listOf(
+                    "TNT Sports 1", "TNT Sports 1 (1080p50)", "TNT Sports 1 (1080p25)",
+                    "TNT Sports 1 (720p25)", "TNT Sports 1 (576p25)", "TNT Sports 1 (480p25)",
+                ),
+            )
+        )
+    }
+
+    /** The stem is only ever a trailing "s", and never on a short word. */
+    @Test
+    fun `stemming does not merge two different words`() {
+        // "News" must not become "New", or Sky News would answer to Sky New.
+        assertTrue(
+            EpgMatcher.wearsAnothersSchedule("SKY NEWS ARABIA", listOf("Sky News"))
+        )
+        assertFalse(
+            EpgMatcher.wearsAnothersSchedule("SKY NEWS", listOf("Sky News"))
+        )
+    }
+
+    /**
+     * A binding no name supports is left alone — the manifest binds Manchester
+     * United's channel to MUTV and a US affiliate to its network, and so does
+     * [EpgMatcher.resolve]'s own tie-break stage. Neither is judged here.
      */
     @Test
     fun `names that simply differ are left alone`() {

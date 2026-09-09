@@ -292,9 +292,12 @@ private fun TopNavItem(
     /**
      * False draws the icon alone, with [label] left to the screen reader.
      *
-     * Only Search does this. A row of icons would be a puzzle at ten feet —
-     * the words are what make the header readable — but the one control that
-     * is an action rather than a place earns the shape instead.
+     * Two controls do, and they are the two at the head of the row: Home,
+     * which draws the app's mark instead (see [brand]), and Search. A row of
+     * icons would be a puzzle at ten feet — the words are what make the header
+     * readable — but the app's own symbol and the one control that is an
+     * action rather than a place both earn the shape, and every DESTINATION
+     * after them is a word.
      */
     labelled: Boolean = true,
     /**

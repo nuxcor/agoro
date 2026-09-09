@@ -188,7 +188,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // by the parental PIN, and a locked channel reachable through a
         // fixture row is the lock bypassed.
         val sides = title?.let { com.agoro.tv.data.SportsParser.readFixture(it) }
-        val broadcasters = if (sides == null) emptyList() else {
+        val broadcasters = if (sides == null) {
+            com.agoro.tv.data.Broadcasters(emptyList(), emptyList())
+        } else {
             // repo.programsFor, NOT nowNext.
             //
             // nowNext is stateIn(WhileSubscribed(5_000), emptyMap()), and the
@@ -206,20 +208,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val atMs = System.currentTimeMillis()
             com.agoro.tv.data.broadcastersFor(
                 sides.first, sides.second,
-                com.agoro.tv.data.broadcasterIndex(
-                    displayChannels.value,
-                    nowTitle = { channel ->
-                        repo.programsFor(channel)
-                            .firstOrNull { atMs in it.startMs until it.endMs }?.title
-                    },
-                    // What the schedule on that channel is a schedule FOR. A
-                    // provider hands an epg id out per family as readily as
-                    // per channel, and the guide is then a claim about the
-                    // parent: "US: TUDN ZONA" wearing TUDN's Champions League
-                    // listing while playing a Spanish radio show is the whole
-                    // of the "on TUDN with no match playing" report.
-                    guideNames = { channel -> repo.guideNamesFor(channel) },
-                ),
+                com.agoro.tv.data.broadcasterIndex(displayChannels.value) { channel ->
+                    repo.programsFor(channel)
+                        .firstOrNull { atMs in it.startMs until it.endMs }?.title
+                },
+                // Whether the schedule that named this fixture is the
+                // channel's OWN. A provider hands an epg id out per family as
+                // readily as per channel, and the guide is then a claim about
+                // the parent: "US: TUDN ZONA" wearing TUDN's Champions League
+                // listing while playing a Spanish radio show is the whole of
+                // the "on TUDN with no match playing" report. Asked only of
+                // the channels carrying this fixture — see broadcastersFor.
+                ownGuide = { channel ->
+                    !com.agoro.tv.data.EpgMatcher.wearsAnothersSchedule(
+                        channel.name, repo.guideNamesFor(channel),
+                    )
+                },
             )
         }
         val ppv = listOf(slot) + fallbacks
@@ -243,7 +247,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun fixtureRequest(
         shown: String,
-        broadcasters: List<LiveChannel>,
+        broadcasters: com.agoro.tv.data.Broadcasters,
         ppv: List<LiveChannel>,
     ): PlaybackRequest {
         // Everything that did not lead stays behind it, the slot included: the
@@ -254,10 +258,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // several qualities — they are different pipes, any of which may be
         // showing another match — so the viewer has to be able to see which
         // one they are on and step off it. See PlayableItem.sourceNames.
-        val named = broadcasters.map { it to it.displayName } +
-            ppv.map {
+        //
+        // The order is fixtureSources': the broadcaster's own channel, then
+        // the slots named for the fixture, then a channel wearing a relative's
+        // schedule.
+        fun named(channel: LiveChannel) = channel to channel.displayName
+        val named = com.agoro.tv.data.fixtureSources(
+            own = broadcasters.own.map(::named),
+            slots = ppv.map {
                 it to (com.agoro.tv.data.SportsParser.packLabel(it.name) ?: it.displayName)
-            }
+            },
+            family = broadcasters.family.map(::named),
+        )
         // The viewer's own answer to "this is the wrong game" outranks every
         // ranking this app can do from a name. Sorted rather than moved to the
         // front so the order behind it is untouched — sortedByDescending is
@@ -318,7 +330,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         published: PlaybackRequest,
         shown: String,
         sides: Pair<String, String>?,
-        broadcasters: List<LiveChannel>,
+        broadcasters: com.agoro.tv.data.Broadcasters,
         ppv: List<LiveChannel>,
     ) {
         if (sides == null || ppv.isEmpty()) return
@@ -362,12 +374,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // can be four seconds old — long enough that the viewer is
             // watching the match, not the tune card. Two of the three ways a
             // re-read comes back changed leave the head alone: a fixture with
-            // a broadcaster channel leads on that channel, which no PPV
-            // re-read can touch, and a row whose own pipe is still right can
-            // still gain a second pipe that has MOVED onto the match. In both
-            // the correction only reorders the ladder behind the picture, and
-            // a stale rung further down is a far smaller harm than cutting a
-            // working stream to fix it.
+            // a broadcaster channel on its OWN guide leads on that channel,
+            // which no PPV re-read can touch, and a row whose own pipe is
+            // still right can still gain a second pipe that has MOVED onto the
+            // match. In both the correction only reorders the ladder behind
+            // the picture, and a stale rung further down is a far smaller harm
+            // than cutting a working stream to fix it.
+            //
+            // A channel wearing a RELATIVE's schedule is not in that first
+            // case: it sits below the slots, so a re-read that changes the
+            // leading slot changes what is playing, and this comparison — not
+            // an assumption about broadcasters — is what decides.
             //
             // When the head does change, the pipe on screen is the one that
             // no longer names this fixture — the wrong match, playing under

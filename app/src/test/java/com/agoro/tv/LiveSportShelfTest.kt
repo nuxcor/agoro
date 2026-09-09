@@ -21,9 +21,9 @@ class LiveSportShelfTest {
 
     private val now = 1_700_000_000_000L
 
-    private fun slot(id: Int) = LiveChannel(
+    private fun slot(id: Int, name: String = "PPV $id") = LiveChannel(
         id = "live:$id",
-        name = "PPV $id",
+        name = name,
         logo = null,
         url = "http://x/$id.ts",
         categoryId = "ppv",
@@ -35,9 +35,10 @@ class LiveSportShelfTest {
         home: String = "Arsenal",
         away: String = "Chelsea",
         startMs: Long? = now - 30 * 60_000,
+        league: String = "Premier League",
     ) = SportsEvent(
         streamId = streamId,
-        league = "Premier League",
+        league = league,
         home = home,
         away = away,
         startMs = startMs,
@@ -227,23 +228,12 @@ class LiveSportShelfTest {
     // "Liverpool v Atletico Madrid / Champions League". Slot names below are
     // verbatim from player_api the same evening.
 
-    private fun ppvSlot(id: Int, name: String) = LiveChannel(
-        id = "live:$id", name = name, logo = null,
-        url = "http://x/$id.ts", categoryId = "ppv", xtreamId = id,
-    )
-
-    private fun ucl(streamId: Int) = SportsEvent(
-        streamId = streamId,
-        league = "Champions League",
-        home = "Liverpool",
-        away = "Atletico Madrid",
-        startMs = now - 30 * 60_000,
-        live = false,
-    )
+    private fun ucl(streamId: Int) =
+        fixture(streamId, "Liverpool", "Atletico Madrid", league = "Champions League")
 
     @Test
     fun `the header names the match, not the pipe`() {
-        val slot = ppvSlot(
+        val slot = slot(
             1940144,
             "Live | Liverpool vs. Atlético Madrid | all | 8K EXCLUSIVE | US: SOCCER PPV 13",
         )
@@ -256,7 +246,7 @@ class LiveSportShelfTest {
     /** Another pack, another paragraph, and the header is the same line. */
     @Test
     fun `every pack's marketing text is left on the slot`() {
-        val slot = ppvSlot(
+        val slot = slot(
             1896469,
             "LIVE | LIVERPOOL - ATLÉTICO MADRID | Wed 09 Sep 18:00 UTC (UK) | " +
                 "8K EXCLUSIVE | UK: MAX PPV 17",
@@ -273,7 +263,7 @@ class LiveSportShelfTest {
      */
     @Test
     fun `the header asks for no synopsis`() {
-        val slot = ppvSlot(1, "Live | Liverpool vs. Atlético Madrid | all | US: SOCCER PPV 13")
+        val slot = slot(1, "Live | Liverpool vs. Atlético Madrid | all | US: SOCCER PPV 13")
         val hero = fixtureHero(liveSportShelf(listOf(ucl(1)), listOf(slot), now).single())
         assertNull(hero.plot)
         assertNull(hero.plotKey)
