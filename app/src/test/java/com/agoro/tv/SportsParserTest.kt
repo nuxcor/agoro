@@ -1420,6 +1420,202 @@ class SportsParserTest {
         assertEquals(1, SportsParser.applySchedule(listOf(slot), fixtures, now).size)
     }
 
+    // --- a nickname two sports share is not a league --------------------------
+    //
+    // "US (Peacock 071) | Cardinals at Giants (2026-09-08 20:00:00)" is
+    // BASEBALL, St. Louis at San Francisco, and it stood on the Sport tab as
+    // an NFL fixture on the evening of 8 September. The Peacock pack writes
+    // bare nicknames and no sport word at all — its neighbours in the same
+    // listing are "Cowboys vs. Giants" and "Padres at Giants", one real NFL
+    // and one real MLB — so nothing in the name can be refused, and the NFL
+    // roster carries a Cardinals and a Giants.
+
+    /** As the manifest bills them, plus the nicknames it flags as shared. */
+    private val usLeagues = mapOf(
+        "NFL" to listOf("Cardinals", "Giants", "Jets", "Cowboys", "Panthers"),
+    )
+    private val usAmbiguous = setOf("Giants", "Cardinals", "Jets", "Panthers")
+
+    /** The NFL's own week 1, which is what opened the matchday window. */
+    private val nflWeekOne = listOf(
+        ScheduleFixture("NFL", "Seattle Seahawks", "New England Patriots", "2026-09-10T00:20Z"),
+        ScheduleFixture("NFL", "New York Giants", "Dallas Cowboys", "2026-09-14T00:20Z"),
+    )
+
+    @Test
+    fun `two shared nicknames are read as a league but flagged as a guess`() {
+        val now = ms(2026, 9, 9, 1, 30, "UTC")
+        val e = SportsParser.parse(
+            1831648, "US (Peacock 071) | Cardinals at Giants (2026-09-09 02:00:00)",
+            now, usLeagues, usAmbiguous,
+        )!!
+        assertEquals("NFL", e.league)
+        assertTrue("the league is two nicknames and nothing else", e.nicknamePair)
+    }
+
+    /** A pack that names its own sport has not guessed anything. */
+    @Test
+    fun `a slot that names its sport is not a nickname guess`() {
+        val now = ms(2026, 8, 28, 22, 0, "America/New_York")
+        val e = SportsParser.parse(
+            1, "NFL  | 08 - 8/28 7:30pm Giants at Jets", now, usLeagues, usAmbiguous,
+        )!!
+        assertEquals("NFL", e.league)
+        assertFalse("the shelf says NFL itself", e.nicknamePair)
+    }
+
+    /** One flagged nickname is not a pairing: "Cowboys" is only ever gridiron. */
+    @Test
+    fun `one shared nickname is not a guess`() {
+        val now = ms(2026, 9, 13, 18, 0, "UTC")
+        val e = SportsParser.parse(
+            1831633, "US (Peacock 086) | Cowboys vs. Giants (2026-09-13 19:00:00)",
+            now, usLeagues, usAmbiguous,
+        )!!
+        assertFalse(e.nicknamePair)
+    }
+
+    /**
+     * The matchday reprieve is for clubs the packs and ESPN SPELL differently.
+     * A bare US nickname is the one name they already agree on, so a row that
+     * matched on two of them and pairs with no fixture is not a spelling
+     * problem — it is another sport. Without this the baseball game was kept
+     * purely because the NFL opener was 22 hours away.
+     */
+    @Test
+    fun `a nickname guess gets no matchday reprieve`() {
+        val now = ms(2026, 9, 9, 2, 30, "UTC")
+        val slot = SportsParser.parse(
+            1831648, "US (Peacock 071) | Cardinals at Giants (2026-09-09 02:00:00)",
+            now, usLeagues, usAmbiguous,
+        )!!
+        assertTrue(
+            "the NFL is playing inside the window and this is still not the NFL",
+            SportsParser.applySchedule(listOf(slot), nflWeekOne, now).isEmpty(),
+        )
+    }
+
+    /**
+     * And the half that keeps it honest. Two flagged nicknames playing each
+     * other really does happen — the Giants play the Jets — and the schedule
+     * says so, which is the whole point of asking it: ESPN and the roster
+     * already agree on a US nickname, so a genuine fixture pairs.
+     */
+    @Test
+    fun `a nickname pairing the schedule confirms is kept`() {
+        val now = ms(2026, 9, 20, 17, 30, "UTC")
+        val slot = SportsParser.parse(
+            1, "US (Peacock 088) | Giants at Jets (2026-09-20 17:00:00)",
+            now, usLeagues, usAmbiguous,
+        )!!
+        assertTrue("still a guess when it is parsed", slot.nicknamePair)
+        val fixed = SportsParser.applySchedule(
+            listOf(slot),
+            nflWeekOne + ScheduleFixture(
+                "NFL", "New York Jets", "New York Giants", "2026-09-20T17:00Z",
+            ),
+            now,
+        ).single()
+        assertEquals("NFL", fixed.league)
+        assertTrue("the schedule placed it", fixed.scheduleKey != null)
+    }
+
+    /**
+     * A league the schedule says nothing about cannot RESCUE a guess either.
+     * Ordered above the "silence is not evidence" rule on purpose: an NFL with
+     * no fixtures at all is the February-to-August off-season, which is
+     * exactly when the baseball is on every night.
+     */
+    @Test
+    fun `a nickname guess is not rescued by a league the schedule omits`() {
+        val now = ms(2026, 6, 9, 2, 30, "UTC")
+        val slot = SportsParser.parse(
+            1831648, "US (Peacock 071) | Cardinals at Giants (2026-06-09 02:00:00)",
+            now, usLeagues, usAmbiguous,
+        )!!
+        val soccerOnly = listOf(
+            ScheduleFixture("MLS", "Inter Miami", "Atlanta United", "2026-06-09T23:30Z"),
+        )
+        assertTrue(
+            "the NFL is not playing in June and that is not a reason to show this",
+            SportsParser.applySchedule(listOf(slot), soccerOnly, now).isEmpty(),
+        )
+    }
+
+    /**
+     * And with no schedule at all. MainViewModel combines the parse with a
+     * schedule flow that begins null, so this list is empty for the whole
+     * cold start — which is when the row was going back on screen.
+     */
+    @Test
+    fun `a nickname guess needs a schedule to survive`() {
+        val now = ms(2026, 9, 9, 2, 30, "UTC")
+        val guess = SportsParser.parse(
+            1831648, "US (Peacock 071) | Cardinals at Giants (2026-09-09 02:00:00)",
+            now, usLeagues, usAmbiguous,
+        )!!
+        val plain = SportsParser.parse(
+            1, "NFL  | 08 - 9/9 8pm Giants at Jets", now, usLeagues, usAmbiguous,
+        )!!
+        val out = SportsParser.applySchedule(listOf(guess, plain), emptyList(), now)
+        assertEquals("the row that never guessed is untouched", listOf(plain), out)
+    }
+
+    /**
+     * A pairing is the proof the flag was holding out for, so a pack's bad
+     * clock must not undo it. The shift bail-out routes through onMatchday,
+     * and carrying the flag that far deleted a fixture the schedule had
+     * already identified by both clubs.
+     */
+    @Test
+    fun `a paired fixture survives a clock the schedule cannot adopt`() {
+        val now = ms(2026, 9, 20, 17, 30, "UTC")
+        val real = ScheduleFixture(
+            "NFL", "New York Jets", "New York Giants", "2026-09-20T17:00Z",
+        )
+        // Twenty hours out — past SCHEDULE_MAX_SHIFT_MS, which is twelve.
+        val slot = SportsParser.parse(
+            1, "US (Peacock 088) | Giants at Jets (2026-09-19 21:00:00)",
+            now, usLeagues, usAmbiguous,
+        )!!
+        assertTrue("flagged as it is parsed", slot.nicknamePair)
+        assertEquals(
+            "the pairing outranks the clock",
+            1, SportsParser.applySchedule(listOf(slot), nflWeekOne + real, now).size,
+        )
+    }
+
+    /** A confirmed row stops calling itself a guess. */
+    @Test
+    fun `the schedule clears the flag when it pairs both clubs`() {
+        val now = ms(2026, 9, 20, 17, 30, "UTC")
+        val slot = SportsParser.parse(
+            1, "US (Peacock 088) | Giants at Jets (2026-09-20 17:00:00)",
+            now, usLeagues, usAmbiguous,
+        )!!
+        val fixed = SportsParser.applySchedule(
+            listOf(slot),
+            listOf(ScheduleFixture("NFL", "New York Jets", "New York Giants", "2026-09-20T17:00Z")),
+            now,
+        ).single()
+        assertFalse("the schedule answered it", fixed.nicknamePair)
+    }
+
+    /**
+     * Two nulls are not a pack agreeing with itself. A league this file maps
+     * to no sport, on a slot that names none, once cleared the flag outright.
+     */
+    @Test
+    fun `an unmapped league does not clear the flag by accident`() {
+        val now = ms(2026, 9, 9, 2, 30, "UTC")
+        val e = SportsParser.parse(
+            1, "US (Peacock 090) | Rangers at Kings (2026-09-09 02:00:00)", now,
+            mapOf("NHL" to listOf("Rangers", "Kings")), setOf("Rangers", "Kings"),
+        )!!
+        assertEquals("NHL", e.league)
+        assertTrue("nothing said which sport this is", e.nicknamePair)
+    }
+
     /** "Niger Super Ligue 1 - Niger" contains "Ligue 1" and is not Ligue 1. */
     @Test
     fun `a competition elsewhere that borrows our league's name is refused`() {
