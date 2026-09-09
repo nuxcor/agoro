@@ -2,6 +2,7 @@ package com.agoro.tv
 
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.SportsEvent
+import com.agoro.tv.ui.screens.fixtureHero
 import com.agoro.tv.ui.screens.liveSportShelf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -20,9 +21,9 @@ class LiveSportShelfTest {
 
     private val now = 1_700_000_000_000L
 
-    private fun slot(id: Int) = LiveChannel(
+    private fun slot(id: Int, name: String = "PPV $id") = LiveChannel(
         id = "live:$id",
-        name = "PPV $id",
+        name = name,
         logo = null,
         url = "http://x/$id.ts",
         categoryId = "ppv",
@@ -34,9 +35,10 @@ class LiveSportShelfTest {
         home: String = "Arsenal",
         away: String = "Chelsea",
         startMs: Long? = now - 30 * 60_000,
+        league: String = "Premier League",
     ) = SportsEvent(
         streamId = streamId,
-        league = "Premier League",
+        league = league,
         home = home,
         away = away,
         startMs = startMs,
@@ -216,5 +218,54 @@ class LiveSportShelfTest {
     fun `the bar never runs past the end of its window`() {
         val card = liveSportShelf(listOf(fixture(1)), listOf(slot(1)), now).single()
         assertEquals(1f, card.progress(now + 10 * 60 * 60 * 1000L)!!, 0.001f)
+    }
+
+    // --- the header above the shelf ---------------------------------------
+    //
+    // "remove the ugly NEXT LINE", 2026-09-09, with a photo of Home headed
+    // "Next | Liverpool vs. Atlético Madrid | all | 09-09-2026 | 1…" — the
+    // SOCCER PPV slot's own name, cut off mid-field, over a card that read
+    // "Liverpool v Atletico Madrid / Champions League". Slot names below are
+    // verbatim from player_api the same evening.
+
+    private fun ucl(streamId: Int) =
+        fixture(streamId, "Liverpool", "Atletico Madrid", league = "Champions League")
+
+    @Test
+    fun `the header names the match, not the pipe`() {
+        val slot = slot(
+            1940144,
+            "Live | Liverpool vs. Atlético Madrid | all | 8K EXCLUSIVE | US: SOCCER PPV 13",
+        )
+        val card = liveSportShelf(listOf(ucl(1940144)), listOf(slot), now).single()
+        val hero = fixtureHero(card)
+        assertEquals("Liverpool v Atletico Madrid", hero.title)
+        assertTrue(hero.chips.contains("Champions League"))
+    }
+
+    /** Another pack, another paragraph, and the header is the same line. */
+    @Test
+    fun `every pack's marketing text is left on the slot`() {
+        val slot = slot(
+            1896469,
+            "LIVE | LIVERPOOL - ATLÉTICO MADRID | Wed 09 Sep 18:00 UTC (UK) | " +
+                "8K EXCLUSIVE | UK: MAX PPV 17",
+        )
+        val hero = fixtureHero(liveSportShelf(listOf(ucl(1896469)), listOf(slot), now).single())
+        assertEquals("Liverpool v Atletico Madrid", hero.title)
+        assertTrue(hero.chips.first() == "Live")
+    }
+
+    /**
+     * A fixture has no synopsis and its slot's guide entry is more of the
+     * same marketing text, so the hero asks for none — the plot line under
+     * the header stays empty rather than filling with the pack's blurb.
+     */
+    @Test
+    fun `the header asks for no synopsis`() {
+        val slot = slot(1, "Live | Liverpool vs. Atlético Madrid | all | US: SOCCER PPV 13")
+        val hero = fixtureHero(liveSportShelf(listOf(ucl(1)), listOf(slot), now).single())
+        assertNull(hero.plot)
+        assertNull(hero.plotKey)
     }
 }

@@ -903,3 +903,31 @@ internal fun channelHero(channel: LiveChannel, nowNext: MainViewModel.NowNext?):
         plotKey = now?.id,
     )
 }
+
+/**
+ * The hero a focused fixture projects: the MATCH, never the pipe.
+ *
+ * [channelHero] built this one too, and a PPV slot's display name is the
+ * pack's marketing paragraph — the header read "Next | Liverpool vs. Atlético
+ * Madrid | all | 09-09-2026 | 1…", pipes, filler word, date and all, cut off
+ * mid-field by the one line it gets. Reported 2026-09-09 as "remove the ugly
+ * NEXT LINE". The card two inches below it has said "Liverpool v Atletico
+ * Madrid / Champions League" since the shelf was built, off the same fixture
+ * this now reads.
+ *
+ * Two chips and no plot. The quality badge is deliberately absent: the card
+ * two inches below already draws it, and it is read out of the same marketing
+ * paragraph this exists to stop billing — [QualityTag] has no rule for "8K",
+ * so tonight's "…| 8K EXCLUSIVE | US: SOCCER PPV 13" would have shown NO chip
+ * while a slot advertising "FHD" showed one, and the repo has measured "8K
+ * EXCLUSIVE" at 1080p30. A fixture has no synopsis either, and the guide entry
+ * behind the slot is more of the same text, so the plot line stays empty
+ * rather than filling with it.
+ */
+internal fun fixtureHero(fixture: LiveFixture): HeroInfo = HeroInfo(
+    title = fixture.event.title,
+    poster = null,
+    backdrop = null,
+    chips = listOfNotNull("Live", fixture.event.league.takeIf { it.isNotBlank() }),
+    plot = null,
+)

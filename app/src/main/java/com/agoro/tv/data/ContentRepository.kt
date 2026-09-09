@@ -1357,6 +1357,26 @@ class ContentRepository(context: Context) {
     }
 
     /**
+     * Every name the guide channel behind [programsFor] goes by — what the
+     * schedule on this row is a schedule FOR.
+     *
+     * Asked when a fixture is pressed, so the sport row can tell a channel's
+     * own guide entry from its family's: see
+     * [EpgMatcher.wearsAnothersSchedule]. Two map lookups on the resident
+     * guide, the same cost and the same discipline as [programsFor].
+     */
+    fun guideNamesFor(channel: LiveChannel): List<String> {
+        val data = (_epg.value as? EpgState.Ready)?.data ?: return emptyList()
+        val guideId = guideIdFor(channel) ?: return emptyList()
+        // altNames only. It is keyed by the LOWERCASE id, which is what
+        // guideIdFor returns, and it is written in the same pass as
+        // channelNames — which is keyed by the RAW id, so a `?:` fallback onto
+        // it would never fire for an id like "TUDN.us" and would read as a
+        // safety net that is not there.
+        return data.altNames[guideId].orEmpty()
+    }
+
+    /**
      * Programmes for a channel over a stated span — the guide grid's read,
      * because the grid is the only caller that can be looking at hours other
      * than these.

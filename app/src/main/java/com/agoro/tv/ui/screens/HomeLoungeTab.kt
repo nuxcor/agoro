@@ -207,7 +207,7 @@ private class HomeShelves(
                 is CatalogCard.SeriesCard -> card.series.toHero()
                 null -> null
             }
-            HomeRow.LiveSport -> liveSport.at()?.let { channelHero(it.slot, nowNext[it.slot.id]) }
+            HomeRow.LiveSport -> liveSport.at()?.let { fixtureHero(it) }
             HomeRow.Favorites -> favoritesRow.at()?.let { channelHero(it, nowNext[it.id]) }
             HomeRow.Recents -> recentsRow.at()?.let { channelHero(it, nowNext[it.id]) }
             HomeRow.StarterChannels -> starterChannels.at()?.let { channelHero(it, nowNext[it.id]) }

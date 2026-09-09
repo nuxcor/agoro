@@ -96,19 +96,26 @@ private val BRAND_HEIGHT = 28.dp
 private val BRAND_WIDTH = 20.dp
 
 enum class HomeTab(val label: String, val icon: ImageVector) {
-    // Enum order is header order, left to right.
+    // Enum order is header order, left to right. The ordinal is also the index
+    // of a control's FocusRequester, so this order is the LEFT/RIGHT order and
+    // the order BACK aims at — see [TopNav].
     //
-    // Search leads, as an icon rather than a word — the shape everyone already
-    // reads, in the corner every TV puts it. It is not a destination in the
-    // way the others are: you go to Home, to Movies, to Live TV, but you don't
-    // go to Search, you use it. An icon says that where a word sitting in the
-    // same run as "Movies" and "Series" claimed to be one of them.
+    // The mark leads. It is the app's own symbol on the app's own destination,
+    // sitting in the corner a logo sits in, and it is what the app lands on —
+    // so the first thing on the header is where you already are.
     //
-    // Home still LANDS the app; leading the row and being the landing are
-    // different jobs. Settings is last and gets pushed to the far right — see
-    // [TopNav].
-    Search("Search", Icons.Default.Search),
+    // Search follows it, and the argument for Search leading is worth keeping
+    // because it is a real one: it is an ACTION rather than a place — you go
+    // to Home, to Movies, to Live TV, but you don't go to Search, you use it —
+    // and the top-left corner is where a TV puts that shape. What settled it
+    // is that the leading edge belongs to the app before it belongs to any
+    // control on it ("ALSO PUT HOME LOGO FIRST BEFORE SEARCH ICON",
+    // 2026-09-09). Search keeps the icon-not-a-word treatment either way,
+    // which is what says it is not one of the destinations beside it.
+    //
+    // Settings is last and gets pushed to the far right — see [TopNav].
     Home("Home", Icons.Default.Home),
+    Search("Search", Icons.Default.Search),
     Live("TV", Icons.Default.LiveTv),
     // Beside TV because that is what it is — live, just organised by fixture
     // instead of by channel.
@@ -226,7 +233,9 @@ internal fun TopNav(
         // twice — a logo that does nothing next to a tab that goes home — and
         // spent the leading edge of the header on decoration. Home IS the mark
         // now: it is the app's own destination, so the app's own symbol is the
-        // right label for it, and one control does what two were doing.
+        // right label for it, and one control does what two were doing. It
+        // leads the header, so the leading edge carries the app's mark and
+        // costs nothing, which is what a standalone one could not do.
         items.forEachIndexed { index, item ->
             // Everything above the catalogue on the left, the app itself on
             // the right. The drawer said this with a divider; a header says it
@@ -283,9 +292,12 @@ private fun TopNavItem(
     /**
      * False draws the icon alone, with [label] left to the screen reader.
      *
-     * Only Search does this. A row of icons would be a puzzle at ten feet —
-     * the words are what make the header readable — but the one control that
-     * is an action rather than a place earns the shape instead.
+     * Two controls do, and they are the two at the head of the row: Home,
+     * which draws the app's mark instead (see [brand]), and Search. A row of
+     * icons would be a puzzle at ten feet — the words are what make the header
+     * readable — but the app's own symbol and the one control that is an
+     * action rather than a place both earn the shape, and every DESTINATION
+     * after them is a word.
      */
     labelled: Boolean = true,
     /**
