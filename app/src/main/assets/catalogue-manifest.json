@@ -1,6 +1,6 @@
 {
  "manifest_version": 1,
- "generated": "2026-09-10T12:21:16+00:00",
+ "generated": "2026-09-10T19:21:01+00:00",
  "provider": {
   "host": "pro.dzidzi.online",
   "protocol": "xtream"
@@ -6830,8 +6830,14 @@
   1853525,
   1853524,
   1853523,
+  1853522,
   1853521,
+  1853520,
+  1853519,
   1853518,
+  1853517,
+  1853516,
+  1853515,
   1853514,
   1853513,
   1853512,
@@ -7094,13 +7100,28 @@
   788096,
   788046,
   788077,
+  788085,
+  788080,
+  788068,
+  788067,
+  788066,
+  788065,
+  788064,
+  788063,
+  788062,
+  788061,
   788074,
   788073,
   788072,
   788071,
   788070,
   788069,
+  788087,
   788078,
+  788084,
+  788083,
+  788081,
+  788075,
   788112,
   788110,
   788095,
@@ -17821,24 +17842,6 @@
   "1853644": {
    "section": "ENTERTAINMENT"
   },
-  "1853522": {
-   "section": "SPORTS"
-  },
-  "1853520": {
-   "section": "SPORTS"
-  },
-  "1853519": {
-   "section": "SPORTS"
-  },
-  "1853517": {
-   "section": "SPORTS"
-  },
-  "1853516": {
-   "section": "SPORTS"
-  },
-  "1853515": {
-   "section": "SPORTS"
-  },
   "437450": {
    "section": "ENTERTAINMENT"
   },
@@ -18007,58 +18010,13 @@
   "788060": {
    "section": "SPORTS"
   },
-  "788085": {
-   "section": "SPORTS"
-  },
   "788088": {
-   "section": "SPORTS"
-  },
-  "788080": {
-   "section": "SPORTS"
-  },
-  "788068": {
-   "section": "SPORTS"
-  },
-  "788067": {
-   "section": "SPORTS"
-  },
-  "788066": {
-   "section": "SPORTS"
-  },
-  "788065": {
-   "section": "SPORTS"
-  },
-  "788064": {
-   "section": "SPORTS"
-  },
-  "788063": {
-   "section": "SPORTS"
-  },
-  "788062": {
-   "section": "SPORTS"
-  },
-  "788061": {
    "section": "SPORTS"
   },
   "788086": {
    "section": "SPORTS"
   },
-  "788087": {
-   "section": "SPORTS"
-  },
-  "788084": {
-   "section": "SPORTS"
-  },
-  "788083": {
-   "section": "SPORTS"
-  },
   "788082": {
-   "section": "SPORTS"
-  },
-  "788081": {
-   "section": "SPORTS"
-  },
-  "788075": {
    "section": "SPORTS"
   },
   "788113": {
@@ -56277,12 +56235,6 @@
   "1853646": "ROCK TV",
   "1853645": "ROYAL TV",
   "1853644": "STUDIO1 TV",
-  "1853522": "SUPERSPORT FOOTBALL PLUS",
-  "1853520": "SUPERSPORT MAXIMO",
-  "1853519": "SUPERSPORT MOTORSPORT",
-  "1853517": "SUPERSPORT VARIETY 1",
-  "1853516": "SUPERSPORT VARIETY 2",
-  "1853515": "SUPERSPORT VARIETY 4",
   "788036": "AFRICA MAGIC EPIC HD",
   "788038": "BAY TV HD",
   "788044": "DUMISA HD",
@@ -56338,24 +56290,9 @@
   "788076": "SUPERSPORT BLITZ HD",
   "788079": "SUPERSPORT FOOTBALL FHD",
   "788060": "SUPERSPORT GOLF",
-  "788085": "SUPERSPORT GRANDSTAND HD",
   "788088": "SUPERSPORT LIGA HD",
-  "788080": "SUPERSPORT MOTORSPORT HD",
-  "788068": "SUPERSPORT OTT 1",
-  "788067": "SUPERSPORT OTT 2",
-  "788066": "SUPERSPORT OTT 3",
-  "788065": "SUPERSPORT OTT 4",
-  "788064": "SUPERSPORT OTT 5",
-  "788063": "SUPERSPORT OTT 6",
-  "788062": "SUPERSPORT OTT 7",
-  "788061": "SUPERSPORT OTT 8",
   "788086": "SUPERSPORT PL HD",
-  "788087": "SUPERSPORT PSL HD",
-  "788084": "SUPERSPORT VARIETY 1 HD",
-  "788083": "SUPERSPORT VARIETY 2 HD",
   "788082": "SUPERSPORT VARIETY 3 HD",
-  "788081": "SUPERSPORT VARIETY 4 HD",
-  "788075": "SUPERSPORTS ACTION HD",
   "788113": "THE HOME CHANNEL HD",
   "788137": "TV47",
   "788094": "TVN AFRICA",
@@ -65062,6 +64999,8 @@
    "Buccaneers": "https://raw.githubusercontent.com/klunn91/team-logos/master/NFL/buccaneers.png",
    "gridiron|Titans": "https://raw.githubusercontent.com/klunn91/team-logos/master/NFL/titans.png",
    "Titans": "https://raw.githubusercontent.com/klunn91/team-logos/master/NFL/titans.png",
+   "gridiron|Commanders": "https://a.espncdn.com/i/teamlogos/nfl/500/wsh.png",
+   "Commanders": "https://a.espncdn.com/i/teamlogos/nfl/500/wsh.png",
    "basketball|Hawks": "https://raw.githubusercontent.com/klunn91/team-logos/master/NBA/hawks.png",
    "Hawks": "https://raw.githubusercontent.com/klunn91/team-logos/master/NBA/hawks.png",
    "basketball|Celtics": "https://raw.githubusercontent.com/klunn91/team-logos/master/NBA/celtics.png",
@@ -65126,6 +65065,70 @@
    "Jazz": "https://raw.githubusercontent.com/klunn91/team-logos/master/NBA/jazz.png",
    "basketball|Wizards": "https://raw.githubusercontent.com/klunn91/team-logos/master/NBA/wizards.png",
    "Wizards": "https://raw.githubusercontent.com/klunn91/team-logos/master/NBA/wizards.png",
+   "soccer|Atlanta United": "https://a.espncdn.com/i/teamlogos/soccer/500/18418.png",
+   "Atlanta United": "https://a.espncdn.com/i/teamlogos/soccer/500/18418.png",
+   "soccer|Austin FC": "https://a.espncdn.com/i/teamlogos/soccer/500/20906.png",
+   "Austin FC": "https://a.espncdn.com/i/teamlogos/soccer/500/20906.png",
+   "soccer|Charlotte FC": "https://a.espncdn.com/i/teamlogos/soccer/500/21300.png",
+   "Charlotte FC": "https://a.espncdn.com/i/teamlogos/soccer/500/21300.png",
+   "soccer|Chicago Fire": "https://a.espncdn.com/i/teamlogos/soccer/500/182.png",
+   "Chicago Fire": "https://a.espncdn.com/i/teamlogos/soccer/500/182.png",
+   "soccer|FC Cincinnati": "https://a.espncdn.com/i/teamlogos/soccer/500/18267.png",
+   "FC Cincinnati": "https://a.espncdn.com/i/teamlogos/soccer/500/18267.png",
+   "soccer|Colorado Rapids": "https://a.espncdn.com/i/teamlogos/soccer/500/184.png",
+   "Colorado Rapids": "https://a.espncdn.com/i/teamlogos/soccer/500/184.png",
+   "soccer|Columbus Crew": "https://a.espncdn.com/i/teamlogos/soccer/500/183.png",
+   "Columbus Crew": "https://a.espncdn.com/i/teamlogos/soccer/500/183.png",
+   "soccer|D.C. United": "https://a.espncdn.com/i/teamlogos/soccer/500/193.png",
+   "D.C. United": "https://a.espncdn.com/i/teamlogos/soccer/500/193.png",
+   "soccer|FC Dallas": "https://a.espncdn.com/i/teamlogos/soccer/500/185.png",
+   "FC Dallas": "https://a.espncdn.com/i/teamlogos/soccer/500/185.png",
+   "soccer|Houston Dynamo": "https://a.espncdn.com/i/teamlogos/soccer/500/6077.png",
+   "Houston Dynamo": "https://a.espncdn.com/i/teamlogos/soccer/500/6077.png",
+   "soccer|Sporting Kansas City": "https://a.espncdn.com/i/teamlogos/soccer/500/186.png",
+   "Sporting Kansas City": "https://a.espncdn.com/i/teamlogos/soccer/500/186.png",
+   "soccer|LA Galaxy": "https://a.espncdn.com/i/teamlogos/soccer/500/187.png",
+   "LA Galaxy": "https://a.espncdn.com/i/teamlogos/soccer/500/187.png",
+   "soccer|LAFC": "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
+   "LAFC": "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
+   "soccer|Los Angeles FC": "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
+   "Los Angeles FC": "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
+   "soccer|Inter Miami": "https://a.espncdn.com/i/teamlogos/soccer/500/20232.png",
+   "Inter Miami": "https://a.espncdn.com/i/teamlogos/soccer/500/20232.png",
+   "soccer|Minnesota United": "https://a.espncdn.com/i/teamlogos/soccer/500/17362.png",
+   "Minnesota United": "https://a.espncdn.com/i/teamlogos/soccer/500/17362.png",
+   "soccer|CF Montreal": "https://a.espncdn.com/i/teamlogos/soccer/500/9720.png",
+   "CF Montreal": "https://a.espncdn.com/i/teamlogos/soccer/500/9720.png",
+   "soccer|Nashville SC": "https://a.espncdn.com/i/teamlogos/soccer/500/18986.png",
+   "Nashville SC": "https://a.espncdn.com/i/teamlogos/soccer/500/18986.png",
+   "soccer|New England Revolution": "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
+   "New England Revolution": "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
+   "soccer|New York City": "https://a.espncdn.com/i/teamlogos/soccer/500/17606.png",
+   "New York City": "https://a.espncdn.com/i/teamlogos/soccer/500/17606.png",
+   "soccer|New York Red Bulls": "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+   "New York Red Bulls": "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+   "soccer|Red Bull New York": "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+   "Red Bull New York": "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+   "soccer|Orlando City": "https://a.espncdn.com/i/teamlogos/soccer/500/12011.png",
+   "Orlando City": "https://a.espncdn.com/i/teamlogos/soccer/500/12011.png",
+   "soccer|Philadelphia Union": "https://a.espncdn.com/i/teamlogos/soccer/500/10739.png",
+   "Philadelphia Union": "https://a.espncdn.com/i/teamlogos/soccer/500/10739.png",
+   "soccer|Portland Timbers": "https://a.espncdn.com/i/teamlogos/soccer/500/9723.png",
+   "Portland Timbers": "https://a.espncdn.com/i/teamlogos/soccer/500/9723.png",
+   "soccer|Real Salt Lake": "https://a.espncdn.com/i/teamlogos/soccer/500/4771.png",
+   "Real Salt Lake": "https://a.espncdn.com/i/teamlogos/soccer/500/4771.png",
+   "soccer|San Diego FC": "https://a.espncdn.com/i/teamlogos/soccer/500/22529.png",
+   "San Diego FC": "https://a.espncdn.com/i/teamlogos/soccer/500/22529.png",
+   "soccer|San Jose Earthquakes": "https://a.espncdn.com/i/teamlogos/soccer/500/191.png",
+   "San Jose Earthquakes": "https://a.espncdn.com/i/teamlogos/soccer/500/191.png",
+   "soccer|Seattle Sounders": "https://a.espncdn.com/i/teamlogos/soccer/500/9726.png",
+   "Seattle Sounders": "https://a.espncdn.com/i/teamlogos/soccer/500/9726.png",
+   "soccer|St. Louis City": "https://a.espncdn.com/i/teamlogos/soccer/500/21812.png",
+   "St. Louis City": "https://a.espncdn.com/i/teamlogos/soccer/500/21812.png",
+   "soccer|Toronto FC": "https://a.espncdn.com/i/teamlogos/soccer/500/7318.png",
+   "Toronto FC": "https://a.espncdn.com/i/teamlogos/soccer/500/7318.png",
+   "soccer|Vancouver Whitecaps": "https://a.espncdn.com/i/teamlogos/soccer/500/9727.png",
+   "Vancouver Whitecaps": "https://a.espncdn.com/i/teamlogos/soccer/500/9727.png",
    "soccer|Arsenal": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Arsenal%20FC.png",
    "Arsenal": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Arsenal%20FC.png",
    "soccer|Aston Villa": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Aston%20Villa.png",
@@ -65136,6 +65139,8 @@
    "Brentford": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Brentford%20FC.png",
    "soccer|Brighton": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2021-22/England%20-%20Premier%20League/Brighton.png",
    "Brighton": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2021-22/England%20-%20Premier%20League/Brighton.png",
+   "soccer|Brighton & Hove Albion": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Brighton%20%26%20Hove%20Albion.png",
+   "Brighton & Hove Albion": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Brighton%20%26%20Hove%20Albion.png",
    "soccer|Burnley": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2025-26/England%20-%20Premier%20League/Burnley%20FC.png",
    "Burnley": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2025-26/England%20-%20Premier%20League/Burnley%20FC.png",
    "soccer|Chelsea": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Chelsea%20FC.png",
@@ -65148,8 +65153,6 @@
    "Everton": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Everton%20FC.png",
    "soccer|Fulham": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Fulham%20FC.png",
    "Fulham": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Fulham%20FC.png",
-   "soccer|Hove Albion": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Brighton%20%26%20Hove%20Albion.png",
-   "Hove Albion": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Brighton%20%26%20Hove%20Albion.png",
    "soccer|Hull City": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Hull%20City.png",
    "Hull City": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Hull%20City.png",
    "soccer|Ipswich Town": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Ipswich%20Town.png",
@@ -65191,10 +65194,10 @@
    "Wolves": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2025-26/England%20-%20Premier%20League/Wolverhampton%20Wanderers.png",
    "soccer|Alaves": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Deportivo%20Alav%C3%A9s.png",
    "Alaves": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Deportivo%20Alav%C3%A9s.png",
-   "soccer|Athletic Bilbao": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Athletic%20Bilbao.png",
-   "Athletic Bilbao": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Athletic%20Bilbao.png",
    "soccer|Athletic Club": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2021-22/Spain%20-%20LaLiga/Athletic.png",
    "Athletic Club": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2021-22/Spain%20-%20LaLiga/Athletic.png",
+   "soccer|Athletic Bilbao": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Athletic%20Bilbao.png",
+   "Athletic Bilbao": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Athletic%20Bilbao.png",
    "soccer|Atletico Madrid": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Atl%C3%A9tico%20de%20Madrid.png",
    "Atletico Madrid": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Atl%C3%A9tico%20de%20Madrid.png",
    "soccer|Barcelona": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/FC%20Barcelona.png",
@@ -65223,8 +65226,6 @@
    "Real Betis": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Real%20Betis%20Balompi%C3%A9.png",
    "soccer|Real Madrid": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Real%20Madrid.png",
    "Real Madrid": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Real%20Madrid.png",
-   "soccer|Real Oviedo": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2025-26/Spain%20-%20LaLiga/Real%20Oviedo.png",
-   "Real Oviedo": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2025-26/Spain%20-%20LaLiga/Real%20Oviedo.png",
    "soccer|Real Sociedad": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Real%20Sociedad.png",
    "Real Sociedad": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Real%20Sociedad.png",
    "soccer|Sevilla": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Sevilla%20FC.png",
@@ -65233,6 +65234,8 @@
    "Valencia": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Valencia%20CF.png",
    "soccer|Villarreal": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Villarreal%20CF.png",
    "Villarreal": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Spain%20-%20LaLiga/Villarreal%20CF.png",
+   "soccer|Real Oviedo": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2025-26/Spain%20-%20LaLiga/Real%20Oviedo.png",
+   "Real Oviedo": "https://raw.githubusercontent.com/luukhopman/football-logos/master/history/2025-26/Spain%20-%20LaLiga/Real%20Oviedo.png",
    "soccer|Atalanta": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Italy%20-%20Serie%20A/Atalanta%20BC.png",
    "Atalanta": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Italy%20-%20Serie%20A/Atalanta%20BC.png",
    "soccer|Bologna": "https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/Italy%20-%20Serie%20A/Bologna%20FC%201909.png",
@@ -73421,8 +73424,8 @@
   "uk_locals_dropped": 176,
   "uk_reassigned": 36,
   "uk_regional_collapsed": 70,
-  "afr_kept": 107,
-  "afr_dropped": 949,
+  "afr_kept": 86,
+  "afr_dropped": 970,
   "afr_usuk_duplicates": 25,
   "name_section_overrides": 1126,
   "entertainment_fixes": {
@@ -73483,7 +73486,7 @@
   "tiles_resectioned": 111,
   "epg_bound": 973,
   "logo_bound": 4386,
-  "club_crests_bound": 401,
+  "club_crests_bound": 467,
   "live_event_channels": 7679,
   "live_event_groups": 14,
   "sd_dropped": 250,
@@ -73496,9 +73499,9 @@
   "vod_shelf_dropped": 146,
   "series_dropped": 149,
   "afr_news_dropped": 14,
-  "afr_named_dropped": 66,
+  "afr_named_dropped": 87,
   "afr_late_assigned": 0,
-  "afr_prefix_stripped": 106,
+  "afr_prefix_stripped": 85,
   "vod_display_names": 0,
   "series_display_names": 5,
   "series_genre_vocab": 20,

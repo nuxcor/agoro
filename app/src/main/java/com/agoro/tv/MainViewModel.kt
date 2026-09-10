@@ -1066,7 +1066,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             com.agoro.tv.data.SportsParser.applySchedule(
-                parsed, sched?.fixtures.orEmpty(), now,
+                parsed, sched?.fixtures.orEmpty(), now, s?.clubCrest.orEmpty(),
             )
         }
             .flowOn(kotlinx.coroutines.Dispatchers.Default)
