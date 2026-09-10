@@ -1,6 +1,7 @@
 package com.agoro.tv
 
 import android.app.Application
+import android.content.ComponentCallbacks2
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -36,6 +37,39 @@ class NuxTvApp : Application(), SingletonImageLoader.Factory {
                     .build()
             }
             .build()
+
+    /**
+     * Gives the idle player back when the system asks for memory.
+     *
+     * There was no handler here at all, so the one thing in this process that
+     * is pure spare — the pooled player kept warm for the next zap — was held
+     * through every warning the system gave. On a 2 GB Chromecast that is the
+     * difference between an app that yields and one the low-memory killer has
+     * to make room around, and it takes that room out of whatever else is
+     * running.
+     *
+     * Only the player, and only from [ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW]
+     * up. Artwork is deliberately not touched here: Coil registers its own
+     * [ComponentCallbacks2] and already does the graduated version of this
+     * (halve the memory cache from RUNNING_LOW, clear it from
+     * TRIM_MEMORY_BACKGROUND), so a clear() of our own would only replace a
+     * tuned policy with a blunter one. It would also fire on every HOME press,
+     * since TRIM_MEMORY_UI_HIDDEN is numerically ABOVE RUNNING_CRITICAL and
+     * carries no memory pressure at all — every poster on Home re-decoded on
+     * the way back in, on the box least able to afford it.
+     *
+     * What this does NOT free is the honest part: the live buffer, which is
+     * sized in seconds rather than bytes, and the catalogue. Both are much
+     * larger than a spare player and neither is safely droppable from under a
+     * running stream. If the footprint still has to come down, those are the
+     * numbers to change, not this callback.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            com.agoro.tv.player.PlayerPool.releaseIdle()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
