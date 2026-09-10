@@ -35,8 +35,21 @@ import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxFocus
 import com.agoro.tv.ui.theme.NuxShape
 
-/** The badges, big enough to read across a room and still leave a gap between. */
-private val CREST_SIZE = 58.dp
+/**
+ * The badges. As big as the card can carry, because they ARE the card.
+ *
+ * Sized up from 58dp: a crest PNG carries its own transparent margin, so the
+ * mark a viewer actually sees is smaller than the box it is given, and at 58
+ * it read as a token in a mostly empty frame rather than as the two clubs
+ * playing. A broadcaster's own fixture card gives the badges the picture.
+ *
+ * The ceiling is VERTICAL and it is the quality chip, not the card edge. The
+ * card is 240x135dp; the chip sits at the top corner and comes to 28dp
+ * (6dp inset + an 18dp label line + 2dp either side), so a centred badge can
+ * be at most 135 - 2*28 = 79dp before the two touch. 72dp keeps 3.5dp of air.
+ * Anything larger has to move the chip first.
+ */
+private val CREST_SIZE = 72.dp
 
 /**
  * A live fixture as a 16:9 shelf card: the two club badges, the clubs, the
@@ -188,7 +201,10 @@ private fun Crest(url: String?, club: String) {
         title = club,
         contentScale = ContentScale.Fit,
         modifier = Modifier.size(CREST_SIZE),
-        monogramStyle = MaterialTheme.typography.titleMedium,
+        // Scales with the box. A club with no crest falls back to its
+        // initials, and initials held at the old size inside a bigger badge
+        // are the one case that would come out looking SMALLER than before.
+        monogramStyle = MaterialTheme.typography.titleLarge,
         background = Color.Transparent,
     )
 }
