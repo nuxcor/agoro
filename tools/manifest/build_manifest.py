@@ -1805,6 +1805,41 @@ AFR_DROP_NAMES = {
     'SUPERSPORT RUGBY', 'SUPERSPORT LA LIGA', 'SUPERSPORT PREMIER LEAGUE',
 }
 
+# The SuperSport channels that answer the tune with the panel's black filler.
+#
+# Reported 2026-09-10 as "most of them is blank", and the sweep agrees: 17 of
+# the shelf's 23 SuperSport channels redirected to /video/black.ts when
+# black_check.py last measured the line-up on 2026-09-08. That is not a
+# watchable channel and no watchdog in the app can tell — there IS a picture,
+# it is just black — so the only place to answer it is here, at build time.
+#
+# The OTT and Variety runs are the bulk of it, and their emptiness is not
+# accidental: they are overflow feeds that carry a picture only while an event
+# is on them, which on this line means almost never. Grandstand, PSL and
+# Action measured black too.
+#
+# Shown the count and the six survivors, the user chose to drop the blank ones
+# and keep the rest. So this is deliberately NOT the whole brand: SuperSport
+# PL, Football, Liga, ZA Rugby, Blitz and Golf all answered with a real stream
+# and stay on the shelf, which is what the Africa row was widened back to
+# carry on 2026-09-05.
+#
+# To bring them back, delete this set and the union below — the same one-line
+# reversal CLUB_ROSTER_DROP has, and for the same reason: a provider that
+# fixes its overflow feeds should not need this file read to undo the drop.
+# Re-measure before deciding — black_check.py --ids --recheck takes one HTTP
+# request per stream and no bandwidth.
+SUPERSPORT_BLANK_DROP = {
+    'SUPERSPORT OTT 1', 'SUPERSPORT OTT 2', 'SUPERSPORT OTT 3',
+    'SUPERSPORT OTT 4', 'SUPERSPORT OTT 5', 'SUPERSPORT OTT 6',
+    'SUPERSPORT OTT 7', 'SUPERSPORT OTT 8',
+    'SUPERSPORT GRANDSTAND', 'SUPERSPORT PSL', 'SUPERSPORTS ACTION',
+    # The Ugandan run, which is six channels and six black screens.
+    'SUPERSPORT FOOTBALL PLUS', 'SUPERSPORT MAXIMO', 'SUPERSPORT MOTORSPORT',
+    'SUPERSPORT VARIETY 1', 'SUPERSPORT VARIETY 2', 'SUPERSPORT VARIETY 4',
+}
+AFR_DROP_NAMES |= SUPERSPORT_BLANK_DROP
+
 def _afr_key(n):
     return re.sub(r'\s+', ' ', QUAL.sub(' ', SPFX.sub('', asc(n)))).strip(' -:|.').strip().upper()
 
