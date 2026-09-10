@@ -66,9 +66,27 @@ internal val Activity.currentDisplay: Display?
  */
 class DisplayModeSwitcher(private val activity: Activity) {
 
-    private var requestedModeId = 0
+    /**
+     * What [release] took off the window, so [restore] can put it back.
+     *
+     * Deliberately NOT "the mode this switcher chose": the window is the
+     * source of truth for what is pinned, because the pin outlives this
+     * object. A switcher is scoped to the player screen, while the mode is
+     * left in place when that screen closes (see the class comment), so a
+     * fresh instance opened on the same channel inherits a pinned output it
+     * never asked for and has no record of. Tracking our own request instead
+     * would make [release] a no-op in exactly that case — the second visit to
+     * the player, which is most of them.
+     */
+    private var releasedModeId = 0
 
     private val display: Display? get() = activity.currentDisplay
+
+    /** What the window is asking the output for right now, 0 for nothing. */
+    private val windowPin: Int
+        get() = runCatching {
+            activity.window.attributes.preferredDisplayModeId
+        }.getOrDefault(0)
 
     /**
      * @param videoHeight decoded height, or 0 before the first frame.
@@ -97,13 +115,74 @@ class DisplayModeSwitcher(private val activity: Activity) {
             frameRate = frameRate,
             hdr = hdr,
             allowResolutionChange = allowResolutionChange,
-            pinned = requestedModeId,
+            pinned = windowPin,
             displaySupportsHdr = display.isHdr,
         ) ?: return
 
-        requestedModeId = chosen
-        activity.window.attributes = activity.window.attributes.apply {
-            preferredDisplayModeId = chosen
+        pin(chosen)
+    }
+
+    /**
+     * Drops the pin while something else owns the screen.
+     *
+     * The mode is deliberately NOT reset when the player closes — see the
+     * class comment: the launcher does not care what refresh it runs at, and
+     * putting it back blanked Home for a second every time. Leaving the APP
+     * is the other case, and there the reasoning inverts.
+     *
+     * `preferredDisplayModeId` is a vote on the whole HDMI output, not on
+     * this window's contents. A mode pinned for a 25 fps channel is a mode
+     * the box is still in when the viewer opens something else, and the
+     * something else may be another video app with its own opinion and no
+     * way to outvote a window that is still there. Picture-in-picture is the
+     * sharp end of it, because there the window really does stay on screen.
+     *
+     * What was pinned is read back off the window rather than remembered
+     * from the request that set it, and kept in [releasedModeId], so [restore]
+     * can put it back on return without re-deciding it — a viewer who leaves
+     * and comes straight back pays one HDMI re-sync, not two.
+     */
+    fun release() {
+        val pinned = windowPin
+        if (pinned == 0) return
+        releasedModeId = pinned
+        pin(0)
+    }
+
+    /**
+     * Puts back what [release] dropped, if there was anything.
+     *
+     * Re-validated against the display first. Mode ids are handed out by the
+     * display and are not stable across a reconfiguration — switching the TV
+     * to another input and back, or an AVR renegotiating, rebuilds the list —
+     * and pinning an id that no longer names a mode asks the framework for
+     * something it can only ignore. Where the id is gone the memory of it
+     * goes too, and the next settled frame re-decides from scratch.
+     *
+     * This, not [apply], is the way back from a release: `chooseMode` refuses
+     * to re-ask for a mode that is already pinned, and after a release the
+     * window is pinned to nothing while the OUTPUT may still be sitting on
+     * the released mode — so asking it to decide again can legitimately
+     * answer "nothing to do" and leave the pin off.
+     */
+    fun restore() {
+        val wanted = releasedModeId
+        if (wanted == 0) return
+        releasedModeId = 0
+        val stillOffered = display?.supportedModes?.any { it.modeId == wanted } == true
+        if (stillOffered) pin(wanted)
+    }
+
+    /** @param modeId the mode to ask the window for, or 0 for no preference. */
+    private fun pin(modeId: Int) {
+        // A window torn down between the decision and the set must not take
+        // the player with it.
+        runCatching {
+            val attrs = activity.window.attributes
+            if (attrs.preferredDisplayModeId == modeId) return
+            activity.window.attributes = attrs.apply {
+                preferredDisplayModeId = modeId
+            }
         }
     }
 }

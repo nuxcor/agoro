@@ -569,11 +569,36 @@ object PlayerPool {
     }
 
     /**
-     * Releases every idle instance. For a process that is genuinely done
-     * playing — the activity finishing — not for leaving the player screen.
+     * Releases every idle instance, off the main thread's critical path.
+     *
+     * For the app going to the background, and for the activity finishing —
+     * which turn out to want the same thing. An idle player is a handler
+     * thread and an audio session kept on the chance the viewer comes back to
+     * the same slot, which is a good bet while they are still in the app and a
+     * bad one the moment they are not: on a 2 GB box the process nobody is
+     * looking at should not be the one holding a finite audio session, and the
+     * app that suffers for it is whichever one they opened instead.
+     *
+     * This replaces a `drain()` that released synchronously on the grounds
+     * that a finishing activity has no hot path left to protect. True, but
+     * beside the point: the player it released had been handed back moments
+     * earlier by the Compose tree being disposed, so `stop()` and `release()`
+     * ran back to back on the same instance — the exact pairing [releaseLater]
+     * exists to avoid, and the one that leaves media3's process-wide release
+     * count stuck for the life of the process. The deferred release costs a
+     * second in a process that is usually about to be killed anyway (and if it
+     * is killed first, the codecs go with it, which was the outcome either
+     * way).
+     *
+     * That second is also why nothing bypasses [releaseLater] under memory
+     * pressure, tempting as it is when the caller is being told the process is
+     * next for the killer: a stuck release count is a film that buffers
+     * silently for ever, which is a worse and much longer-lived failure than
+     * being killed one second early.
      */
-    fun drain() {
-        idle.values.forEach { it.player.release() }
+    fun releaseIdle() {
+        if (idle.isEmpty()) return
+        idle.values.forEach { releaseLater(it.player) }
         idle.clear()
     }
 

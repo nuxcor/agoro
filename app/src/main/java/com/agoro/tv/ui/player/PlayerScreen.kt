@@ -238,11 +238,29 @@ private const val RECENT_SHELF_DWELL_MS = 8_000L
  * PiP params from the actual decoded size, not an assumed 16:9. The platform
  * rejects aspect ratios outside [0.418, 2.39]; clamp just inside the limits
  * and fall back to 16:9 for degenerate or unknown sizes.
+ *
+ * Auto-enter is asserted OFF here, on every params object the app ever sets,
+ * and that is the whole of the policy — there is no call site that turns it
+ * on and no flag to get wrong.
+ *
+ * It used to be on while the player was open, so HOME did not leave the app:
+ * it minimised the stream into PiP and went on playing, indefinitely, with no
+ * sleep timer and no idle stop. A viewer who pressed HOME to watch something
+ * else left a live feed running behind it, holding the four things the next
+ * app needs and cannot ask for — audio focus, a hardware decoder the box has
+ * very few of, the Wi-Fi this box is entirely dependent on, and a resident
+ * largeHeap process on 2 GB of RAM. The report that came back was not "Agoro
+ * is still playing", because the PiP window is easy to miss on a TV launcher;
+ * it was that the OTHER apps had stopped working, and that removing this one
+ * fixed them.
+ *
+ * PiP itself stays, on the button in the controls, because a viewer who asks
+ * for it is a viewer who knows a stream is still running. Pressing HOME is
+ * not that request.
  */
 @androidx.annotation.RequiresApi(26)
 private fun buildPipParams(
     videoSize: Pair<Int, Int>?,
-    autoEnter: Boolean,
 ): android.app.PictureInPictureParams {
     val rational = videoSize
         ?.takeIf { (w, h) -> w > 0 && h > 0 }
@@ -255,7 +273,7 @@ private fun buildPipParams(
             }
         } ?: android.util.Rational(16, 9)
     val builder = android.app.PictureInPictureParams.Builder().setAspectRatio(rational)
-    if (android.os.Build.VERSION.SDK_INT >= 31) builder.setAutoEnterEnabled(autoEnter)
+    if (android.os.Build.VERSION.SDK_INT >= 31) builder.setAutoEnterEnabled(false)
     return builder.build()
 }
 
@@ -290,23 +308,6 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
             context.packageManager.hasSystemFeature(
                 android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE
             )
-    }
-    // Clear auto-enter when the player leaves, or the browse screens would
-    // minimise into PiP on HOME too.
-    DisposableEffect(pipSupported) {
-        onDispose {
-            if (pipSupported && android.os.Build.VERSION.SDK_INT >= 31) {
-                (context as? android.app.Activity)?.let { activity ->
-                    runCatching {
-                        activity.setPictureInPictureParams(
-                            android.app.PictureInPictureParams.Builder()
-                                .setAutoEnterEnabled(false)
-                                .build()
-                        )
-                    }
-                }
-            }
-        }
     }
 
     val qualityPref by vm.videoQuality.collectAsState()
@@ -531,7 +532,19 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
         session.hdrType, inPip,
     ) {
         val switcher = displayModes ?: return@LaunchedEffect
-        if (inPip) return@LaunchedEffect
+        // In PiP the window stays on screen but the output is somebody
+        // else's; give the pin back rather than holding the whole HDMI mode
+        // over whatever the viewer opened.
+        if (inPip) {
+            switcher.release()
+            return@LaunchedEffect
+        }
+        // And take it back on the way out, before anything is re-decided.
+        // Nothing about the stream changed while it was in the corner, only
+        // who owned the screen — and re-deciding cannot recover this anyway,
+        // because chooseMode declines to re-ask for a mode the output is
+        // already sitting on. A no-op when nothing was released.
+        switcher.restore()
         val height = session.videoSize?.second ?: 0
         val frameRate = session.videoFrameRate
         // Nothing has decoded yet: switching on a guess would blank the screen
@@ -568,15 +581,15 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
         windowColor?.set(session.hdrType != null && !inPip)
     }
 
-    // Keep the activity's PiP params fresh so API 31+ auto-enters on HOME
-    // with the real picture aspect, updated as the decoded size changes.
+    // Keep the activity's PiP params fresh, so the button in the controls
+    // enters with the real picture aspect rather than an assumed 16:9. Only
+    // the aspect: these params never enable auto-enter, and buildPipParams
+    // says why.
     LaunchedEffect(session.videoSize, pipSupported) {
         if (!pipSupported) return@LaunchedEffect
         (context as? android.app.Activity)?.let { activity ->
             runCatching {
-                activity.setPictureInPictureParams(
-                    buildPipParams(session.videoSize, autoEnter = true)
-                )
+                activity.setPictureInPictureParams(buildPipParams(session.videoSize))
             }
         }
     }
@@ -767,6 +780,14 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                     // below cannot speak for it — the death watchdog reads
                     // this instead rather than reconnecting into the launcher.
                     session.appForeground = pip
+                    // The window's declared colour mode is global, and the
+                    // effect that owns it does not re-run on a lifecycle
+                    // event, so it is released here and put back on ON_START.
+                    // See WindowColorMode on what an HDR window costs the SDR
+                    // surfaces composited behind it. The output MODE is the
+                    // same argument but not handled here: it outlives this
+                    // screen, so MainActivity owns it.
+                    windowColor?.set(false)
                     if (!pip) {
                         wasBackgrounded = true
                         if (engine.isPlaying) engine.playPause()
@@ -774,6 +795,14 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                 }
                 androidx.lifecycle.Lifecycle.Event.ON_START -> {
                     session.appForeground = true
+                    // Read PiP off the activity, not off `inPip`: the
+                    // mode-changed callback that drives it is not guaranteed
+                    // to have landed by the time this fires, and a stale
+                    // `false` would declare HDR on a window sitting in the
+                    // corner of an app that is still in front.
+                    val backInFront = !(android.os.Build.VERSION.SDK_INT >= 24 &&
+                        (context as? android.app.Activity)?.isInPictureInPictureMode == true)
+                    if (backInFront) windowColor?.set(session.hdrType != null)
                     // Live comes back playing however it stopped — the way a
                     // television does when the input is switched back to it.
                     // A re-open, not a resume: the stream may have been dead
@@ -1421,7 +1450,7 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                                 // mode-changed callback stays the source of truth.
                                 val entered = runCatching {
                                     activity.enterPictureInPictureMode(
-                                        buildPipParams(session.videoSize, autoEnter = true)
+                                        buildPipParams(session.videoSize)
                                     )
                                 }.getOrDefault(false)
                                 if (entered) inPip = true
