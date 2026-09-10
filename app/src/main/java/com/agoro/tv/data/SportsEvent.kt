@@ -1897,9 +1897,9 @@ object SportsParser {
      * Bielefeld"). Both sides have to match, which is what stops Manchester
      * United matching Manchester City.
      *
-     * Unmatched fixtures are returned exactly as they came. A schedule that
-     * does not cover a competition — and it covers thirteen — must never be a
-     * reason for a match to vanish.
+     * Unmatched fixtures are returned exactly as they came, save for the
+     * badge [dressCrests] adds. A schedule that does not cover a competition —
+     * and it covers thirteen — must never be a reason for a match to vanish.
      *
      * With one exception, and it is the only one: a [SportsEvent.nicknamePair]
      * row, whose league was read out of two nicknames that two sports share
@@ -1909,6 +1909,44 @@ object SportsParser {
      * when what is being asserted is the sport.
      */
     fun applySchedule(
+        events: List<SportsEvent>,
+        fixtures: List<ScheduleFixture>,
+        nowMs: Long,
+        /** The manifest's name-keyed crest index. See [dressCrests]. */
+        crests: Map<String, String> = emptyMap(),
+    ): List<SportsEvent> = dressCrests(matchSchedule(events, fixtures, nowMs), crests)
+
+    /**
+     * The badge a row still has when the schedule could not place it.
+     *
+     * [matchSchedule] stamps ESPN's badge on every row it matched, and that is
+     * the better source — it arrives on the same record as the kick-off, so it
+     * cannot be lost to a pack and ESPN spelling a club differently. The
+     * manifest's index answers for the rest.
+     *
+     * Here rather than in the row composable, which is where this fallback
+     * used to live and only ever lived. The Sport tab did the lookup; the Home
+     * shelf card did not, so one unplaced fixture wore crests on one screen
+     * and its clubs' initials on the other. Both screens read one list, so the
+     * badge belongs on the list.
+     *
+     * A row with neither still draws a monogram, which is a shape both screens
+     * have always had to handle.
+     */
+    private fun dressCrests(
+        events: List<SportsEvent>,
+        crests: Map<String, String>,
+    ): List<SportsEvent> {
+        if (crests.isEmpty()) return events
+        return events.map { e ->
+            if (e.homeCrest != null && e.awayCrest != null) e else e.copy(
+                homeCrest = e.homeCrest ?: crestFor(crests, e.league, e.home),
+                awayCrest = e.awayCrest ?: crestFor(crests, e.league, e.away),
+            )
+        }
+    }
+
+    private fun matchSchedule(
         events: List<SportsEvent>,
         fixtures: List<ScheduleFixture>,
         nowMs: Long,

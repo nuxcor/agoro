@@ -10,18 +10,34 @@ Nothing is downloaded or redistributed. The manifest carries URLs and the app
 fetches them at render time, which is exactly what already happens for channel
 artwork via logo_match.py.
 
-Two sources, because no single one covers the roster:
+Three sources, because no single one covers the roster:
 
   luukhopman/football-logos   the 25 top European leagues, PNG. No licence
                               stated, so it is linked and never vendored.
   klunn91/team-logos          NFL, NBA, MLB, NCAA. MIT.
+  ESPN                        one standings request per competition, which
+                              answers with every club in it and its badge.
 
-MLS has no equivalent: the closest is a Laravel Blade icon pack, which is SVG
-and not addressable by club name. So 32 MLS clubs resolve to nothing and their
-rows render without a crest. That is a deliberate gap, not a bug — see the
-crest-less path in SportTab.
+ESPN is consulted LAST, only for a club the two repositories could not place,
+and that order is deliberate. The repositories carry the roster's own
+spellings and a club's history — a side relegated out of a covered league
+keeps its crest through the archive — where ESPN answers for one season's
+field and writes "Wolverhampton Wanderers" where the roster says "Wolves".
+Used as a fallback it can only add, and what it adds is the gap this file
+used to document as permanent:
+
+  MLS, all 30 clubs. The nearest repository is a Laravel Blade icon pack,
+  SVG and not addressable by club name, so every MLS row wore a monogram
+  unless the ESPN schedule happened to place its slot.
+  Washington's NFL side, which klunn91 files only under the name the club
+  dropped in 2022.
+
+It is also the same artwork the fixture badges come from — a.espncdn.com, off
+fixtures.json — so a row that switches between the two sources as the
+schedule places it does not visibly change badge.
 
     python3 crest_match.py [manifest.json]      # writes crest_map.json
+    python3 crest_match.py [manifest.json] --refresh-espn   # re-fetch ESPN
 
 Refreshing the source indexes needs the two repo trees, one call each:
 
@@ -29,16 +45,21 @@ Refreshing the source indexes needs the two repo trees, one call each:
       --jq '.tree[]|select(.path|endswith(".png"))|.path' > crest_tree_euro.txt
     gh api "repos/klunn91/team-logos/git/trees/master?recursive=1" \
       --jq '.tree[]|select(.path|test("\\.(png|svg)$"))|.path' > crest_tree_us.txt
+
+ESPN caches itself to crest_espn.json on first run; --refresh-espn re-fetches.
 """
-import json, os, re, sys, unicodedata, difflib
+import json, os, re, sys, unicodedata, difflib, urllib.request
 from urllib.parse import quote
 
 EURO_RAW = "https://raw.githubusercontent.com/luukhopman/football-logos/master/"
 US_RAW = "https://raw.githubusercontent.com/klunn91/team-logos/master/"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MANIFEST = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'manifest.json')
+_ARGS = [a for a in sys.argv[1:] if not a.startswith('--')]
+_FLAGS = {a for a in sys.argv[1:] if a.startswith('--')}
+MANIFEST = _ARGS[0] if _ARGS else os.path.join(HERE, 'manifest.json')
 OUT = os.path.join(HERE, 'crest_map.json')
+ESPN_CACHE = os.path.join(HERE, 'crest_espn.json')
 
 # Words that are decoration on a club name rather than part of it. Dropped from
 # BOTH sides before comparing, so "Arsenal" reaches "Arsenal FC.png" and
@@ -106,15 +127,118 @@ ALIAS = {
     'commanders': 'Washington Commanders',
 }
 
-# Clubs with no crest in either source, recorded so a rebuild does not report
+# Clubs with no crest in any source, recorded so a rebuild does not report
 # them as a regression every time. Pafos and Kairat are Champions League
 # entrants from leagues neither repo carries; Qarabag is in neither tree
-# under any spelling.
-# Washington's NFL team is in the source only under the name it dropped in
-# 2022, and matching the roster's "Commanders" to "redskins.png" would mean
-# writing that name into this file to do it. Left without a crest; the row
-# falls back to a monogram like any MLS club.
-KNOWN_ABSENT = {'pafos', 'kairat', 'qarabag', 'commanders'}
+# under any spelling, and ESPN's standings answer for the season's field
+# rather than the roster's, so none of the three is there either.
+#
+# Washington's NFL side used to sit here: klunn91 files it only under the name
+# the club dropped in 2022, and matching "Commanders" to "redskins.png" would
+# have meant writing that name into this file to do it. ESPN calls the club
+# what it calls itself, so the entry is gone rather than worked around.
+KNOWN_ABSENT = {'pafos', 'kairat', 'qarabag'}
+
+
+# ---------------------------------------------------------------------------
+# ESPN, the fallback source.
+#
+# The competition -> the path ESPN files it under, and the same names on the
+# left that fetch_fixtures.py uses, because both are keyed by what the manifest
+# bills a row as. Every competition the roster carries is here; the ones with
+# no club list of their own (the billed-only cups) are not, since there is
+# nothing to resolve for them.
+ESPN_LEAGUES = {
+    "NFL": "football/nfl",
+    "NBA": "basketball/nba",
+    "MLS": "soccer/usa.1",
+    "Premier League": "soccer/eng.1",
+    "La Liga": "soccer/esp.1",
+    "Serie A": "soccer/ita.1",
+    "Bundesliga": "soccer/ger.1",
+    "Ligue 1": "soccer/fra.1",
+    "Champions League": "soccer/uefa.champions",
+}
+
+# Standings, not the teams endpoint. site.api's /teams answers 403 to anything
+# without a browser session; the standings behind site.web.api are open, come
+# back in one request per competition, and carry the same team records — the
+# display name, the short forms, and the badge.
+ESPN_STANDINGS = "https://site.web.api.espn.com/apis/v2/sports/{path}/standings"
+ESPN_UA = {"User-Agent": "agoro-crests/1.0 (+https://github.com/nuxcor/agoro)"}
+
+# Roster spelling -> ESPN's, for the pairs no rule can bridge. Separate from
+# ALIAS above because an alias is only true of one source: klunn91 files
+# Washington under a nickname, ESPN under the club's full name, and a single
+# table would have each of them answering for the other's source.
+#
+# Keyed by key(), which is the roster spelling's tokens sorted and joined.
+ESPN_ALIAS = {
+    # The one MLS club ESPN bills by its initials. It matters more than the
+    # rest of the table: "Los Angeles FC" is the name the app SHOWS, because
+    # sport.club_alias canonicalises the panel's "LAFC" onto it, so this is
+    # the spelling the crest has to be filed under.
+    'angeleslos': 'LAFC',
+}
+
+
+def load_espn(refresh=False, cache=ESPN_CACHE):
+    """{league: {spelling: badge URL}}, one request per competition, cached.
+
+    Cached to a file for the same reason bind_logos.py caches the tv-logos
+    tree: a rebuild is run repeatedly while its output is being read, and
+    nine requests an iteration to somebody else's API to be told the same
+    thing is not a thing to do. --refresh-espn is the way to age it out.
+
+    A competition that fails to answer contributes nothing and is reported.
+    It cannot take a crest away — every hit here is a club the repositories
+    already had no answer for.
+    """
+    if not refresh and os.path.exists(cache):
+        with open(cache, encoding='utf-8') as fh:
+            return json.load(fh)
+    out = {}
+    for league, path in ESPN_LEAGUES.items():
+        url = ESPN_STANDINGS.format(path=path)
+        try:
+            req = urllib.request.Request(url, headers=ESPN_UA)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                doc = json.load(resp)
+        except Exception as exc:
+            print(f"  ESPN {league}: FAILED ({exc})", file=sys.stderr)
+            out[league] = {}
+            continue
+        teams = {}
+        _entries(doc, teams)
+        out[league] = teams
+        print(f"  ESPN {league:<18} {len(teams):>3} clubs")
+    with open(cache, 'w', encoding='utf-8') as fh:
+        json.dump(out, fh, indent=1, ensure_ascii=False)
+    return out
+
+
+def _entries(node, out):
+    """Every team record in a standings document, however deep it is grouped.
+
+    The shape is a tree: a league splits into conferences, conferences into
+    divisions, and only the leaves carry entries. The NFL nests two deep, the
+    Premier League not at all, so this walks rather than indexes.
+    """
+    for child in node.get('children') or []:
+        _entries(child, out)
+    for entry in (node.get('standings') or {}).get('entries') or []:
+        team = entry.get('team') or {}
+        logo = (team.get('logos') or [{}])[0].get('href')
+        if not logo:
+            continue
+        # Every spelling ESPN offers, most specific first — the same three
+        # fields fetch_fixtures.py publishes beside a fixture. NOT `location`,
+        # for the reason given there: it is the city, and two clubs sharing a
+        # city would share a badge.
+        for spelling in (team.get('displayName'), team.get('name'),
+                         team.get('shortDisplayName')):
+            if spelling:
+                out.setdefault(spelling, logo)
 
 
 def _season_rank(path):
@@ -180,9 +304,14 @@ def build_index(tree_path, base_url, folders=None):
 NEAR = 0.88
 
 
-def resolve(club, pool, pool_tokens):
-    """One club against one index. Exact, then token subset, then near-miss."""
-    alias = ALIAS.get(key(club))
+def resolve(club, pool, pool_tokens, alias_table=None):
+    """One club against one index. Exact, then token subset, then near-miss.
+
+    `alias_table` because an alias is a fact about a SOURCE, not about a club:
+    klunn91 files Washington under a nickname and ESPN under the full name, so
+    each index is resolved against its own table and never the other's.
+    """
+    alias = (ALIAS if alias_table is None else alias_table).get(key(club))
     want = tokens(alias) if alias else tokens(club)
     k = ''.join(sorted(want))
     if k in pool:
@@ -229,8 +358,25 @@ def main():
         'Serie A': (euro, euro_tok), 'Bundesliga': (euro, euro_tok),
         'Ligue 1': (euro, euro_tok), 'Champions League': (euro, euro_tok),
         'NFL': (nfl, nfl_tok), 'NBA': (nba, nba_tok),
-        # MLS: no entry, on purpose. See the module docstring.
+        # MLS: no entry here, still. The repositories have nothing for it —
+        # ESPN below is what dresses it.
     }
+
+    # The fallback, indexed the same way and scoped to its own competition.
+    # Per league rather than pooled, for the reason the US index is split by
+    # folder: the nicknames are shared across sports, and one flat index hands
+    # an NFL row a basketball badge.
+    espn_raw = load_espn(refresh='--refresh-espn' in _FLAGS)
+    ESPN = {}
+    for league, teams in espn_raw.items():
+        idx, tok = {}, {}
+        for spelling, url in teams.items():
+            k = key(spelling)
+            if k and k not in idx:
+                idx[k], tok[k] = url, tokens(spelling)
+        ESPN[league] = (idx, tok)
+    print(f"espn: {sum(len(v[0]) for v in ESPN.values())} club keys "
+          f"across {len(ESPN)} competitions")
 
     # The sport a competition is played in, which is what scopes a crest key.
     # The bare club name is not unique across sports — "Spurs" is San Antonio
@@ -246,19 +392,26 @@ def main():
         'Carabao Cup': 'soccer', 'FA Cup': 'soccer',
     }
 
-    crest, missing = {}, []
+    crest, missing, from_espn = {}, [], 0
     for league, clubs in leagues.items():
         pool, pool_tok = POOL.get(league, (None, None))
-        if pool is None:
+        espn, espn_tok = ESPN.get(league, (None, None))
+        if pool is None and espn is None:
             # No source for this competition, and that is the whole answer.
-            # This used to fall through to the European index on `else`, which
-            # is how MLS — documented right here as resolving to nothing — put
-            # Portugal's Sporting CP on Sporting Kansas City and Romania's FC
-            # Rapid on the Colorado Rapids.
+            # A competition with no pool used to fall through to the European
+            # index on `else`, which is how MLS — documented as resolving to
+            # nothing — put Portugal's Sporting CP on Sporting Kansas City and
+            # Romania's FC Rapid on the Colorado Rapids. Falling through to a
+            # NAMED index for the same competition is the opposite move: it
+            # cannot reach another league's clubs, because there are none in it.
             missing.extend((league, c) for c in clubs)
             continue
         for club in clubs:
-            url = resolve(club, pool, pool_tok)
+            url = resolve(club, pool, pool_tok) if pool is not None else None
+            if url is None and espn is not None:
+                url = resolve(club, espn, espn_tok, ESPN_ALIAS)
+                if url:
+                    from_espn += 1
             if url:
                 # Both keys. The scoped one is what the app prefers and is the
                 # only one that can be right for a shared nickname; the bare one
@@ -282,7 +435,8 @@ def main():
         json.dump(crest, fh, indent=1, ensure_ascii=False)
     total = sum(len(v) for v in leagues.values())
     scoped = sum(1 for k in crest if '|' in k)
-    print(f"{scoped}/{total} clubs matched -> {OUT} ({len(crest)} keys with the bare aliases)")
+    print(f"{scoped}/{total} clubs matched -> {OUT} ({len(crest)} keys with the bare "
+          f"aliases), {from_espn} of them from ESPN")
     if missing:
         by = {}
         for lg, c in missing:

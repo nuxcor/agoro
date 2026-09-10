@@ -53,9 +53,14 @@ private val CREST_SIZE = 58.dp
  * it reaches the fixture, which then had to be repeated underneath.
  *
  * The badges come off the schedule fixture, so they are the two clubs and
- * nothing else — see SportsParser.applySchedule. Where the schedule could not
- * place a slot they are absent and [Artwork] draws the club's initials, which
- * is still the match rather than the pack.
+ * nothing else, and where the schedule could not place a slot the manifest's
+ * name-keyed index answers instead — both resolved in
+ * SportsParser.applySchedule, before either screen sees the row. This card
+ * used to read only the schedule's badge while the Sport tab read both, so
+ * the same unplaced fixture wore crests there and initials here.
+ *
+ * With neither, [Artwork] draws the club's initials, which is still the match
+ * rather than the pack.
  */
 @Composable
 fun SportShelfCard(

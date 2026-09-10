@@ -55,7 +55,6 @@ import androidx.tv.material3.Text
 import com.agoro.tv.MainViewModel
 import com.agoro.tv.data.ContentBundle
 import com.agoro.tv.data.SportsEvent
-import com.agoro.tv.data.SportsParser
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.focus.FocusRequester
 import com.agoro.tv.ui.components.ContextMenu
@@ -152,9 +151,7 @@ fun SportTab(
     // recompose the whole of SportTab every thirty seconds — the manifest
     // collect and the fixtures collect — so that a label could say "in 5
     // min". Only the part that reads the clock should answer to it.
-    Fixtures(
-        parsed.orEmpty(), leagueOrder, cue, sport?.clubCrest.orEmpty(), onPlay, onBrowse, vm,
-    )
+    Fixtures(parsed.orEmpty(), leagueOrder, cue, onPlay, onBrowse, vm)
 }
 
 /**
@@ -283,8 +280,6 @@ private fun Fixtures(
     parsed: List<SportsEvent>,
     leagueOrder: List<String>,
     cue: Int,
-    /** Club name -> crest URL; not every club has one. See Sport.clubCrest. */
-    crests: Map<String, String>,
     onPlay: () -> Unit,
     onBrowse: (HomeTab) -> Unit,
     vm: MainViewModel,
@@ -435,15 +430,15 @@ private fun Fixtures(
                     FixtureRow(
                         home = event.home,
                         away = event.away,
-                        // The schedule's badge first: it comes off the same
-                        // record as the clock, so it cannot be lost to the
-                        // roster and ESPN spelling a club differently. The
-                        // name-keyed index is the fallback for slots the
-                        // schedule never placed.
-                        homeCrest = event.homeCrest
-                            ?: SportsParser.crestFor(crests, event.league, event.home),
-                        awayCrest = event.awayCrest
-                            ?: SportsParser.crestFor(crests, event.league, event.away),
+                        // Already resolved, and deliberately not resolved here.
+                        // The schedule's badge and the manifest's index are
+                        // both applied in SportsParser.applySchedule, because
+                        // the Home shelf draws these same rows and doing the
+                        // lookup in one screen's row is how the two came to
+                        // disagree — a fixture the schedule could not place
+                        // wore crests here and initials on Home.
+                        homeCrest = event.homeCrest,
+                        awayCrest = event.awayCrest,
                         status = status,
                         // Fixtures inside a league belong together; the
                         // first one sits straight under its heading.

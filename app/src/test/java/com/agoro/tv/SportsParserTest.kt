@@ -1258,6 +1258,58 @@ class SportsParserTest {
         assertEquals(slot, SportsParser.applySchedule(listOf(slot), fixtures, now).single())
     }
 
+    /**
+     * The badge on a row the schedule never placed, which is the shape both
+     * screens draw and only one of them used to dress.
+     *
+     * The fallback lived in the Sport tab's row composable, so the Home shelf
+     * — reading the same list — drew the clubs' initials for any fixture ESPN
+     * could not match. Resolved here, on the list, there is one answer.
+     */
+    @Test
+    fun `an unplaced fixture takes its crest from the manifest index`() {
+        val now = ms(2026, 9, 4, 12, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "NFL  | 01 - 9/4 8pm Raiders at Texans", now, leagues,
+        )!!
+        val crests = mapOf(
+            "gridiron|Raiders" to "https://example.test/raiders.png",
+            "gridiron|Texans" to "https://example.test/texans.png",
+        )
+        // A schedule that carries something else entirely: this row is
+        // unmatched, which is exactly when the index is the only source.
+        val fixtures = listOf(ScheduleFixture(
+            league = "MLS", home = "New York City FC", away = "Nashville SC",
+            start = "2026-09-04T23:30Z",
+        ))
+        val dressed = SportsParser.applySchedule(listOf(slot), fixtures, now, crests).single()
+        assertEquals("https://example.test/raiders.png", dressed.homeCrest)
+        assertEquals("https://example.test/texans.png", dressed.awayCrest)
+    }
+
+    /** The schedule's badge is the better one and is never overwritten. */
+    @Test
+    fun `a placed fixture keeps the schedule's own badge`() {
+        val now = ms(2026, 9, 4, 12, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "NFL  | 01 - 9/4 8pm Raiders at Texans", now, leagues,
+        )!!
+        val fixtures = listOf(ScheduleFixture(
+            league = "NFL", home = "Houston Texans", away = "Las Vegas Raiders",
+            start = "2026-09-05T00:00Z",
+            homeLogo = "https://espn.test/hou.png", awayLogo = "https://espn.test/lv.png",
+        ))
+        val crests = mapOf(
+            "gridiron|Raiders" to "https://example.test/raiders.png",
+            "gridiron|Texans" to "https://example.test/texans.png",
+        )
+        val fixed = SportsParser.applySchedule(listOf(slot), fixtures, now, crests).single()
+        // The slot lists the Raiders first and the schedule lists them away,
+        // so the badges follow the clubs rather than the columns.
+        assertEquals("https://espn.test/lv.png", fixed.homeCrest)
+        assertEquals("https://espn.test/hou.png", fixed.awayCrest)
+    }
+
     /** Paris FC reduces to {PARIS}, which is a subset of Paris Saint-Germain. */
     @Test
     fun `an exact club name beats a looser reading of another club`() {
