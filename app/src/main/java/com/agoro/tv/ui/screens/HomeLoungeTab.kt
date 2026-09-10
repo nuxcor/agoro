@@ -63,6 +63,7 @@ import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.Movie
 import com.agoro.tv.data.Series
+import com.agoro.tv.data.SportsParser
 import com.agoro.tv.ui.components.ChannelShelfCard
 import com.agoro.tv.ui.components.SportShelfCard
 import com.agoro.tv.ui.components.ContextMenu
@@ -248,12 +249,17 @@ fun HomeLoungeTab(
 
     // Sport that has kicked off, for the shelf at the top.
     //
+    // The Sport tab's own rows, not the raw parse — see
+    // [MainViewModel.sportRows]. Home narrows them to what is under way and
+    // decides nothing else, so its shelf is a subset of that tab by
+    // construction rather than by two pipelines happening to agree.
+    //
     // A minute clock, not System.currentTimeMillis() read in composition: a
     // fixture becomes live by the passage of time and nothing else, so with a
     // static read the shelf only appeared when something ELSE recomposed Home.
-    // A minute is the resolution the Sport tab already uses; kick-offs are not
-    // announced to the second.
-    val fixtures by vm.sportFixtures.collectAsState()
+    // A minute is the resolution the rows themselves are re-derived on;
+    // kick-offs are not announced to the second.
+    val fixtures by vm.sportRows.collectAsState()
     val sportMinute by androidx.compose.runtime.produceState(System.currentTimeMillis()) {
         while (true) {
             value = System.currentTimeMillis()
@@ -824,7 +830,18 @@ fun HomeLoungeTab(
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         contentPadding = PaddingValues(horizontal = ShelfRingRoom),
                     ) {
-                        itemsIndexed(liveSport, key = { _, f -> f.slot.id }) { index, fixture ->
+                        // Keyed on the MATCH, not on the slot carrying it.
+                        // The rows are folded by fixture now, and which of
+                        // several slots wins that fold can change on a
+                        // minute's tick as siblings enter and leave the
+                        // window — a changed key disposes the card, and a
+                        // disposed card drops the focus that was on it.
+                        // The match is what the viewer is looking at either
+                        // way, so it is what identifies the card.
+                        itemsIndexed(
+                            liveSport,
+                            key = { _, f -> SportsParser.fixtureKey(f.event) },
+                        ) { index, fixture ->
                             Box(modifier = Modifier.itemEntrance(index, entrance)) {
                                 // A fixture card, not a channel card. The
                                 // slot is a pipe: its logo is the PACK's, so

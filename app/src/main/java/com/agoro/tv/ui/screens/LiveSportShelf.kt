@@ -60,12 +60,30 @@ private const val SHELF_LIMIT = 20
  * The Home shelf's contents: fixtures under way, each with the slot that
  * carries it.
  *
+ * [fixtures] is what the Sport tab is listing — SportsParser.upcoming's rows,
+ * not the raw parse — so this can only ever be a SUBSET of that tab. It used
+ * to be handed the parse instead, and the two screens then disagreed on
+ * everything the tab's pipeline decides and this one does not: which slot of
+ * six carries a match, whose clock to believe when the packs disagree, and
+ * whether a slot claiming "LIVE" with no kick-off is still worth believing.
+ * A fixture on Home that is not on the Sport tab is a bug however it is
+ * reached, and the cheapest way not to reach it is not to have a second
+ * pipeline.
+ *
  * Pure and separate from the composable because every rule in it is a
  * judgement that can be wrong in a way no screenshot would show — a shelf of
  * the same match six times, a card whose slot is not in this bundle and plays
  * nothing, a fixture that has not started. The Sport tab's own pipeline is
  * hard to stand up off a real provider, so this is the half that CAN be
  * tested, and it is the half with the decisions in it.
+ *
+ * What it does NOT re-litigate is the window: [SportsParser.upcoming] has
+ * already dropped everything more than a match-length past kick-off, whatever
+ * ESPN's state field says, so a long game — an NFL overtime, a cup tie that
+ * goes to penalties — leaves this shelf at the three-hour mark exactly as it
+ * leaves the Sport tab. Agreeing with the tab is worth more than being right
+ * about the tail of a long game, and showing a match that finished at
+ * lunchtime is the fault that was actually reported.
  */
 internal fun liveSportShelf(
     fixtures: List<SportsEvent>?,
@@ -93,6 +111,15 @@ internal fun liveSportShelf(
         // than a schedule has more reason to, not less. fixtureKey prefers the
         // schedule's identity, which is what makes two spellings one match.
         .distinctBy { SportsParser.fixtureKey(it.event) }
-        .take(SHELF_LIMIT)
         .toList()
+        // A kick-off first, when the shelf has to choose. upcoming() sorts
+        // the live group by `startMs ?: 0L`, which puts the rows that have no
+        // clock at ALL at the head of it — a slot whose only claim to being
+        // on is the word LIVE in its name. On the Sport tab that costs them a
+        // position under a league heading; here it decides who is inside
+        // SHELF_LIMIT, and twenty unverifiable rows could fill the shelf on a
+        // busy evening and push out every match with a confirmed time.
+        // Stable, so within each group upcoming's own order survives.
+        .sortedBy { it.event.startMs == null }
+        .take(SHELF_LIMIT)
 }

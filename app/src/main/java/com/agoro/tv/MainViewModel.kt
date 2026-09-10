@@ -1072,6 +1072,55 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             .flowOn(kotlinx.coroutines.Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(60_000), null)
 
+    /**
+     * The fixture ROWS, as both screens show them: windowed, folded, ranked.
+     *
+     * One flow, because there must be exactly one answer to "what sport is
+     * on". Home used to filter [sportFixtures] — the raw parse — with a rule
+     * of its own, which made it a second pipeline carrying none of
+     * [SportsParser.upcoming]'s judgements: no clock consensus between packs
+     * that disagree by hours, no fold onto the best feed of six, no expiry on
+     * a slot that says LIVE without saying when. The screens then disagreed,
+     * and the way that reached a viewer was Napoli v Arsenal sitting on Home
+     * six hours after full time while the Sport tab, correctly, had nothing.
+     *
+     * On [Dispatchers.Default] and shared, not computed in composition. It
+     * partitions, votes on clocks, folds by fixture and sorts, calling
+     * fixtureKey — eight string replaces and a regex — several times per row,
+     * over the parse of six thousand slots. The Sport tab could carry that in
+     * a `remember` because it is a destination someone chose to open; Home is
+     * the screen the box lands on, and putting it there would have charged
+     * every viewer, every minute, on a 2GB box, for a shelf most of them are
+     * scrolling straight past.
+     *
+     * Re-derived on the minute, because the window it applies is a clock face
+     * and the parse it reads is cached for an hour. Null while the parse has
+     * not landed — the Sport tab draws its skeleton on exactly that.
+     */
+    val sportRows: StateFlow<List<com.agoro.tv.data.SportsEvent>?> =
+        kotlinx.coroutines.flow.combine(
+            sportFixtures,
+            sport,
+            catalogueFetchedAtMs,
+            kotlinx.coroutines.flow.flow {
+                while (true) {
+                    emit(System.currentTimeMillis())
+                    kotlinx.coroutines.delay(60_000)
+                }
+            },
+        ) { parsed, manifest, fetchedAt, nowMs ->
+            parsed?.let {
+                com.agoro.tv.data.SportsParser.upcoming(
+                    it,
+                    nowMs,
+                    manifest?.cueMinutes ?: 60,
+                    fetchedAt?.let { at -> nowMs - at } ?: 0L,
+                )
+            }
+        }
+            .flowOn(kotlinx.coroutines.Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(60_000), null)
+
     var playback by mutableStateOf<PlaybackRequest?>(null)
         private set
 

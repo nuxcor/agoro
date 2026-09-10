@@ -2,6 +2,7 @@ package com.agoro.tv
 
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.SportsEvent
+import com.agoro.tv.data.SportsParser
 import com.agoro.tv.ui.screens.fixtureHero
 import com.agoro.tv.ui.screens.liveSportShelf
 import org.junit.Assert.assertEquals
@@ -268,4 +269,88 @@ class LiveSportShelfTest {
         assertNull(hero.plot)
         assertNull(hero.plotKey)
     }
+
+    // --- the pipeline, end to end ---------------------------------------------
+    //
+    // Everything above hands this function rows by hand. What actually reaches
+    // it in the app is SportsParser.upcoming's output — see
+    // [MainViewModel.sportRows] — and the bug that put a finished match on
+    // Home was precisely that it USED to be handed the raw parse instead. So
+    // these run the real pipeline, in the real order.
+
+    /** Home's shelf, built the way the app builds it. */
+    private fun homeShelf(
+        parsed: List<SportsEvent>,
+        slots: List<LiveChannel>,
+        at: Long = now,
+    ) = liveSportShelf(SportsParser.upcoming(parsed, at, cueMinutes = 60), slots, at)
+
+    @Test
+    fun `a match that finished hours ago is on neither screen`() {
+        // Reported 2026-09-09: Napoli v Arsenal on Home, absent from Sport.
+        // Kick-off 19:00Z, ESPN read "in" when the schedule was generated at
+        // 20:54Z mid-match, and the shelf was still showing it at 03:35Z.
+        // The state field is exactly as it arrives from fixtures.json, and it
+        // must not be able to hold the card open: the schedule publishes every
+        // six hours and is cached for six more, so an "in" can be half a day
+        // old.
+        val kickOff = now - 8 * 60 * 60_000 - 35 * 60_000
+        val napoli = fixture(1, "Napoli", "Arsenal", startMs = kickOff, league = "Champions League")
+            .copy(state = "in")
+        assertTrue(SportsParser.upcoming(listOf(napoli), now, 60).isEmpty())
+        assertTrue(homeShelf(listOf(napoli), listOf(slot(1))).isEmpty())
+    }
+
+    @Test
+    fun `a match being played right now still reaches the shelf`() {
+        // The other half of the same claim: the window that drops the finished
+        // one has to leave the live one alone, or the fix is just an empty
+        // shelf.
+        val playing = fixture(1, startMs = now - 40 * 60_000).copy(state = "in")
+        assertEquals(1, homeShelf(listOf(playing), listOf(slot(1))).size)
+    }
+
+    @Test
+    fun `the shelf is a subset of what the Sport tab lists`() {
+        // The invariant the two screens now share. Everything here is on one
+        // slot each so nothing folds; what separates the lists is the shelf's
+        // own two rules — kicked off, and a stream behind it — and nothing
+        // else.
+        val rows = listOf(
+            fixture(1, "Napoli", "Arsenal", startMs = now - 9 * 60 * 60_000),
+            fixture(2, "Getafe", "Celta Vigo", startMs = now - 45 * 60_000),
+            fixture(3, "Ajax", "PSV", startMs = now + 30 * 60_000),
+            fixture(4, "Chelsea", "Fulham", startMs = now - 20 * 60_000),
+        )
+        val slots = listOf(slot(1), slot(2), slot(3))
+        val tab = SportsParser.upcoming(rows, now, cueMinutes = 60)
+        val home = homeShelf(rows, slots)
+        val listed = tab.map { it.streamId }.toSet()
+        assertTrue(home.all { it.event.streamId in listed })
+        // Concretely: the finished one is on neither, the one that has not
+        // kicked off is on the tab only, the one with no slot behind it is on
+        // the tab only, and only the match being played makes a card.
+        assertEquals(listOf(2), home.map { it.event.streamId })
+        assertEquals(setOf(2, 3, 4), listed)
+    }
+
+    @Test
+    fun `a clockless LIVE row cannot crowd out the matches that have a time`() {
+        // upcoming() sorts the live group by `startMs ?: 0L`, so rows with no
+        // kick-off at all lead it. On the Sport tab that costs them a position
+        // under a heading; here it decides who is inside the cap, and a busy
+        // evening could fill the shelf with rows whose only claim to being on
+        // is the word LIVE in a slot name.
+        val timeless = (1..25).map {
+            fixture(it, "Home $it", "Away $it", startMs = null).copy(live = true)
+        }
+        val played = fixture(99, "Arsenal", "Chelsea", startMs = now - 30 * 60_000)
+        val slots = (1..25).map { slot(it) } + slot(99)
+        val out = homeShelf(timeless + played, slots)
+        assertEquals(SHELF_CAP, out.size)
+        assertEquals("Arsenal v Chelsea", out.first().event.title)
+    }
 }
+
+/** [liveSportShelf]'s own cap, mirrored so a change to it fails this file. */
+private const val SHELF_CAP = 20

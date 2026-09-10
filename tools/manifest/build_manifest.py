@@ -2025,9 +2025,19 @@ REGION_SECTIONS = {}
 # Sky Witness is general entertainment - crime drama - and the panel files it
 # on a sports shelf. A section correction, not a drop: the channel is fine, the
 # shelf is wrong.
+# NFL RedZone is a linear channel, not one of the per-game pipes the provider
+# renames every Sunday, and PPV is hidden_by_default — so filing it there did
+# not bury the channel, it switched it off. Asked for by name 2026-09-09
+# ("will we get redzone"), and it probes as playing real video rather than the
+# black filler. Here rather than in SECTION_OVERRIDE because that map is keyed
+# by channel key and only ever reaches a COLLAPSE tile: RedZone is a single
+# source with no tile of its own, so an entry there resolves nothing the app
+# can read. This map writes name_section, which is what the app consults for a
+# channel that stands alone.
 MANUAL_SECTION = {
     '1562526': 'ENTERTAINMENT',
     '162255':  'ENTERTAINMENT',
+    '1031379': 'SPORTS',
 }
 name_section.update(MANUAL_SECTION)
 # The tiles were built before this map existed, and a tile's own section is

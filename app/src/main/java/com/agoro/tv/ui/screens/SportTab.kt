@@ -127,7 +127,11 @@ fun SportTab(
     // re-read six thousand slots, several regexes each, against every club
     // of every league; and it was keyed on the events list, so a republished
     // bundle re-ran it even when the slots had not changed.
-    val parsed by vm.sportFixtures.collectAsState()
+    //
+    // The ROWS, not that parse: [MainViewModel.sportRows] applies the window
+    // and the fold to it, on the same thread and for both screens at once, so
+    // this tab and Home's shelf are looking at one list rather than two.
+    val parsed by vm.sportRows.collectAsState()
 
     // Null means the first parse has not landed. Saying "nothing on right now"
     // and then replacing it a second later reads as a fault — but so did the
@@ -296,14 +300,14 @@ private fun Fixtures(
         }
     }
 
-    // How old the playlist these slots were read from is. A fixture row whose
-    // only claim to being on is a slot saying "LIVE" — no kick-off anywhere in
-    // its group — is worth exactly as much as that fetch is fresh, and the
-    // parser drops it once it isn't. See SportsParser.upcoming.
-    val fetchedAt by vm.catalogueFetchedAtMs.collectAsState()
-    val fixtures = remember(parsed, now / 60_000, cue, fetchedAt) {
-        SportsParser.upcoming(parsed, now, cue, fetchedAt?.let { now - it } ?: 0L)
-    }
+    // Already windowed, folded and ranked — SportsParser.upcoming runs in
+    // [MainViewModel.sportRows], off the main thread and once for both
+    // screens. It used to run here in a `remember`, which is affordable on a
+    // destination someone chose to open and was not affordable when Home
+    // wanted the same list: two composition threads doing the same partition,
+    // clock vote, fold and sort every minute. The 30-second tick above is
+    // still this screen's own — it dates the labels, not the list.
+    val fixtures = parsed
     if (fixtures.isEmpty()) {
         StatusPane(
             title = "Nothing on right now",

@@ -22,6 +22,32 @@ class ManifestAssetTest {
             .decodeFromString(CatalogueManifest.serializer(), file.readText())
     }
 
+    /**
+     * NFL RedZone is a linear channel, not one of the per-game pipes the
+     * provider renames every Sunday — and it files it beside them, under PPV,
+     * which is hidden_by_default. So the panel's filing did not bury the
+     * channel, it switched it off: asked for by name 2026-09-09 ("will we get
+     * redzone"), it was in the catalogue the whole time and on no shelf the
+     * app draws.
+     *
+     * The correction is a MANUAL_SECTION entry in build_manifest.py, which
+     * writes name_section. Not SECTION_OVERRIDE, which is keyed by channel key
+     * and only ever reaches a collapse tile: RedZone is a single source with
+     * no tile of its own, so an entry there resolves to nothing the app reads.
+     * This asserts the correction where the app actually consults it.
+     */
+    @Test
+    fun `NFL RedZone is on a shelf the app draws`() {
+        val redZone = 1031379
+        assertFalse("RedZone was dropped", redZone in manifest.dropStreamIds.toSet())
+        // Against a PPV category, which is what it is filed under: the point
+        // of the override is that it beats the provider's own shelf.
+        val ppv = manifest.categories.live.entries
+            .first { it.value.section == "PPV" }.key
+        assertEquals("SPORTS", manifest.sectionFor(redZone, ppv))
+        assertFalse("Sports is hidden", "SPORTS" in manifest.hiddenSections)
+    }
+
     /** Two folds over the same streams disagreeing about which one represents
      *  the channel is what put NBC 4 New York on the Locals shelf twice: the
      *  app treats every tile primary as a survivor, so a stream folded away by

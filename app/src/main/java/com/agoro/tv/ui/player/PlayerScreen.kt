@@ -121,6 +121,27 @@ private const val UP_NEXT_SECONDS = 10
 private const val FINISHED_SECONDS = 10
 
 /**
+ * Where the corner cards sit: Up next, and the end-of-list card that takes
+ * its place. Shared so the two cannot drift apart — one hands over to the
+ * other in the same corner, and a card that moves between them reads as a
+ * glitch.
+ *
+ * The player is the one screen composed OUTSIDE TvSafe — it is full-bleed by
+ * design, because the picture is — so anything laid into a corner of it holds
+ * its own overscan inset. These are NOT [Space.gutter]/[Space.gutterVertical]
+ * any more: pulled further off the trailing edge and dropped closer to the
+ * bottom, on request, so the card sits deeper into the corner and takes less
+ * of the picture. The horizontal move is free — it is further inside the safe
+ * area than the gutter was. The vertical one spends part of it: 16dp is
+ * inside the nominal 5% crop (27dp on a 540dp canvas), so a set that actually
+ * crops would clip the card's lower edge. Modern panels crop nothing, and the
+ * card is a notice rather than a control, but that is the trade being made —
+ * put it back to [Space.gutterVertical] if a TV ever eats it.
+ */
+private val CornerCardInsetHorizontal = 88.dp
+private val CornerCardInsetVertical = 16.dp
+
+/**
  * How long before the end of an item the next one announces itself.
  *
  * A FRACTION of the runtime, not a fixed countdown. The card fired at the end
@@ -1221,17 +1242,9 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                         (secondsLeft ?: 0).toFloat() / UP_NEXT_SECONDS,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        // The TV-safe margin, not a number that looked
-                        // right. The player is the one screen composed
-                        // OUTSIDE TvSafe — it is full-bleed by design,
-                        // because the picture is — so anything laid into a
-                        // corner of it has to hold its own overscan inset.
-                        // At the 36dp this had, the card's trailing edge sat
-                        // inside the nominal 5% crop, and a set that crops
-                        // would have taken the seconds off the end of it.
                         .padding(
-                            horizontal = Space.gutter,
-                            vertical = Space.gutterVertical,
+                            horizontal = CornerCardInsetHorizontal,
+                            vertical = CornerCardInsetVertical,
                         ),
                 )
             }
@@ -1278,9 +1291,13 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                     countdownFraction = left.toFloat() / FINISHED_SECONDS,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        // The same corner as the offer it replaces, to the
+                        // dp: the two cards are sequential — the countdown
+                        // ends and this takes its place — so any difference
+                        // between them reads as the card jumping.
                         .padding(
-                            horizontal = Space.gutter,
-                            vertical = Space.gutterVertical,
+                            horizontal = CornerCardInsetHorizontal,
+                            vertical = CornerCardInsetVertical,
                         ),
                 )
             }
