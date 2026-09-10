@@ -7,6 +7,7 @@ package com.agoro.tv.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.Key
@@ -230,7 +232,38 @@ fun HomeScreen(
     // content: the header is a band of text over the page, not a bar bolted
     // above it, and stopping the art at its lower edge would draw the seam
     // the design is trying not to have.
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            // The content lane's top edge belongs to the navigation, and UP
+            // out of it has to land on the tab you are ON.
+            //
+            // This is the rule three screens already carry by hand — Home's
+            // shelves, the browse strips and the guide's — stated once, for
+            // every tab there is and every tab there will be. The ones that
+            // did not carry it left UP to the geometric search, which picks a
+            // header control by POSITION: from Settings' first row that is the
+            // Home mark, from Sports' empty pane it is Series. The landing was
+            // only half of it. DOWN on the header COMMITS (see [TopNav]), so
+            // the very next press — the natural "put me back where I was" —
+            // opened a destination the viewer never chose. Two presses from
+            // Settings and you are on Home.
+            //
+            // An exit redirect rather than a key handler, because a key
+            // handler here would sit ABOVE every tab in the preview phase and
+            // swallow the UP presses that belong to the tab's own rows. exit
+            // fires only when the search has already looked inside the lane
+            // and found nothing above — which is exactly the top edge.
+            // Sideways and downward exits are left alone: nothing lies that
+            // way, and Default is what they already did.
+            .focusProperties {
+                exit = {
+                    if (it == FocusDirection.Up) navFocus[tab.ordinal]
+                    else FocusRequester.Default
+                }
+            }
+            .focusGroup()
+    ) {
         if (tab == HomeTab.Home && contentState is ContentState.Ready) {
             BackdropLayer(
                 borrowedArt(vm, homeHero?.art, homeHero?.backdrop, wide = true)
