@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-10T04:38:47Z",
+ "generated": "2026-09-10T20:50:00Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -25,7 +25,7 @@
    "start": "2026-09-10T16:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/436.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -40,7 +40,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/148.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/493.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -52,7 +52,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/132.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2980.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -61,7 +61,7 @@
    "start": "2026-09-10T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/11420.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -76,7 +76,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/360.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21922.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -85,7 +85,7 @@
    "start": "2026-09-10T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/494.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/175.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NFL",
