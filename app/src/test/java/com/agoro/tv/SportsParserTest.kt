@@ -29,6 +29,11 @@ class SportsParserTest {
         "Premier League" to listOf("Brighton", "Arsenal"),
     )
 
+    /** Tonight's clubs, as the manifest's NFL roster bills them. */
+    private val thursdayNight = mapOf(
+        "NFL" to listOf("49ers", "Rams", "Buccaneers", "Bengals", "Cowboys", "Giants"),
+    )
+
     private fun ms(y: Int, mo: Int, d: Int, h: Int, mi: Int, zone: String): Long =
         Calendar.getInstance(TimeZone.getTimeZone(zone)).apply {
             clear(); set(y, mo - 1, d, h, mi)
@@ -1948,6 +1953,13 @@ class SportsParserTest {
      * Still refused on its own. The shelf gives a time and no date, and
      * dating it by assuming today is how a row fills with matches that
      * finished yesterday — see the same rule in LiveNowTest.
+     *
+     * Asserted after [SportsParser.applySchedule], which is where the refusal
+     * now happens. The parse MARKS a clockless slot instead of dropping it
+     * (see [SportsEvent.needsSchedule]) because a published schedule can date
+     * one and the parse cannot see the schedule — European qualifying, which
+     * this is, is exactly the case no schedule covers, so it still ends up
+     * refused. What moved is which step says no, not whether one does.
      */
     @Test
     fun `a UEFA slot nothing else dates is still refused`() {
@@ -1956,7 +1968,11 @@ class SportsParserTest {
             listOf(1025279 to "UEFA  | 02 - Club Brugge vs Aston Villa 5:45pm"),
             now, mapOf("UEFA" to listOf("Club Brugge", "Aston Villa")),
         )
-        assertTrue("no sibling knows the time, so it cannot be shown", out.isEmpty())
+        assertTrue("kept only on the schedule's word", out.single().needsSchedule)
+        assertTrue(
+            "no sibling and no schedule knows the time, so it cannot be shown",
+            SportsParser.applySchedule(out, emptyList(), now).isEmpty(),
+        )
     }
 
     /** But a sibling that DOES date the fixture carries it in. */
@@ -2073,5 +2089,99 @@ class SportsParserTest {
         // Nothing recognisable at all, rather than a guess: the caller shows
         // the slot's own name, which says more than half a fixture would.
         assertNull(SportsParser.packLabel("Barcelona vs Feyenoord"))
+    }
+
+    /**
+     * The night the NFL rung stopped writing the date.
+     *
+     * Measured against the panel on 2026-09-11 at 00:53Z, with a live NFL game
+     * on and the Sport tab empty: slot 606179 read "NFL  | 02 - TNF 8:35pm
+     * 49ers at Rams" — a bare time, no date — so readStart had nothing, and
+     * the sibling rule that rescues a clockless slot found no sibling. The two
+     * packs that DID date this fixture were "CA| SOCCER PPV" and "CA| TSN+
+     * PPV", and Canada left the catalogue in August. One slot carried the
+     * game, and it was refused at the parse.
+     *
+     * ESPN had published the kick-off hours earlier. Through parseAll, because
+     * that is where a clockless slot is admitted at all.
+     */
+    @Test
+    fun `a clockless slot takes the schedule's kick-off`() {
+        val now = ms(2026, 9, 11, 0, 53, "UTC")
+        val parsed = SportsParser.parseAll(
+            listOf(606179 to "NFL  | 02 - TNF 8:35pm 49ers at Rams"), now, thursdayNight,
+        )
+        val provisional = parsed.single()
+        assertNull("the name carries no date to read", provisional.startMs)
+        assertTrue("kept only on the schedule's word", provisional.needsSchedule)
+        // The roster canonicalises the side, which is what takes the broadcast
+        // window off it: readFixture hands over "TNF 49ers".
+        assertEquals("49ers", provisional.home)
+        assertEquals("Rams", provisional.away)
+
+        val fixtures = listOf(
+            ScheduleFixture("NFL", "Los Angeles Rams", "San Francisco 49ers", "2026-09-11T00:35Z"),
+        )
+        val fixed = SportsParser.applySchedule(parsed, fixtures, now).single()
+        assertEquals(ms(2026, 9, 11, 0, 35, "UTC"), fixed.startMs)
+        assertFalse("the condition is met, not carried forward", fixed.needsSchedule)
+        val rows = SportsParser.upcoming(fixed.let(::listOf), now, 60)
+        assertEquals("on the tab while it is being played", 1, rows.size)
+        assertTrue(rows.single().isLive(now))
+    }
+
+    /**
+     * And the half that keeps it honest: no schedule, no row. Dating a
+     * clockless slot by assuming today is what fills a tab with matches that
+     * finished yesterday — [LiveNowTest] pins that refusal and this does not
+     * weaken it.
+     */
+    @Test
+    fun `a clockless slot the schedule cannot date is still refused`() {
+        val now = ms(2026, 9, 11, 0, 53, "UTC")
+        val parsed = SportsParser.parseAll(
+            listOf(606179 to "NFL  | 02 - TNF 8:35pm 49ers at Rams"), now, thursdayNight,
+        )
+        assertTrue(
+            "an empty schedule is not permission",
+            SportsParser.applySchedule(parsed, emptyList(), now).isEmpty(),
+        )
+        // A schedule that carries the competition but not this fixture is not
+        // permission either — the matchday is a day wide and the question was
+        // what time it is.
+        val elsewhere = listOf(
+            ScheduleFixture("NFL", "Cincinnati Bengals", "Tampa Bay Buccaneers", "2026-09-13T17:00Z"),
+        )
+        assertTrue(
+            "a fixture three days out is not this one",
+            SportsParser.applySchedule(parsed, elsewhere, now).isEmpty(),
+        )
+    }
+
+    /**
+     * Sunday's twelve slots are clockless in the same way and must not join
+     * tonight's tab. The schedule is what keeps them off it: it dates them
+     * three days out, which is further than a slot may be moved.
+     */
+    @Test
+    fun `Sunday's clockless slots stay off Thursday's tab`() {
+        val now = ms(2026, 9, 11, 0, 53, "UTC")
+        val slots = listOf(
+            606179 to "NFL  | 02 - TNF 8:35pm 49ers at Rams",
+            606178 to "NFL  | 03 - 1pm Buccaneers at Bengals",
+            606166 to "NFL  | 15 - SNF 8:20pm Cowboys at Giants",
+        )
+        val fixtures = listOf(
+            ScheduleFixture("NFL", "Los Angeles Rams", "San Francisco 49ers", "2026-09-11T00:35Z"),
+            ScheduleFixture("NFL", "Cincinnati Bengals", "Tampa Bay Buccaneers", "2026-09-13T17:00Z"),
+            ScheduleFixture("NFL", "New York Giants", "Dallas Cowboys", "2026-09-14T00:20Z"),
+        )
+        val rows = SportsParser.upcoming(
+            SportsParser.applySchedule(
+                SportsParser.parseAll(slots, now, thursdayNight), fixtures, now,
+            ),
+            now, 60,
+        )
+        assertEquals("only the game being played", listOf("49ers v Rams"), rows.map { it.title })
     }
 }

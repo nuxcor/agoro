@@ -88,6 +88,30 @@ data class SportsEvent(
      * alone cannot answer the question this does.
      */
     val state: String = "",
+    /**
+     * Admitted with no clock of its own, on the condition that the published
+     * schedule dates it. Dropped by [SportsParser.applySchedule] if it cannot.
+     *
+     * The panel stopped writing the date on its NFL rung: "NFL | 02 - TNF
+     * 8:35pm 49ers at Rams" is a bare time, so [SportsParser.readStart] has
+     * nothing to read, and the sibling rule that rescues a clockless slot
+     * found no sibling — the two packs that dated this fixture were both
+     * Canadian, and Canada left the catalogue in August. So the one slot
+     * carrying a live NFL game was refused at the parse, and the Sport tab was
+     * empty while the game was being played.
+     *
+     * ESPN had published the kick-off the whole time. This is the flag that
+     * lets the slot live long enough to be handed it: the parse cannot consult
+     * the schedule — it is cached for an hour and the schedule refreshes under
+     * it — so the decision is deferred to the one place that holds both.
+     *
+     * Not a date invented from today, which [LiveNowTest] pins and this does
+     * not weaken: the schedule has to name this exact fixture, and
+     * [SportsParser.SCHEDULE_MAX_SHIFT_MS] holds it to within half a day of
+     * now. Sunday's twelve slots are clockless in exactly the same way and
+     * stay off tonight's tab, because ESPN dates them three days out.
+     */
+    val needsSchedule: Boolean = false,
     /** A studio or tactical-camera companion feed rather than the match itself. */
     val sideFeed: Boolean = false,
     /**
@@ -383,8 +407,16 @@ object SportsParser {
         val datedFixtures = admitted.asSequence()
             .filter { it.startMs != null }
             .mapTo(HashSet()) { fixtureKey(it) }
-        val parsed = admitted.filter {
-            it.startMs != null || it.live || fixtureKey(it) in datedFixtures
+        // MARKED, not dropped. A fixture the SCHEDULE dates is also a fixture
+        // we know the time of, and the schedule is not here: it refreshes
+        // every six hours under a parse that is cached for one, so folding it
+        // in would either stale the schedule or throw the parse away. The flag
+        // carries the condition forward to [applySchedule], which drops what
+        // the schedule could not date — so nothing reaches a screen on a
+        // clock nobody published.
+        val parsed = admitted.map {
+            if (it.startMs != null || it.live || fixtureKey(it) in datedFixtures) it
+            else it.copy(needsSchedule = true)
         }
         // A fixture is women's, or youth, or a reserve game, whatever the
         // slot in front of you says about it.
@@ -1958,7 +1990,7 @@ object SportsParser {
         // this with a schedule flow that begins null, so the first emission
         // put "Cardinals at Giants" back on the Sport tab as an NFL fixture
         // every launch, and permanently on a box whose schedule never lands.
-        if (fixtures.isEmpty()) return events.filterNot { it.nicknamePair }
+        if (fixtures.isEmpty()) return events.filterNot { it.nicknamePair || it.needsSchedule }
         // Indexed by token, not scanned. A few hundred events against a few
         // hundred fixtures is 10^5 set comparisons an emission otherwise, on a
         // box where [worthParsing] exists because that order of work is felt.
@@ -1972,7 +2004,7 @@ object SportsParser {
                 byToken.getOrPut(t) { ArrayList() }.add(entry)
             }
         }
-        if (byToken.isEmpty()) return events.filterNot { it.nicknamePair }
+        if (byToken.isEmpty()) return events.filterNot { it.nicknamePair || it.needsSchedule }
         // When each competition is actually playing. A club roster can only
         // say which competition a club BELONGS to, so two Champions League
         // entrants meeting in their own domestic league are billed Champions
@@ -2038,6 +2070,9 @@ object SportsParser {
                 scheduleKey = sideKey(best.fixture.home) + "|" + sideKey(best.fixture.away),
                 startMs = best.start,
                 live = best.start <= nowMs,
+                // The condition the flag carried is met: this is the clock it
+                // was waiting for.
+                needsSchedule = false,
                 homeCrest = (if (swapped) best.fixture.awayLogo else best.fixture.homeLogo)
                     .ifBlank { null },
                 awayCrest = (if (swapped) best.fixture.homeLogo else best.fixture.awayLogo)
@@ -2094,6 +2129,12 @@ object SportsParser {
         nowMs: Long,
     ): SportsEvent? {
         if (event.nicknamePair) return null
+        // A slot admitted only because the schedule might date it, which it
+        // did not. Its competition's matchday is no answer: the question was
+        // never which competition this is, it was WHEN, and a matchday is a
+        // day wide. Every bail-out in matchSchedule comes through here, which
+        // is why the guard sits here rather than at four call sites.
+        if (event.needsSchedule) return null
         val days = playingDays[event.league] ?: return event
         val anchor = event.startMs ?: nowMs
         val near = days.any { kotlin.math.abs(it - anchor) <= MATCHDAY_WINDOW_MS }
