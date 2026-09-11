@@ -7,6 +7,10 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.agoro.tv.data.PlaybackRequest
+import com.agoro.tv.data.StallAction
+import com.agoro.tv.data.carriesOtherEvents
+import com.agoro.tv.data.feedPosition
+import com.agoro.tv.data.stallAction
 import com.agoro.tv.player.AudioOutputPolicy
 import com.agoro.tv.player.DecodeProfile
 import com.agoro.tv.player.PlaybackFault
@@ -862,7 +866,33 @@ class PlayerSession internal constructor(
         // is a rejoin or a reconnect, and its sources were snapshotted before
         // the swap that may since have rewritten the item's url. Rebuilding
         // then would take the feed the viewer is watching out of the list.
-        if (index != ladderItemIndex || feeds.isEmpty()) {
+        // ...but a CORRECTION is neither. recheckSlots re-reads the panel a
+        // second after the press and republishes the same fixture on the pipes
+        // that carry it NOW, at the same index — so "same index" was letting a
+        // corrected request keep the old ladder. Everything downstream reads
+        // that snapshot: the hop message names a feed that is gone, currentFeed
+        // sticks to a url no longer in the request, and the switcher tunes the
+        // viewer to a pipe that has moved on — the wrong-game fault, arrived at
+        // through the correction meant to prevent it.
+        //
+        // So the question is whether the SOURCES changed, which is what the
+        // ladder is made of. A rejoin or a reconnect re-delivers the same urls
+        // and keeps its place; a correction brings different ones and earns a
+        // rebuild.
+        // Compared on the names and the channel ids, NOT the urls. A swap
+        // rewrites the item's own url and leaves its fallbacks alone, so the
+        // url list of an item mid-ladder no longer matches the ladder built
+        // from it — comparing those would rebuild on every reconnect after a
+        // swap and drop the viewer back to the head, which is the fault the
+        // guard above exists to prevent. sourceNames and sourceChannelIds are
+        // published once and never touched by a swap, so they change when, and
+        // only when, the sources themselves do.
+        val offered = request.items.getOrNull(index)
+            ?.let { com.agoro.tv.data.feedsOf(it).map { feed -> feed.label to feed.channelId } }
+            .orEmpty()
+        if (index != ladderItemIndex || feeds.isEmpty() ||
+            offered != feeds.map { it.label to it.channelId }
+        ) {
             feeds = request.items.getOrNull(index)
                 ?.let { com.agoro.tv.data.feedsOf(it) }.orEmpty()
             currentFeed = 0
@@ -889,31 +919,40 @@ class PlayerSession internal constructor(
         }
         if (stallClock.size < STALLS_BEFORE_HOP) return
         stallClock.clear()
-        // ANOTHER SOURCE FIRST, the HLS re-wrap only as a last resort. Both
-        // recover, but they cost different things: another source is the
-        // same channel at another measured tier, while .m3u8 is this
-        // provider re-muxing — which is exactly what capped picture quality
-        // and is why live URLs were moved to raw .ts in the first place.
-        // Reaching for it first traded a stutter for a permanently softer
-        // picture, and did it silently.
-        // Silently. The ladder used to narrate every rung — "trying another
-        // source", "trying a steadier feed", "trying a different stream
-        // format" — and none of it is the viewer's business: they asked for a
-        // channel, the app is getting them the channel, and which URL it is on
-        // its third attempt is diagnostics. What earns a line is the ladder
-        // running OUT, which is the case below, because that is the point the
-        // picture stops coming back on its own.
-        when {
-            swapSource() -> Unit
-            swapLiveFormat() -> Unit
-            // Both ladders spent. Without this the when did nothing at all:
-            // the stall counter went on firing into a branch that could no
-            // longer act, so the picture froze and the app said nothing —
-            // "it buffers, then it stops". Say so, and let the retries below
-            // keep working the same source; a line that recovers on its own
-            // then plays again instead of sitting dead behind a full buffer.
-            else -> statusMessage = "This feed keeps stalling — no other source to try."
+        // Which rung costs less depends on what the alternates ARE, so the
+        // order is [stallLadder]'s to decide. For a channel it is another
+        // source first — same channel, another tier — and the .m3u8 re-wrap
+        // last, because that one is the provider re-muxing and is exactly what
+        // capped picture quality. For a FIXTURE it is the other way round: the
+        // next source is another PIPE, which may be another event, and this is
+        // the ladder that put a boxing card up in the middle of an NFL game.
+        //
+        // Silently, for a channel. The ladder used to narrate every rung —
+        // "trying another source", "trying a steadier feed" — and none of it
+        // is the viewer's business: they asked for a channel, the app is
+        // getting them the channel, and which URL it is on its third attempt
+        // is diagnostics. A hop between EVENTS is not that, and [swapSource]
+        // says so there. What earns a line here is the ladder running OUT,
+        // because that is the point the picture stops coming back on its own.
+        val item = request.items.getOrNull(currentIndex)
+        val acted = when (
+            stallAction(
+                otherEvents = item?.let(::carriesOtherEvents) == true,
+                canRewrap = canSwapLiveFormat(),
+                canHop = item?.fallbackUrls?.getOrNull(sourceStage) != null,
+            )
+        ) {
+            StallAction.REWRAP -> swapLiveFormat()
+            StallAction.HOP -> swapSource()
+            StallAction.EXHAUSTED -> false
         }
+        // Both ladders spent. Without this the when did nothing at all: the
+        // stall counter went on firing into a branch that could no longer act,
+        // so the picture froze and the app said nothing — "it buffers, then it
+        // stops". Say so, and let the retries below keep working the same
+        // source; a line that recovers on its own then plays again instead of
+        // sitting dead behind a full buffer.
+        if (!acted) statusMessage = "This feed keeps stalling — no other source to try."
     }
 
     /**
@@ -926,6 +965,18 @@ class PlayerSession internal constructor(
      * format fails instantly every time, so retrying it is pure wait.
      */
     private val liveUrlForm = Regex("""^(https?://[^/]+)/live/([^/]+)/([^/]+)/(\d+)\.(ts|m3u8)$""")
+
+    /**
+     * Whether [swapLiveFormat] has a rung left, without taking it.
+     *
+     * [stallAction] has to weigh the two rungs before either is spent, and
+     * asking by trying would take the one it might reject. Same two
+     * conditions, in the same order, as the swap itself.
+     */
+    private fun canSwapLiveFormat(): Boolean {
+        val url = request.items.getOrNull(currentIndex)?.url ?: return false
+        return liveUrlForm.matchEntire(url) != null && liveFormatStage <= 1
+    }
 
     private fun swapLiveFormat(): Boolean {
         val idx = currentIndex
@@ -969,6 +1020,19 @@ class PlayerSession internal constructor(
         // By url, not by the stage that just moved: see [currentFeed].
         val landed = feeds.indexOfFirst { it.url == next }.takeIf { it >= 0 }
         landed?.let { currentFeed = it }
+        // A hop between a channel's own copies is silent, because nothing the
+        // viewer can see has changed. A hop between a FIXTURE's pipes is not:
+        // the picture may now be a different match, a different sport, or the
+        // pre-match studio show, and the banner cannot say so — a rung's title
+        // is built from the fixture's name, not from what the pipe turned out
+        // to be carrying. So the one thing the app does know goes on screen:
+        // that it moved, and which feed it moved to. The viewer is the only
+        // detector there is for "this is the wrong game" (see [useFeed]), and
+        // a detector that is not told the stream changed cannot detect it.
+        if (carriesOtherEvents(item)) {
+            val where = feedPosition(currentFeed, feeds.size, feeds.getOrNull(currentFeed)?.label)
+            statusMessage = where?.let { "That feed failed — $it" } ?: "That feed failed"
+        }
         request = request.copy(
             items = PatchedList(
                 request.items, idx,

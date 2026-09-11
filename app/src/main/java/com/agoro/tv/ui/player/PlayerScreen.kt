@@ -1681,9 +1681,11 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                         // again this evening opens the feed the viewer found
                         // rather than the one the app guessed at.
                         session.feedUrl?.let { vm.rememberFeedChoice(item?.title.orEmpty(), it) }
-                        session.statusMessage = session.feedLabel
-                            ?.let { "Feed ${session.currentFeed + 1} of ${session.feedCount} · $it" }
-                            ?: "Trying another feed"
+                        // The same words the ladder uses when a stall moves
+                        // it without being asked — see PlayerSession.swapSource.
+                        session.statusMessage = com.agoro.tv.data.feedPosition(
+                            session.currentFeed, session.feedCount, session.feedLabel,
+                        ) ?: "Trying another feed"
                     }
                 },
                 onSleepCycle = {

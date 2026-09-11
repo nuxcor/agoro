@@ -1,8 +1,15 @@
 package com.agoro.tv
 
 import com.agoro.tv.data.PlayableItem
+import com.agoro.tv.data.StallAction
+import com.agoro.tv.data.carriesOtherEvents
+import com.agoro.tv.data.feedPosition
 import com.agoro.tv.data.feedsOf
+import com.agoro.tv.data.stallAction
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -26,6 +33,13 @@ class FeedLadderTest {
         ),
         sourceNames = listOf("TNT Sports 3", "ESPN+ PPV 39 · Spanish commentary", "UEFA 04"),
         sourceChannelIds = listOf("tnt3", "", "1025277"),
+    )
+
+    /** A plain channel: alternates, but nothing naming them. */
+    private val channel = PlayableItem(
+        url = "http://p/live/u/p/9.ts",
+        title = "TNT Sports 1",
+        fallbackUrls = listOf("http://p/live/u/p/10.ts"),
     )
 
     @Test
@@ -64,11 +78,6 @@ class FeedLadderTest {
      */
     @Test
     fun `an unnamed ladder still counts`() {
-        val channel = PlayableItem(
-            url = "http://p/live/u/p/9.ts",
-            title = "TNT Sports 1",
-            fallbackUrls = listOf("http://p/live/u/p/10.ts"),
-        )
         val feeds = feedsOf(channel)
         assertEquals(2, feeds.size)
         // The title stands on every rung, which is right for a channel.
@@ -79,5 +88,72 @@ class FeedLadderTest {
     @Test
     fun `a single source is a ladder of one`() {
         assertEquals(1, feedsOf(PlayableItem(url = "http://p/1.ts", title = "One")).size)
+    }
+
+    @Test
+    fun `only a fixture's alternates are other events`() {
+        assertTrue("a fixture names each rung", carriesOtherEvents(fixture))
+        assertFalse("a channel's rungs are the same channel", carriesOtherEvents(channel))
+    }
+
+    /**
+     * Reported 2026-09-11, mid-game: "one moment its the correct game next its
+     * not". Three stalls in a minute moved the ladder to the next pipe — a
+     * boxing card — and said nothing.
+     *
+     * A fixture re-wraps first because that rung cannot change what is on
+     * screen. A channel keeps the old order, where the re-wrap is the rung
+     * that costs picture.
+     */
+    @Test
+    fun `a fixture re-wraps before it abandons the pipe`() {
+        assertEquals(
+            StallAction.REWRAP,
+            stallAction(otherEvents = true, canRewrap = true, canHop = true),
+        )
+        assertEquals(
+            StallAction.HOP,
+            stallAction(otherEvents = false, canRewrap = true, canHop = true),
+        )
+    }
+
+    /**
+     * The protection is only as available as the rung it prefers. A fixture
+     * led by a broadcaster's own origin HLS has no Xtream form to re-wrap
+     * into, so it hops on the first run of stalls exactly as before — stated
+     * here so the limit is known rather than assumed away.
+     */
+    @Test
+    fun `a fixture with nothing to re-wrap still hops`() {
+        assertEquals(
+            StallAction.HOP,
+            stallAction(otherEvents = true, canRewrap = false, canHop = true),
+        )
+        assertEquals(
+            StallAction.REWRAP,
+            stallAction(otherEvents = false, canRewrap = true, canHop = false),
+        )
+        assertEquals(
+            "both rungs spent, and the caller has to say so",
+            StallAction.EXHAUSTED,
+            stallAction(otherEvents = true, canRewrap = false, canHop = false),
+        )
+    }
+
+    /**
+     * The hop message and the switcher's message are one sentence, because a
+     * viewer should not learn two vocabularies for the ladder moving. The
+     * position carries the part the automatic case most needs — how many feeds
+     * are left — and makes each message distinct, which the status toast needs
+     * because it is keyed on the string.
+     */
+    @Test
+    fun `a feed is positioned the same way whoever moved it`() {
+        assertEquals("Feed 2 of 3 · ESPN+ PPV 39", feedPosition(1, 3, "ESPN+ PPV 39"))
+        // A slot whose name reduced to nothing must not leave a dangling "·".
+        assertEquals("Feed 2 of 3", feedPosition(1, 3, "  "))
+        assertEquals("Feed 2 of 3", feedPosition(1, 3, null))
+        assertNull("one feed is not a position", feedPosition(0, 1, "TNT Sports 1"))
+        assertNull("nor is a rung off the end", feedPosition(3, 3, "TNT Sports 1"))
     }
 }

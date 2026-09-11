@@ -417,6 +417,95 @@ fun feedsOf(item: PlayableItem): List<FeedSource> =
         )
     }
 
+/**
+ * Whether this item's alternate sources are other EVENTS, or other copies of
+ * the same one.
+ *
+ * A channel's alternates come from the manifest's fold — the same channel at
+ * several tiers, so stepping down changes the picture and nothing else. A
+ * FIXTURE's alternates are different pipes on a PPV shelf, and a pipe carries
+ * whatever the operator last pointed it at: stepping down there can change the
+ * match, the sport, or the event.
+ *
+ * Keyed on [PlayableItem.sourceNames] because that is the field whose meaning
+ * IS this question — it names each rung as a separate feed, it is what the
+ * switcher prints, and PlayerScreen already asks "is this a fixture?" by
+ * testing it. [PlayableItem.fallbackTitles] is filled by the same one caller
+ * today and would answer the same way, but it exists for a narrower reason
+ * (rungs needing their own titles), so a fixture whose rungs happened to share
+ * one title would silently answer no.
+ *
+ * Reported 2026-09-11, watching a live NFL game: "one moment its the correct
+ * game next its not". Three stalls in a minute and the ladder hopped to the
+ * next pipe, which was a boxing card, and said nothing — the banner still read
+ * 49ers v Rams, because a fixture's rung titles are built from the FIXTURE's
+ * name rather than from what the pipe turned out to be showing.
+ */
+fun carriesOtherEvents(item: PlayableItem): Boolean = item.sourceNames.isNotEmpty()
+
+/** What a run of stalls should do next. */
+enum class StallAction {
+    /** Re-wrap THIS stream in another container. Cannot change what is on screen. */
+    REWRAP,
+
+    /** Give up on this source for the next one. For a fixture, another event. */
+    HOP,
+
+    /** Both spent — say so, and let the plain retries keep working. */
+    EXHAUSTED,
+}
+
+/**
+ * What to do when a live feed keeps stalling, given what is available.
+ *
+ * For a CHANNEL, another source first: the alternates are the same channel at
+ * another measured tier, while the .m3u8 re-wrap is the provider re-muxing —
+ * which is what capped picture quality and is why live urls are raw .ts.
+ *
+ * For a FIXTURE that order reverses, because the rungs no longer cost the same
+ * thing. The next source may be another event entirely, and a softer picture of
+ * the match the viewer pressed beats a sharp picture of something else. So the
+ * re-wrap goes first and the pipe is abandoned only once this stream has had
+ * every chance.
+ *
+ * Availability is an argument rather than a caller's `if`, because it is the
+ * half that decides the real cases. A fixture whose lead source is a
+ * broadcaster's own origin HLS — see ManifestCuration's direct feeds — has no
+ * Xtream form to re-wrap into, so REWRAP is not on offer and the protection
+ * this function exists for does not apply: it hops, exactly as before, and
+ * [PlayableItem.sourceNames] means it says so. That case is a test rather than
+ * a surprise.
+ */
+fun stallAction(otherEvents: Boolean, canRewrap: Boolean, canHop: Boolean): StallAction {
+    val order = if (otherEvents) listOf(StallAction.REWRAP, StallAction.HOP)
+    else listOf(StallAction.HOP, StallAction.REWRAP)
+    return order.firstOrNull { act ->
+        when (act) {
+            StallAction.REWRAP -> canRewrap
+            StallAction.HOP -> canHop
+            StallAction.EXHAUSTED -> false
+        }
+    } ?: StallAction.EXHAUSTED
+}
+
+/**
+ * "Feed 2 of 3 · TNT Sports 3" — where the viewer is in the ladder.
+ *
+ * One formatter, because the ladder moves for two reasons and the viewer
+ * should not have to learn two vocabularies for it: they pressed the switcher,
+ * or a stall moved it for them. The position is the part the automatic case
+ * most needs and used to omit — how many feeds are left to try — and it also
+ * makes each message distinct, which matters because the status toast is keyed
+ * on the string and two identical ones do not restart its timer.
+ *
+ * Null when there is nothing to position: one feed, or none.
+ */
+fun feedPosition(index: Int, count: Int, label: String?): String? {
+    if (count <= 1 || index !in 0 until count) return null
+    val named = label?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""
+    return "Feed ${index + 1} of $count$named"
+}
+
 data class PlaybackRequest(
     val items: List<PlayableItem>,
     val startIndex: Int,
