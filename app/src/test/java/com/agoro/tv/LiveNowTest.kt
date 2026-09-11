@@ -88,7 +88,12 @@ class LiveNowTest {
         )
         // A roster that carries NONE of these clubs, which is the point: the
         // billing has to do the work on its own.
-        val parsed = SportsParser.parseAll(slots, now, roster)
+        // Through the schedule, which is where a clockless slot is settled:
+        // the parse marks one and applySchedule drops what it cannot date.
+        // Empty here, so nothing can be dated — see slot 3.
+        val parsed = SportsParser.applySchedule(
+            SportsParser.parseAll(slots, now, roster), emptyList(), now,
+        )
         val byLeague = parsed.associate { it.streamId to (it.league to it.title) }
         println(byLeague)
         assertEquals("Carabao Cup", byLeague[1]?.first)
