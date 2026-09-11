@@ -2069,10 +2069,25 @@ REGION_SECTIONS = {}
 # source with no tile of its own, so an entry there resolves nothing the app
 # can read. This map writes name_section, which is what the app consults for a
 # channel that stands alone.
+# Netflix's four live-event pipes, filed by the panel under "US| NETFLIX PPV".
+# Netflix carries NFL games, and these are the only pipes the panel has for
+# them - but their names carry no clubs and no kick-off, so SportsParser can
+# never tie one to a fixture, and PPV is hidden_by_default, so nothing else in
+# the app reaches them either. The game was in the catalogue and on no surface
+# at all. Same fix as RedZone, for the same reason; asked for 2026-09-10, the
+# night Netflix had 49ers at Rams.
+#
+# The UK bundle carries the same four (1831614-17) and they stay in PPV: their
+# names are identical to these, and UK is a solo region, so filing them would
+# put four duplicates on the UK tile for one set of feeds.
 MANUAL_SECTION = {
     '1562526': 'ENTERTAINMENT',
     '162255':  'ENTERTAINMENT',
     '1031379': 'SPORTS',
+    '1831594': 'SPORTS',
+    '1831593': 'SPORTS',
+    '1831592': 'SPORTS',
+    '1831591': 'SPORTS',
 }
 name_section.update(MANUAL_SECTION)
 # The tiles were built before this map existed, and a tile's own section is
@@ -3695,6 +3710,15 @@ STREAM_LABEL = {
     # 2025/26. Named for the brand instead, so the shelf makes a promise the
     # feed keeps. See NAMED_KEEP.
     '1577208': 'MOVISTAR LALIGA',
+    # The four Netflix event pipes MANUAL_SECTION puts on the Sports shelf.
+    # Left raw they read "NETFLIX 01 (@30FPS) EVENTS ONLY" there: baseName
+    # takes the FHD out of the middle of the bracket and leaves the rest
+    # standing. Numbered as the panel numbers them, because which pipe is
+    # carrying tonight's event is something the viewer finds by trying them.
+    '1831594': 'NETFLIX EVENTS 1',
+    '1831593': 'NETFLIX EVENTS 2 USA',
+    '1831592': 'NETFLIX EVENTS 3 INTERNATIONAL',
+    '1831591': 'NETFLIX EVENTS 4 LATIN',
 }
 for _k, _t in collapse.items():
     _forced = TILE_LABEL.get(_k.split('|')[0])

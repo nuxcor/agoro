@@ -1,6 +1,6 @@
 {
  "manifest_version": 1,
- "generated": "2026-09-10T19:21:01+00:00",
+ "generated": "2026-09-11T00:50:49+00:00",
  "provider": {
   "host": "pro.dzidzi.online",
   "protocol": "xtream"
@@ -36507,6 +36507,10 @@
   "1562526": "ENTERTAINMENT",
   "162255": "ENTERTAINMENT",
   "1031379": "SPORTS",
+  "1831594": "SPORTS",
+  "1831593": "SPORTS",
+  "1831592": "SPORTS",
+  "1831591": "SPORTS",
   "484449": "NEWS",
   "717714": "NEWS",
   "717705": "NEWS",
@@ -56217,6 +56221,10 @@
   "648290": "CBS SPORTS GOLAZO NETWORK",
   "325906": "FANDUEL TV",
   "1577208": "MOVISTAR LALIGA",
+  "1831594": "NETFLIX EVENTS 1",
+  "1831593": "NETFLIX EVENTS 2 USA",
+  "1831592": "NETFLIX EVENTS 3 INTERNATIONAL",
+  "1831591": "NETFLIX EVENTS 4 LATIN",
   "1853665": "3ABN FRANCAIS",
   "1853664": "3ABN INTERNATIONAL",
   "1853662": "ADOM TV",
@@ -73427,7 +73435,7 @@
   "afr_kept": 86,
   "afr_dropped": 970,
   "afr_usuk_duplicates": 25,
-  "name_section_overrides": 1126,
+  "name_section_overrides": 1130,
   "entertainment_fixes": {
    "-> LOCALS": 226,
    "-> NEWS": 163,
