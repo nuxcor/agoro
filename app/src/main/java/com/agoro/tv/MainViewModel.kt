@@ -276,7 +276,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // stable — and it simply does not apply once the playlist has been
         // refetched and the chosen pipe is gone.
         val chosen = chosenFeeds[shown]
-        val sources = named.distinctBy { it.first.id }
+        // By URL as well as id. Two catalogue entries can carry the same
+        // stream, and a rung whose url equals the lead's makes the ladder
+        // ambiguous: currentFeed is resolved by url (deliberately — see
+        // PlayerSession.currentFeed), so a hop onto the duplicate resolves
+        // back to the feed it just left, and the banner draws that channel's
+        // logo and guide over the new picture.
+        val sources = named.distinctBy { it.first.id }.distinctBy { it.first.url }
             .sortedByDescending { it.first.url == chosen }
         val (best, _) = sources.first()
         val rest = sources.drop(1)
