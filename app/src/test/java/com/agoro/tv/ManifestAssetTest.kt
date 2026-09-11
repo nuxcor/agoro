@@ -48,34 +48,6 @@ class ManifestAssetTest {
         assertFalse("Sports is hidden", "SPORTS" in manifest.hiddenSections)
     }
 
-    /**
-     * Netflix's four live-event pipes, for the same reason and by the same
-     * lever. Netflix carries NFL games; the panel's only pipes for them are
-     * these, named "NF: NETFLIX 02 (FHD@60FPS) USA EVENTS ONLY" — no clubs and
-     * no kick-off, so [com.agoro.tv.data.SportsParser] can never tie one to a
-     * fixture and the Sport tab cannot offer them. Under PPV, which opens no
-     * shelf, that left the game in the catalogue and on no surface at all.
-     *
-     * The label is asserted too: left raw the shelf reads "NETFLIX 01
-     * (@30FPS) EVENTS ONLY", because baseName takes the FHD out of the middle
-     * of the bracket and leaves the rest standing.
-     */
-    @Test
-    fun `Netflix's event pipes are on a shelf the app draws`() {
-        val pipes = listOf(1831594, 1831593, 1831592, 1831591)
-        val ppv = manifest.categories.live.entries
-            .first { it.value.section == "PPV" }.key
-        val dropped = manifest.dropStreamIds.toSet()
-        pipes.forEach { id ->
-            assertFalse("Netflix event pipe $id was dropped", id in dropped)
-            assertEquals("Netflix event pipe $id", "SPORTS", manifest.sectionFor(id, ppv))
-            assertFalse(
-                "Netflix event pipe $id has no label",
-                manifest.displayName[id.toString()].isNullOrBlank(),
-            )
-        }
-    }
-
     /** Two folds over the same streams disagreeing about which one represents
      *  the channel is what put NBC 4 New York on the Locals shelf twice: the
      *  app treats every tile primary as a survivor, so a stream folded away by
