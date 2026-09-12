@@ -1,16 +1,16 @@
 {
- "generated": "2026-09-11T20:56:21Z",
+ "generated": "2026-09-12T04:31:25Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
-  "NFL": 15,
+  "NFL": 29,
   "NBA": 0,
-  "MLS": 29,
-  "Premier League": 16,
-  "La Liga": 24,
-  "Serie A": 15,
-  "Bundesliga": 15,
-  "Ligue 1": 15,
+  "MLS": 30,
+  "Premier League": 20,
+  "La Liga": 28,
+  "Serie A": 19,
+  "Bundesliga": 17,
+  "Ligue 1": 17,
   "Champions League": 0,
   "Europa League": 18,
   "Conference League": 0,
@@ -18,51 +18,6 @@
   "FA Cup": 0
  },
  "fixtures": [
-  {
-   "league": "Bundesliga",
-   "home": "1. FC Union Berlin",
-   "away": "Schalke 04",
-   "start": "2026-09-11T18:30Z",
-   "homeAlt": [
-    "Union Berlin"
-   ],
-   "awayAlt": [
-    "Schalke"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/598.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/133.png",
-   "state": "post"
-  },
-  {
-   "league": "Ligue 1",
-   "home": "Stade Rennais",
-   "away": "Marseille",
-   "start": "2026-09-11T18:45Z",
-   "homeAlt": [
-    "Rennes"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/169.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/176.png",
-   "state": "post"
-  },
-  {
-   "league": "Serie A",
-   "home": "Venezia",
-   "away": "Fiorentina",
-   "start": "2026-09-11T18:45Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/17530.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/109.png",
-   "state": "in"
-  },
-  {
-   "league": "La Liga",
-   "home": "Sevilla",
-   "away": "Valencia",
-   "start": "2026-09-11T19:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/243.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/94.png",
-   "state": "in"
-  },
   {
    "league": "La Liga",
    "home": "Racing Santander",
@@ -1371,6 +1326,7 @@
    "away": "Torreense",
    "start": "2026-09-17T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/987.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21615.png",
    "state": "pre"
   },
   {
@@ -1941,6 +1897,456 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/9723.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/18418.png",
+   "state": "pre"
+  },
+  {
+   "league": "Serie A",
+   "home": "Fiorentina",
+   "away": "Napoli",
+   "start": "2026-09-20T10:30Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/109.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/114.png",
+   "state": "pre"
+  },
+  {
+   "league": "La Liga",
+   "home": "Getafe",
+   "away": "M\u00e1laga",
+   "start": "2026-09-20T12:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2922.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/99.png",
+   "state": "pre"
+  },
+  {
+   "league": "Ligue 1",
+   "home": "AJ Auxerre",
+   "away": "Brest",
+   "start": "2026-09-20T13:00Z",
+   "homeAlt": [
+    "Auxerre"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/172.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/6997.png",
+   "state": "pre"
+  },
+  {
+   "league": "Premier League",
+   "home": "AFC Bournemouth",
+   "away": "Liverpool",
+   "start": "2026-09-20T13:00Z",
+   "homeAlt": [
+    "Bournemouth"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/349.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/364.png",
+   "state": "pre"
+  },
+  {
+   "league": "Premier League",
+   "home": "Leeds United",
+   "away": "Crystal Palace",
+   "start": "2026-09-20T13:00Z",
+   "homeAlt": [
+    "Leeds"
+   ],
+   "awayAlt": [
+    "C Palace"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/357.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/384.png",
+   "state": "pre"
+  },
+  {
+   "league": "Premier League",
+   "home": "Manchester City",
+   "away": "Sunderland",
+   "start": "2026-09-20T13:00Z",
+   "homeAlt": [
+    "Man City"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/382.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/366.png",
+   "state": "pre"
+  },
+  {
+   "league": "Serie A",
+   "home": "Frosinone",
+   "away": "Como",
+   "start": "2026-09-20T13:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/4057.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png",
+   "state": "pre"
+  },
+  {
+   "league": "Serie A",
+   "home": "Parma",
+   "away": "Genoa",
+   "start": "2026-09-20T13:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/115.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3263.png",
+   "state": "pre"
+  },
+  {
+   "league": "Bundesliga",
+   "home": "Bayer Leverkusen",
+   "away": "RB Leipzig",
+   "start": "2026-09-20T13:30Z",
+   "homeAlt": [
+    "Leverkusen"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/11420.png",
+   "state": "pre"
+  },
+  {
+   "league": "La Liga",
+   "home": "Atl\u00e9tico Madrid",
+   "away": "Real Madrid",
+   "start": "2026-09-20T14:15Z",
+   "homeAlt": [
+    "Atl\u00e9tico"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/1068.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",
+   "state": "pre"
+  },
+  {
+   "league": "Ligue 1",
+   "home": "Nice",
+   "away": "Lille",
+   "start": "2026-09-20T15:15Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2502.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/166.png",
+   "state": "pre"
+  },
+  {
+   "league": "Bundesliga",
+   "home": "Schalke 04",
+   "away": "SV Elversberg",
+   "start": "2026-09-20T15:30Z",
+   "homeAlt": [
+    "Schalke"
+   ],
+   "awayAlt": [
+    "Elversberg"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/133.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/10388.png",
+   "state": "pre"
+  },
+  {
+   "league": "Premier League",
+   "home": "Fulham",
+   "away": "Manchester United",
+   "start": "2026-09-20T15:30Z",
+   "awayAlt": [
+    "Man United"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/370.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/360.png",
+   "state": "pre"
+  },
+  {
+   "league": "Serie A",
+   "home": "Juventus",
+   "away": "Atalanta",
+   "start": "2026-09-20T16:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/111.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/105.png",
+   "state": "pre"
+  },
+  {
+   "league": "La Liga",
+   "home": "Deportivo",
+   "away": "Real Betis",
+   "start": "2026-09-20T16:30Z",
+   "awayAlt": [
+    "Betis"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/90.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/244.png",
+   "state": "pre"
+  },
+  {
+   "league": "La Liga",
+   "home": "Villarreal",
+   "away": "Levante",
+   "start": "2026-09-20T16:30Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/102.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/1538.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Atlanta Falcons",
+   "away": "Carolina Panthers",
+   "start": "2026-09-20T17:00Z",
+   "homeAlt": [
+    "Falcons"
+   ],
+   "awayAlt": [
+    "Panthers"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/atl.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/car.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Baltimore Ravens",
+   "away": "New Orleans Saints",
+   "start": "2026-09-20T17:00Z",
+   "homeAlt": [
+    "Ravens"
+   ],
+   "awayAlt": [
+    "Saints"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/bal.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/no.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Chicago Bears",
+   "away": "Minnesota Vikings",
+   "start": "2026-09-20T17:00Z",
+   "homeAlt": [
+    "Bears"
+   ],
+   "awayAlt": [
+    "Vikings"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/chi.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/min.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Houston Texans",
+   "away": "Cincinnati Bengals",
+   "start": "2026-09-20T17:00Z",
+   "homeAlt": [
+    "Texans"
+   ],
+   "awayAlt": [
+    "Bengals"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/hou.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/cin.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "New England Patriots",
+   "away": "Pittsburgh Steelers",
+   "start": "2026-09-20T17:00Z",
+   "homeAlt": [
+    "Patriots"
+   ],
+   "awayAlt": [
+    "Steelers"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ne.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/pit.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "New York Jets",
+   "away": "Green Bay Packers",
+   "start": "2026-09-20T17:00Z",
+   "homeAlt": [
+    "Jets"
+   ],
+   "awayAlt": [
+    "Packers"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/nyj.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/gb.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Tampa Bay Buccaneers",
+   "away": "Cleveland Browns",
+   "start": "2026-09-20T17:00Z",
+   "homeAlt": [
+    "Buccaneers"
+   ],
+   "awayAlt": [
+    "Browns"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/tb.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/cle.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Tennessee Titans",
+   "away": "Philadelphia Eagles",
+   "start": "2026-09-20T17:00Z",
+   "homeAlt": [
+    "Titans"
+   ],
+   "awayAlt": [
+    "Eagles"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ten.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/phi.png",
+   "state": "pre"
+  },
+  {
+   "league": "Bundesliga",
+   "home": "SC Paderborn 07",
+   "away": "TSG Hoffenheim",
+   "start": "2026-09-20T17:30Z",
+   "homeAlt": [
+    "Paderborn"
+   ],
+   "awayAlt": [
+    "Hoffenheim"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3307.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/7911.png",
+   "state": "pre"
+  },
+  {
+   "league": "Ligue 1",
+   "home": "Marseille",
+   "away": "Paris Saint-Germain",
+   "start": "2026-09-20T18:45Z",
+   "awayAlt": [
+    "PSG"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/176.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/160.png",
+   "state": "pre"
+  },
+  {
+   "league": "Serie A",
+   "home": "AC Milan",
+   "away": "Lecce",
+   "start": "2026-09-20T18:45Z",
+   "homeAlt": [
+    "Milan"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/103.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/113.png",
+   "state": "pre"
+  },
+  {
+   "league": "La Liga",
+   "home": "Valencia",
+   "away": "Real Sociedad",
+   "start": "2026-09-20T19:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/94.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/89.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Denver Broncos",
+   "away": "Jacksonville Jaguars",
+   "start": "2026-09-20T20:05Z",
+   "homeAlt": [
+    "Broncos"
+   ],
+   "awayAlt": [
+    "Jaguars"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/den.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/jax.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Los Angeles Chargers",
+   "away": "Las Vegas Raiders",
+   "start": "2026-09-20T20:05Z",
+   "homeAlt": [
+    "Chargers"
+   ],
+   "awayAlt": [
+    "Raiders"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lac.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lv.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Arizona Cardinals",
+   "away": "Seattle Seahawks",
+   "start": "2026-09-20T20:25Z",
+   "homeAlt": [
+    "Cardinals"
+   ],
+   "awayAlt": [
+    "Seahawks"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ari.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/sea.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Dallas Cowboys",
+   "away": "Washington Commanders",
+   "start": "2026-09-20T20:25Z",
+   "homeAlt": [
+    "Cowboys"
+   ],
+   "awayAlt": [
+    "Commanders"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/dal.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/wsh.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "San Francisco 49ers",
+   "away": "Miami Dolphins",
+   "start": "2026-09-20T20:25Z",
+   "homeAlt": [
+    "49ers"
+   ],
+   "awayAlt": [
+    "Dolphins"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/sf.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/mia.png",
+   "state": "pre"
+  },
+  {
+   "league": "MLS",
+   "home": "Inter Miami CF",
+   "away": "San Diego FC",
+   "start": "2026-09-20T23:00Z",
+   "homeAlt": [
+    "Miami"
+   ],
+   "awayAlt": [
+    "San Diego"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20232.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/22529.png",
+   "state": "pre"
+  },
+  {
+   "league": "NFL",
+   "home": "Kansas City Chiefs",
+   "away": "Indianapolis Colts",
+   "start": "2026-09-21T00:20Z",
+   "homeAlt": [
+    "Chiefs"
+   ],
+   "awayAlt": [
+    "Colts"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/kc.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ind.png",
    "state": "pre"
   }
  ]
