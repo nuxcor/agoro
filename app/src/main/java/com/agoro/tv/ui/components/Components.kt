@@ -478,7 +478,12 @@ fun PosterCard(
                     text = year.toString(),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Medium,
-                    color = NuxColors.OnSurface.copy(alpha = 0.55f),
+                    // OnSurfaceDim, not OnSurface at 55%: the token already
+                    // carries the app's one answer for de-emphasised text, and
+                    // knocking a second alpha into it made the year the
+                    // lowest-contrast thing on the screen — on the card the
+                    // viewer is looking straight at.
+                    color = NuxColors.OnSurfaceDim,
                     // Both insets clear the card's bottom-left corner, which
                     // is an arc and not a right angle: the Surface clips to
                     // CardShape's 16dp radius and the focus ring strokes that
@@ -720,9 +725,17 @@ fun MetaChip(text: String, accent: Boolean = false) {
     }
 }
 
-/** Rating as a number with a single star — glyph rows render as tofu on TVs. */
+/**
+ * Rating as a number with a single star — glyph rows render as tofu on TVs.
+ *
+ * No vote count. "8.0  1,671 votes" showed a viewer the arithmetic behind a
+ * score they either trust or ignore; the count only ever mattered as a reason
+ * to DOUBT the score, and that judgement now happens before the call, in
+ * [NuxFormat.ratingWorthShowing]. A rating that reaches the screen is one the
+ * app stands behind, so it arrives alone.
+ */
 @Composable
-fun RatingStars(rating: Double, voteCount: Int? = null) {
+fun RatingStars(rating: Double) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.s),
@@ -738,13 +751,6 @@ fun RatingStars(rating: Double, voteCount: Int? = null) {
             style = MaterialTheme.typography.titleMedium,
             color = NuxColors.OnSurface,
         )
-        voteCount?.let {
-            Text(
-                text = "%,d votes".format(it),
-                style = MaterialTheme.typography.labelMedium,
-                color = NuxColors.OnSurfaceDim,
-            )
-        }
     }
 }
 
@@ -1047,7 +1053,18 @@ fun TextInputDialog(
                 onValueChange = { entered ->
                     value = if (digitsOnly) entered.filter { it.isDigit() }.take(8) else entered
                 },
-                label = { androidx.compose.material3.Text(label) },
+                // Placeholder, not a floating label. The label animates up into
+                // the field's own outline and cuts through it — the search bar
+                // dropped it for exactly that reason, and a dialog that already
+                // carries a title and a message does not need the field to
+                // announce itself a third time.
+                placeholder = {
+                    androidx.compose.material3.Text(
+                        label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = NuxColors.OnSurfaceDim,
+                    )
+                },
                 singleLine = true,
                 visualTransformation = if (digitsOnly) {
                     androidx.compose.ui.text.input.PasswordVisualTransformation()

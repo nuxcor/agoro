@@ -8,6 +8,7 @@ import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.Movie
 import com.agoro.tv.data.QualityTag
 import com.agoro.tv.data.Series
+import com.agoro.tv.data.TextNorm
 
 /**
  * The Home lounge's row contents, as pure functions so the joins and their
@@ -468,6 +469,29 @@ internal fun genreShelf(
     .toList()
 
 /**
+ * The order every browsable shelf on Home is built in: a believable rating
+ * first, recency behind it.
+ *
+ * The same comparator [genreShelf] sorts on, lifted out because the fallback
+ * starter rows need it too. Playlist order — which is what those rows used —
+ * is the panel's insertion sequence and means nothing at all; it is the whole
+ * of "the rows feel random". A rating above [ACCLAIM_CEILING] counts as no
+ * rating rather than as the best one, for the reason [genreShelf] states: the
+ * top of this panel's scale is unvoted obscurities.
+ *
+ * Unlike the curated shelves this drops nothing. A fallback row exists for the
+ * playlist that has no ratings and no artwork to rank by, so a filter on
+ * either would empty the one row that was there to stop Home being empty.
+ */
+internal fun <T> List<T>.byAcclaimThenRecency(
+    rating: (T) -> Double?,
+    added: (T) -> Long?,
+): List<T> = sortedWith(
+    compareByDescending<T> { rating(it)?.takeIf { r -> r <= ACCLAIM_CEILING } ?: 0.0 }
+        .thenByDescending { added(it) ?: 0L }
+)
+
+/**
  * The genres big enough to lead a Home shelf, biggest first.
  *
  * Home shows a fixed few and the browse tab shows them all, so this only has
@@ -755,9 +779,12 @@ internal class Catalog(
     /** Home's Recently added shelf, with "Not interested" titles removed. */
     val recentlyAdded: List<CatalogCard>,
     /**
-     * The day-one rows: empty once the viewer has resumed anything. Filtered
-     * before the cut, or hiding a title would leave a gap in the row rather
-     * than pulling the next one up into it.
+     * The fallback rows: empty once the viewer has resumed anything, and empty
+     * on any catalogue whose curated shelf ([acclaimedMovies] for films,
+     * [genreShelves] for shows) stands up. Filtered before the cut, or hiding a
+     * title would leave a gap in the row rather than pulling the next one up
+     * into it. See [buildCatalog] for why they are a fallback and not the
+     * day-one greeting they started as.
      */
     val starterMovies: List<Movie>,
     val starterSeries: List<Series>,
@@ -842,17 +869,62 @@ internal fun buildCatalog(
                 is CatalogCard.SeriesCard -> seriesHomeKey(card.series) in hiddenTitles
             }
         }
-    // A sequence, so the walk stops at the twentieth kept title instead of
-    // filtering the whole catalogue to take twenty off the front.
+    // The curated shelves, built before the starter rows because what the
+    // starter rows are for is the playlist these cannot cover.
+    val acclaimed = acclaimedMovies(index.movies, hiddenTitles)
+    // Rank, then build, then KEEP, then cut — in that order. Cutting to
+    // three first and filtering after meant a thin genre deleted its slot
+    // instead of yielding it: [topGenres] ranks on the raw bucket, while
+    // [genreShelf] then drops what has no artwork or has been hidden, so a
+    // third-placed genre with nine shows and three missing posters left Home
+    // with two shelves while a forty-strong genre sat unused behind it.
+    //
+    // A sequence, so the walk stops at the third shelf that stands up rather
+    // than sorting every genre in the catalogue. This runs on every
+    // resume-position write.
+    val genres = topGenres(index.seriesGenres, index.seriesByGenre)
+        .asSequence()
+        .map { genre ->
+            genre to genreShelf(index.seriesByGenre[genreKey(genre)].orEmpty(), hiddenTitles)
+        }
+        .filter { it.second.size >= GENRE_MIN_TITLES }
+        .take(HOME_GENRE_SHELVES)
+        .toList()
+
+    // The starter rows, and they are a fallback now rather than a day-one
+    // greeting.
+    //
+    // They were `movies.take(20)` — the provider's insertion order, which
+    // means nothing — and they sat ABOVE the curated shelves, so day-one Home
+    // opened on an arbitrary slice of the catalogue with the shelves that were
+    // actually chosen for it below the fold. On any ordinary playlist
+    // "Highly rated films" and the three genre shelves say everything these
+    // were there to say, and better, so these stand down for them.
+    //
+    // What they still answer is the playlist those shelves come up empty on: a
+    // panel that ships no ratings, or an M3U with no genres, would otherwise
+    // greet a new viewer with a home screen that has nothing on it but
+    // channels. Each row retires against its OWN counterpart — films against
+    // the acclaimed shelf, shows against the genre shelves — because a
+    // catalogue can easily carry one and not the other.
+    //
+    // Ordered, not sliced: whatever is kept is ranked the same way the curated
+    // shelves rank, so even the fallback is not playlist order. The sort walks
+    // the whole catalogue, which is why it sits inside the branch that almost
+    // never runs.
     val watchedCatalogue = continueWatching.isNotEmpty()
     val starterMovies =
-        if (watchedCatalogue) emptyList()
-        else index.movies.asSequence()
-            .filterNot { movieHomeKey(it) in hiddenTitles }.take(starterLength).toList()
+        if (watchedCatalogue || acclaimed.isNotEmpty()) emptyList()
+        else index.movies
+            .filterNot { movieHomeKey(it) in hiddenTitles }
+            .byAcclaimThenRecency({ it.rating }, { it.addedMs })
+            .take(starterLength)
     val starterSeries =
-        if (watchedCatalogue) emptyList()
-        else index.series.asSequence()
-            .filterNot { seriesHomeKey(it) in hiddenTitles }.take(starterLength).toList()
+        if (watchedCatalogue || genres.isNotEmpty()) emptyList()
+        else index.series
+            .filterNot { seriesHomeKey(it) in hiddenTitles }
+            .byAcclaimThenRecency({ it.rating }, { it.addedMs })
+            .take(starterLength)
 
     return Catalog(
         index = index,
@@ -860,25 +932,8 @@ internal fun buildCatalog(
         recentlyAdded = recentlyAdded,
         starterMovies = starterMovies,
         starterSeries = starterSeries,
-        acclaimedMovies = acclaimedMovies(index.movies, hiddenTitles),
-        // Rank, then build, then KEEP, then cut — in that order. Cutting to
-        // three first and filtering after meant a thin genre deleted its slot
-        // instead of yielding it: [topGenres] ranks on the raw bucket, while
-        // [genreShelf] then drops what has no artwork or has been hidden, so a
-        // third-placed genre with nine shows and three missing posters left Home
-        // with two shelves while a forty-strong genre sat unused behind it.
-        //
-        // A sequence, so the walk stops at the third shelf that stands up rather
-        // than sorting every genre in the catalogue. This runs on every
-        // resume-position write.
-        genreShelves = topGenres(index.seriesGenres, index.seriesByGenre)
-            .asSequence()
-            .map { genre ->
-                genre to genreShelf(index.seriesByGenre[genreKey(genre)].orEmpty(), hiddenTitles)
-            }
-            .filter { it.second.size >= GENRE_MIN_TITLES }
-            .take(HOME_GENRE_SHELVES)
-            .toList(),
+        acclaimedMovies = acclaimed,
+        genreShelves = genres,
         resumedMovies = resumedMovies,
         seriesProgress = seriesProgress,
         resumedSeries = fromOrigins + fromEpisodes + fromFinished,
@@ -886,21 +941,53 @@ internal fun buildCatalog(
 }
 
 /**
+ * What Home's hero draws: a [HeroInfo] plus the one line the shared model has
+ * no place for.
+ *
+ * [line] is the programme on a live channel. It used to ride in `chips`,
+ * between "Live" and a quality badge, which made the thing a viewer is
+ * actually being offered the smallest text in the header and one tag among
+ * three. A chip is for a short tag; a programme title is content and gets a
+ * line of its own.
+ *
+ * A wrapper rather than a field on [HeroInfo] because the browse grids and
+ * search share that model and neither has a second line to draw.
+ */
+internal data class HomeHero(val info: HeroInfo, val line: String? = null)
+
+/**
  * The hero a focused channel tile projects: the current programme when the
  * guide knows it, just the channel otherwise. Poster and backdrop stay null —
  * a channel logo blown up to ambient art reads as a broken image, not a hero.
+ *
+ * The title is cleaned before it is shown. Broadcasters write their
+ * accessibility flags into the XMLTV title, so the hero a viewer landing on
+ * Home met most often read "**Visually Signed**The Highland Vet" — asterisks
+ * and all — and the panel's own filler ("TV Guide unavailable") is not a
+ * programme at all. See [TextNorm].
+ *
+ * No synopsis. The hero is 110dp and a channel spends it on the channel, the
+ * programme and one chip; carrying a plot key nothing draws would also send
+ * the screen to the guide table for text that has nowhere to go. The guide
+ * screen is where a live synopsis lives.
  */
-internal fun channelHero(channel: LiveChannel, nowNext: MainViewModel.NowNext?): HeroInfo {
+internal fun channelHero(channel: LiveChannel, nowNext: MainViewModel.NowNext?): HomeHero {
     val now = nowNext?.now
-    return HeroInfo(
-        title = channel.displayName,
-        poster = null,
-        backdrop = null,
-        chips = listOfNotNull("Live", channel.quality, now?.title),
-        plot = now?.description,
-        // Synopses live in the guide table, so the hero names the programme
-        // it wants and the screen fills the text once it settles on one.
-        plotKey = now?.id,
+    val programme = now?.title
+        ?.takeUnless { TextNorm.isProgrammePlaceholder(it) }
+        ?.let { TextNorm.cleanProgrammeTitle(it) }
+    return HomeHero(
+        HeroInfo(
+            title = channel.displayName,
+            poster = null,
+            backdrop = null,
+            // One chip, and never the quality tier: stream badges belong to
+            // the player's button row, and with no SD in the app the tier only
+            // ever said HD or FHD off text the panel writes for marketing.
+            chips = listOf("Live"),
+            plot = null,
+        ),
+        line = programme,
     )
 }
 
@@ -924,10 +1011,12 @@ internal fun channelHero(channel: LiveChannel, nowNext: MainViewModel.NowNext?):
  * behind the slot is more of the same text, so the plot line stays empty
  * rather than filling with it.
  */
-internal fun fixtureHero(fixture: LiveFixture): HeroInfo = HeroInfo(
-    title = fixture.event.title,
-    poster = null,
-    backdrop = null,
-    chips = listOfNotNull("Live", fixture.event.league.takeIf { it.isNotBlank() }),
-    plot = null,
+internal fun fixtureHero(fixture: LiveFixture): HomeHero = HomeHero(
+    HeroInfo(
+        title = fixture.event.title,
+        poster = null,
+        backdrop = null,
+        chips = listOfNotNull("Live", fixture.event.league.takeIf { it.isNotBlank() }),
+        plot = null,
+    ),
 )

@@ -58,6 +58,7 @@ import com.agoro.tv.ui.components.SectionTitle
 import com.agoro.tv.ui.components.WideItem
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.data.isFavorite
+import kotlinx.coroutines.launch
 
 /**
  * How wide the search bar gets, however wide the panel is.
@@ -173,6 +174,11 @@ fun SearchTab(
         returnFocusPending[0] = false
         menuOriginFocus.requestFocusRetrying(retries = 5, intervalMs = 60)
     }
+    // The catalogue's own best films, for the screen's opening state — see
+    // [SearchStarterRow]. Read here rather than inside the branch so the hero
+    // band below can reserve its line for them; it lands once per session.
+    val catalog by vm.catalog.collectAsState()
+    val starter = catalog?.acclaimedMovies.orEmpty()
     var results by remember { mutableStateOf(MainViewModel.SearchResults()) }
     // Debounced off-main-thread search so typing stays smooth on huge playlists.
     LaunchedEffect(query, contentState, visible) {
@@ -333,10 +339,14 @@ fun SearchTab(
         // live somewhere that does not scroll away with it. A fixed height, so
         // the results below do not shift as the hero fills in and empties.
         //
-        // Only where there are posters to describe. Channel and programme rows
-        // carry their own names, and the two empty states have nothing to
-        // name — reserving the band there is 52dp of blank above a message.
-        if (results.movies.isNotEmpty() || results.series.isNotEmpty()) {
+        // Only where there are posters to describe — results, or the
+        // opening row of top-rated films, both of which are captionless
+        // cards. Channel and programme rows carry their own names, and the
+        // remaining empty states have nothing to name: reserving the band
+        // there is 52dp of blank above a message.
+        val showingStarter = query.trim().length < 2 &&
+            recentSearches.isEmpty() && starter.isNotEmpty()
+        if (results.movies.isNotEmpty() || results.series.isNotEmpty() || showingStarter) {
             Box(modifier = Modifier.fillMaxWidth().height(BROWSE_HERO_HEIGHT)) {
                 SearchHeroSlot(shownHero)
             }
@@ -357,12 +367,20 @@ fun SearchTab(
             // instruction to type more.
             query.trim().length < 2 && recentSearches.isNotEmpty() -> Column {
                 SectionTitle("Recent searches")
+                // A requester per chip, so the one that is about to be
+                // forgotten can hand focus to a neighbour BEFORE it leaves
+                // composition. Keyed by the query text, which is also the
+                // item key: a chip keeps its requester across the
+                // recomposition that removes another one. The map is as big
+                // as the history, which the view model caps.
+                val chipFocus = remember { mutableMapOf<String, FocusRequester>() }
+                val forgetScope = androidx.compose.runtime.rememberCoroutineScope()
                 LazyRow(
                     modifier = Modifier.focusRestorer().shelfRingRoom(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(horizontal = ShelfRingRoom),
                 ) {
-                    itemsIndexed(recentSearches, key = { _, q -> q }) { _, past ->
+                    itemsIndexed(recentSearches, key = { _, q -> q }) { index, past ->
                         CategoryItem(
                             name = past,
                             selected = false,
@@ -375,11 +393,58 @@ fun SearchTab(
                             // app's clock-based one — many remotes send no key
                             // repeat for tv-material's version to count.
                             modifier = Modifier
-                                .dpadLongPress { vm.forgetSearch(past) },
+                                .focusRequester(
+                                    chipFocus.getOrPut(past) { FocusRequester() }
+                                )
+                                .dpadLongPress {
+                                    // Move first, forget second — the
+                                    // Settings rule (see thenRefocus there).
+                                    // Forgetting while focus stood ON the
+                                    // chip took the focused node out of
+                                    // composition with nothing to catch it,
+                                    // and the remote went dead: no key moved
+                                    // anything until the viewer left the
+                                    // screen.
+                                    //
+                                    // The chip after it, or the one before it
+                                    // when it was last; the query field when
+                                    // it was the only one. A neighbour keeps
+                                    // the viewer on the strip they are
+                                    // editing.
+                                    val neighbour = recentSearches.getOrNull(index + 1)
+                                        ?: recentSearches.getOrNull(index - 1)
+                                    forgetScope.launch {
+                                        val landed = neighbour
+                                            ?.let { chipFocus[it] }
+                                            // Two quick attempts, not
+                                            // eight: the neighbour is the
+                                            // next composed item, and if it
+                                            // is not there the field is the
+                                            // answer rather than half a
+                                            // second of a dead remote.
+                                            ?.requestFocusRetrying(retries = 2, intervalMs = 40)
+                                            ?: false
+                                        if (!landed) fieldFocus.requestFocusRetrying()
+                                        vm.forgetSearch(past)
+                                        chipFocus.remove(past)
+                                    }
+                                },
                         )
                     }
                 }
             }
+
+            // Nothing typed, nothing searched before: the screen used to be
+            // black below the bar until the viewer had a history, which put
+            // the emptiest screen in the app in front of a first-time user.
+            // Every service this box runs fills that space with something to
+            // press, and the catalogue already knows what its best films are.
+            showingStarter -> SearchStarterRow(
+                vm = vm,
+                movies = starter,
+                onOpenMovie = onOpenMovie,
+                onHero = { shownHero.value = it },
+            )
 
             query.trim().length < 2 -> StatusPane(
                 title = "Search your library",
@@ -505,10 +570,28 @@ fun SearchTab(
                             hit.program.startMs until hit.program.endMs
                         WideItem(
                             title = hit.program.title,
-                            subtitle = "${hit.channel.displayName} • " + airTime(hit.program.startMs),
-                            // The same vocabulary as the guide's header chip,
-                            // so OK does what the row says it does.
-                            badge = if (airing) "ON NOW" else "OK to remind",
+                            // The channel alone. The time moved to the
+                            // trailing edge, where a listing puts it and
+                            // where the fixture list already keeps its own.
+                            subtitle = hit.channel.displayName,
+                            // The app's one live mark — the gold dot and the
+                            // word, shared with the fixture list — or the
+                            // time it starts.
+                            //
+                            // What was here was "OK to remind", a badge that
+                            // labelled a key instead of describing the
+                            // programme. OK already does the obvious thing
+                            // with something that has not started, and the
+                            // row now says the one fact the viewer actually
+                            // needs to decide: when it is on.
+                            trailing = {
+                                if (airing) LiveBadge() else Text(
+                                    text = airTime(hit.program.startMs),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = NuxColors.OnSurfaceDim,
+                                    maxLines = 1,
+                                )
+                            },
                             imageUrl = hit.channel.logo,
                             onFocus = { shownHero.value = null },
                             onClick = {
@@ -575,6 +658,44 @@ fun SearchTab(
                 menuChannel = null
             },
         )
+    }
+}
+
+/**
+ * One shelf of films for a search screen with nothing on it yet.
+ *
+ * The catalogue's own top-rated row, which Home already builds and which
+ * arrives here through the same [Catalog] — no second source, no second
+ * ranking, nothing fetched for this screen. It is the cheapest thing a
+ * viewer can press on a surface whose alternative is typing on a remote.
+ *
+ * It names what it is showing, because a row of posters with no heading on a
+ * SEARCH screen reads as results for a search nobody ran.
+ */
+@Composable
+private fun SearchStarterRow(
+    vm: MainViewModel,
+    movies: List<Movie>,
+    onOpenMovie: (Movie) -> Unit,
+    onHero: (HeroInfo?) -> Unit,
+) {
+    Column {
+        SectionTitle("Top rated")
+        LazyRow(
+            modifier = Modifier.focusRestorer().shelfRingRoom(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(horizontal = ShelfRingRoom),
+        ) {
+            itemsIndexed(movies, key = { _, m -> m.id }) { _, movie ->
+                PosterCard(
+                    title = movie.name,
+                    imageUrl = borrowedArt(vm, movie.artRef(), movie.poster),
+                    year = movie.year,
+                    onClick = { onOpenMovie(movie) },
+                    onFocus = { onHero(movie.toHero()) },
+                )
+            }
+        }
     }
 }
 

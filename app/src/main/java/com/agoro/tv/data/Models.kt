@@ -137,7 +137,6 @@ data class Movie(
     /** Advertised quality parsed from the raw name (4K/FHD/HD/SD). */
     val quality: String? = null,
     /** Review excerpts ("author — text"), populated from TMDB when a key is set. */
-    val reviews: List<String> = emptyList(),
     val voteCount: Int? = null,
     /** 16:9 art for hero and detail backdrops. */
     val backdrop: String? = null,
@@ -220,7 +219,6 @@ data class Series(
      */
     val quality: String? = null,
     /** Review excerpts ("author — text"), populated from TMDB when a key is set. */
-    val reviews: List<String> = emptyList(),
     val voteCount: Int? = null,
     /** 16:9 art for hero and detail backdrops. */
     val backdrop: String? = null,

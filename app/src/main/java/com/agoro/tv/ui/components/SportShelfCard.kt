@@ -43,11 +43,11 @@ import com.agoro.tv.ui.theme.NuxShape
  * it read as a token in a mostly empty frame rather than as the two clubs
  * playing. A broadcaster's own fixture card gives the badges the picture.
  *
- * The ceiling is VERTICAL and it is the quality chip, not the card edge. The
- * card is 240x135dp; the chip sits at the top corner and comes to 28dp
- * (6dp inset + an 18dp label line + 2dp either side), so a centred badge can
- * be at most 135 - 2*28 = 79dp before the two touch. 72dp keeps 3.5dp of air.
- * Anything larger has to move the chip first.
+ * The ceiling is VERTICAL and it is now the card edge itself: the card is
+ * 240x135dp, so a 72dp badge keeps 31dp of air above and below it. 72 was
+ * picked against a tighter ceiling — a quality chip used to sit in the top
+ * corner and take the first 28dp of that clearance — and it stays because it
+ * is the size that was looked at and judged right, not because it is forced.
  */
 private val CREST_SIZE = 72.dp
 
@@ -74,12 +74,17 @@ private val CREST_SIZE = 72.dp
  *
  * With neither, [Artwork] draws the club's initials, which is still the match
  * rather than the pack.
+ *
+ * It takes no quality. The slot's advertised tier used to ride in a chip at
+ * the top corner, and on a sport slot it is the least trustworthy text the
+ * panel sends: it is read out of the same marketing paragraph this card exists
+ * to stop billing, and the repo has measured "8K EXCLUSIVE" at 1080p30. Stream
+ * tiers live in the player's button row, where a viewer who wants to know can
+ * ask for them.
  */
 @Composable
 fun SportShelfCard(
     event: SportsEvent,
-    /** "FHD", "HD" — what the slot advertises. Null when it says nothing. */
-    quality: String?,
     /** 0f..1f through the match, or null when no kick-off is trusted. */
     progress: Float?,
     onClick: () -> Unit,
@@ -125,25 +130,15 @@ fun SportShelfCard(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     Crest(event.homeCrest, event.home)
+                    // The word between two 72dp badges. At the metadata floor
+                    // it read as a smudge rather than as the thing that makes
+                    // the two crests a fixture.
                     Text(
                         text = "v",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelLarge,
                         color = NuxColors.OnSurfaceDim,
                     )
                     Crest(event.awayCrest, event.away)
-                }
-                quality?.let { tier ->
-                    Text(
-                        text = tier,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = NuxColors.OnSurfaceDim,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .clip(NuxShape.Chip)
-                            .background(NuxColors.Scrim)
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                    )
                 }
                 if (progress != null && progress > 0f) {
                     Box(
@@ -177,9 +172,12 @@ fun SportShelfCard(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 2.dp),
         )
+        // The competition, which is half of how a viewer decides whether this
+        // match is theirs. Body copy, not metadata — same rule as the
+        // now-showing line on [ChannelShelfCard], and the two sit in one row.
         Text(
             text = event.league.ifBlank { "Live" },
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.bodyMedium,
             color = NuxColors.OnSurfaceDim,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

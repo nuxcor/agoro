@@ -52,6 +52,7 @@ import com.agoro.tv.MainViewModel
 import kotlinx.coroutines.launch
 import com.agoro.tv.data.ContentBundle
 import com.agoro.tv.data.LiveChannel
+import com.agoro.tv.data.TextNorm
 import com.agoro.tv.ui.components.ContextMenu
 import com.agoro.tv.ui.components.MenuAction
 import com.agoro.tv.ui.components.requestFocusRetrying
@@ -60,6 +61,7 @@ import com.agoro.tv.ui.components.StatusPane
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxFocus
 import com.agoro.tv.ui.theme.NuxShape
+import com.agoro.tv.ui.theme.Space
 import kotlinx.coroutines.delay
 import com.agoro.tv.data.isFavorite
 
@@ -165,22 +167,37 @@ internal fun LiveTab(
     onOpenSettings: () -> Unit = {},
 ) {
     if (bundle.channels.isEmpty()) {
-        StatusPane(
-            title = "No live channels",
-            message = "This playlist doesn't carry live TV.",
-            icon = Icons.Default.LiveTv,
-            primaryAction = StatusAction("Switch playlist", onOpenSettings),
-        )
+        NoLiveChannelsPane(onOpenSettings)
         return
     }
     val favorites by vm.favorites.collectAsState()
     var menuChannel by remember { mutableStateOf<LiveChannel?>(null) }
     var scheduleChannel by remember { mutableStateOf<LiveChannel?>(null) }
+    // What the host has to say for itself. The guide keeps its own toast for
+    // things that happen inside the grid; this one answers the context menu,
+    // whose actions take a row away from under the viewer.
+    var hostMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(hostMessage) {
+        if (hostMessage != null) {
+            delay(4_000)
+            hostMessage = null
+        }
+    }
     // Filtering/merging happens off the main thread in the ViewModel.
     val allVisible by vm.displayChannels.collectAsState()
     val recents by vm.recentChannels.collectAsState()
-    val categories = remember(bundle, favorites, recents, allVisible) {
-        liveCategoryList(bundle, allVisible, favorites, recents)
+    // The same list, built the same way, as the strip the guide draws — this
+    // one exists to resolve the SELECTED id (see [resolveCategoryId]), and the
+    // two disagreeing is what would make a locked category unselectable: the
+    // strip offers it, the viewer enters the PIN, and this list — not knowing
+    // the category exists — quietly falls back to the first shelf.
+    val pin by vm.parentalPin.collectAsState()
+    val unlocked by vm.parentalUnlocked.collectAsState()
+    val lockedIds = remember(bundle, pin, unlocked) {
+        lockedCategoryIds(bundle) { vm.isLockedCategory(it) }
+    }
+    val categories = remember(bundle, favorites, recents, allVisible, lockedIds) {
+        liveCategoryList(bundle, allVisible, favorites, recents, keepWhenEmpty = lockedIds)
     }
     // Keyed on the PLAYLIST, which is the identity the old key was groping
     // for. It was the channel count, and a count is not an identity:
@@ -266,6 +283,9 @@ internal fun LiveTab(
     // toggle. Two views of the same channels meant the same press did
     // different things depending on a switch set weeks ago.
     val gridHandle = remember { GuideGridHandle() }
+    // Held by the host so the guide and the "What's on" sheet agree about what
+    // is already set — see [GuideReminders].
+    val reminders = remember { GuideReminders() }
     // Overlays here are in-layout: when one closes, the row that held focus
     // is simply gone and Compose reseats focus on the nearest thing it can
     // find — the first category chip, whose dwell then switched the whole
@@ -309,6 +329,7 @@ internal fun LiveTab(
         onChannelLongPress = { menuChannel = it },
         onOpenSettings = onOpenSettings,
         gridHandle = gridHandle,
+        reminders = reminders,
     )
     scheduleChannel?.let { channel ->
         // Read from the guide table rather than the resident window: this
@@ -348,9 +369,14 @@ internal fun LiveTab(
                     scheduleChannel = null
                     playFromHost(channel)
                     null
+                } else if (reminders.isSet(program.id)) {
+                    // Same rule the guide follows: a second press reports,
+                    // it does not arm the same alarm again.
+                    "Reminder already set"
                 } else {
                     vm.scheduleReminder(channel, program)
-                    "Reminder set: ${program.title}"
+                    reminders.mark(program.id)
+                    "Reminder set: ${TextNorm.cleanProgrammeTitle(program.title)}"
                 }
             },
             onDismiss = {
@@ -384,7 +410,19 @@ internal fun LiveTab(
                         vm.toggleFavorite(channel)
                     }
                 )
-                add(MenuAction("Hide this channel") { vm.toggleHidden(channel) })
+                // Destructive, and it says where the channel went.
+                //
+                // It sat in the same type and colour as Play directly above
+                // it, and the only feedback was the row disappearing — which
+                // from a seat reads as the app losing a channel rather than as
+                // the press doing what it said. Nothing here is irreversible,
+                // so the toast names the one place that reverses it.
+                add(
+                    MenuAction("Hide this channel", destructive = true) {
+                        vm.toggleHidden(channel)
+                        hostMessage = "Channel hidden — restore it in Settings"
+                    }
+                )
             },
             onDismiss = {
                 refocusGridOnClose()
@@ -392,7 +430,36 @@ internal fun LiveTab(
             },
         )
     }
+    // Over the guide rather than above it, for the reason the guide's own
+    // toast is: as a sibling in a column it would push the whole screen down
+    // for four seconds and snap it back.
+    com.agoro.tv.ui.components.ToastBadge(
+        message = hostMessage,
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(bottom = Space.m, end = Space.m),
+    )
     }
+}
+
+/**
+ * The one "there is no live TV here" screen.
+ *
+ * There were two, twenty lines apart, for conditions a viewer cannot tell
+ * apart: the playlist carries no live streams at all, and every live stream it
+ * carries is hidden or behind a PIN. They had different sentences and
+ * different buttons ("Switch playlist" / "Open Settings") for what is one
+ * destination, so which of two screens you got told you something about the
+ * app's internals and nothing about what to do next.
+ */
+@Composable
+internal fun NoLiveChannelsPane(onOpenSettings: () -> Unit) {
+    StatusPane(
+        title = "No live channels",
+        message = "This playlist has no live TV to show.",
+        icon = Icons.Default.LiveTv,
+        primaryAction = StatusAction("Open Settings", onOpenSettings),
+    )
 }
 
 @Composable

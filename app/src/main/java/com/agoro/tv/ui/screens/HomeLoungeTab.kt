@@ -2,6 +2,7 @@
 
 package com.agoro.tv.ui.screens
 
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -68,6 +70,7 @@ import com.agoro.tv.ui.components.ChannelShelfCard
 import com.agoro.tv.ui.components.SportShelfCard
 import com.agoro.tv.ui.components.ContextMenu
 import com.agoro.tv.ui.components.MenuAction
+import com.agoro.tv.ui.components.MetaChip
 import com.agoro.tv.ui.components.PosterCard
 import com.agoro.tv.ui.components.SectionTitle
 import com.agoro.tv.ui.components.ShelfRingRoom
@@ -95,10 +98,36 @@ import com.agoro.tv.data.isFavorite
  * [MainViewModel.catalog]) and [channelsInCategory].
  */
 /**
- * How many items a day-one catalogue row carries. Long enough to browse, short
+ * How many items a fallback catalogue row carries. Long enough to browse, short
  * enough that Home never becomes a second, worse Movies tab.
  */
 internal const val STARTER_ROW_LENGTH = 20
+
+/**
+ * The pinned hero's height, and the one number that decides whether Home looks
+ * like a home screen.
+ *
+ * The lane the shelves get is what is left of a 540dp panel after the header
+ * band (78dp), the bottom gutter (32dp) and this. At 170dp that left 260dp,
+ * and a poster row needs 44dp of heading plus a 225dp poster: the bottom edge
+ * of every poster row was cut off, and a channel row filled the lane so
+ * exactly that not one pixel of the next heading showed. Home looked like a
+ * screen with one row on it, which is the opposite of what a shelf layout is
+ * for — the next row peeking under the current one is the whole invitation to
+ * scroll.
+ *
+ * 110dp buys that back: 320dp of lane against a poster row of 269dp (44 + 225,
+ * the year line having come off the Home cards with it) and a channel row of
+ * 235dp. After the 24dp gap between rows that leaves 27dp of the next heading
+ * showing under a poster row and 61dp under a channel row — enough to read
+ * what is coming, which is the whole invitation.
+ *
+ * What it costs is the hero's third and fourth lines, which is the right thing
+ * to spend: a hero is a caption for the card you are on, not the detail page.
+ * The budget inside it is title 36 + line 32 + chips 40 = 108dp; see
+ * [HomeHeroSlot].
+ */
+private val HOME_HERO_HEIGHT = 110.dp
 
 /**
  * What long-pressing a Home card opens. Only the cards with actions OK cannot
@@ -110,8 +139,12 @@ internal const val STARTER_ROW_LENGTH = 20
 private sealed interface HomeMenu {
     data class Channel(
         val channel: LiveChannel,
+        /**
+         * The shelf the card sits on — the only thing the menu still needs it
+         * for is telling whether un-starring empties this card's slot. The
+         * card's index went with the "Play" action that used it.
+         */
         val row: List<LiveChannel>,
-        val index: Int,
     ) : HomeMenu
 
     data class ResumedMovie(val movie: Movie) : HomeMenu
@@ -138,8 +171,8 @@ private sealed interface HomeMenu {
  * braces rather than a state the list can actually be in.
  */
 private enum class HomeRow {
-    LiveSport, Recents, Continue, Favorites, StarterChannels, StarterMovies,
-    StarterSeries, New, Acclaimed, GenreA, GenreB, GenreC
+    LiveSport, Recents, Continue, Favorites, StarterChannels, New, Acclaimed,
+    GenreA, GenreB, GenreC, StarterMovies, StarterSeries
 }
 
 /**
@@ -194,42 +227,47 @@ private class HomeShelves(
     }
 
     /** The hero for the card at [index] in row [rowIndex], clamped to what exists. */
-    fun heroAt(rowIndex: Int, index: Int): HeroInfo? {
+    fun heroAt(rowIndex: Int, index: Int): HomeHero? {
         val row = rowKeys.getOrNull(rowIndex) ?: rowKeys.firstOrNull() ?: return null
         fun <T> List<T>.at(): T? = getOrNull(index) ?: firstOrNull()
+        // A catalogue title has no second line: its hero is the title, its
+        // chips and a line of synopsis. Only live television does, and there
+        // the second line is the programme.
         return when (row) {
             HomeRow.Continue -> when (val card = continueRow.at()) {
-                is ContinueCard.MovieCard -> card.movie.toHero()
-                is ContinueCard.SeriesCard -> card.series.toHero()
+                is ContinueCard.MovieCard -> HomeHero(card.movie.toHero())
+                is ContinueCard.SeriesCard -> HomeHero(card.series.toHero())
                 null -> null
             }
             HomeRow.New -> when (val card = recentlyAdded.at()) {
-                is CatalogCard.MovieCard -> card.movie.toHero()
-                is CatalogCard.SeriesCard -> card.series.toHero()
+                is CatalogCard.MovieCard -> HomeHero(card.movie.toHero())
+                is CatalogCard.SeriesCard -> HomeHero(card.series.toHero())
                 null -> null
             }
             HomeRow.LiveSport -> liveSport.at()?.let { fixtureHero(it) }
             HomeRow.Favorites -> favoritesRow.at()?.let { channelHero(it, nowNext[it.id]) }
             HomeRow.Recents -> recentsRow.at()?.let { channelHero(it, nowNext[it.id]) }
             HomeRow.StarterChannels -> starterChannels.at()?.let { channelHero(it, nowNext[it.id]) }
-            HomeRow.StarterMovies -> starterMovies.at()?.toHero()
-            HomeRow.StarterSeries -> starterSeries.at()?.toHero()
-            HomeRow.Acclaimed -> acclaimed.at()?.toHero()
+            HomeRow.StarterMovies -> starterMovies.at()?.let { HomeHero(it.toHero()) }
+            HomeRow.StarterSeries -> starterSeries.at()?.let { HomeHero(it.toHero()) }
+            HomeRow.Acclaimed -> acclaimed.at()?.let { HomeHero(it.toHero()) }
             HomeRow.GenreA, HomeRow.GenreB, HomeRow.GenreC ->
-                genreAt(row)?.second?.at()?.toHero()
+                genreAt(row)?.second?.at()?.let { HomeHero(it.toHero()) }
         }
     }
 }
 
+// internal, because [HomeHero] is: the hero shape is Home's own business and
+// the shell only ever passes it back. Nothing outside this module calls Home.
 @Composable
-fun HomeLoungeTab(
+internal fun HomeLoungeTab(
     vm: MainViewModel,
     bundle: ContentBundle,
     onOpenMovie: (Movie) -> Unit,
     onOpenSeries: (Series) -> Unit,
     onPlay: () -> Unit,
     /** The debounced hero, hoisted so the shell can draw its backdrop full-bleed. */
-    onHeroChange: (HeroInfo?) -> Unit,
+    onHeroChange: (HomeHero?) -> Unit,
     /** Tab switch for Search and the empty-state escape hatches. */
     onBrowse: (HomeTab) -> Unit,
 ) {
@@ -310,6 +348,11 @@ fun HomeLoungeTab(
     // all lost Live TV from Home entirely and was left looking at Recently
     // added — mostly series. Live earned its place back by not being governed
     // by what someone watched on demand.
+    //
+    // The two catalogue starters are a last resort now rather than the day-one
+    // greeting, and on this provider they never appear at all: the curated
+    // shelves below cover day one properly, so these stand down for them
+    // wherever they exist. [buildCatalog] holds the rule.
     val starterMovies = shelves?.starterMovies.orEmpty()
     val starterSeries = shelves?.starterSeries.orEmpty()
     // The catalogue shelves, which are NOT day-one rows: they are the reason
@@ -354,8 +397,6 @@ fun HomeLoungeTab(
             if (continueRow.isNotEmpty()) add(HomeRow.Continue)
             if (favoritesRow.isNotEmpty()) add(HomeRow.Favorites)
             if (starterChannels.isNotEmpty()) add(HomeRow.StarterChannels)
-            if (starterMovies.isNotEmpty()) add(HomeRow.StarterMovies)
-            if (starterSeries.isNotEmpty()) add(HomeRow.StarterSeries)
             // Recently added is a mixed catalogue row, so it trails the
             // typed ones rather than splitting them.
             if (recentlyAdded.isNotEmpty()) add(HomeRow.New)
@@ -364,6 +405,15 @@ fun HomeLoungeTab(
             // question they already have — these are for when they do not.
             if (acclaimed.isNotEmpty()) add(HomeRow.Acclaimed)
             genreShelves.indices.forEach { i -> GENRE_SLOTS.getOrNull(i)?.let(::add) }
+            // Last, and usually absent. These two were the SECOND and THIRD
+            // rows on a day-one Home and they were the provider's insertion
+            // order — an arbitrary slice of the catalogue sitting above the
+            // shelves that were actually chosen. They only exist now for the
+            // playlist the curated shelves come up empty on (see
+            // [buildCatalog]), and where they do appear they belong under
+            // everything that had a reason for its order.
+            if (starterMovies.isNotEmpty()) add(HomeRow.StarterMovies)
+            if (starterSeries.isNotEmpty()) add(HomeRow.StarterSeries)
         }
     }
 
@@ -499,10 +549,10 @@ fun HomeLoungeTab(
                 // One hero is on screen at a time, so this is the one guide
                 // synopsis worth reading — after the debounce, so travelling
                 // a row of channels costs no queries at all.
-                val key = hero?.plotKey ?: return@collectLatest
-                if (!hero.plot.isNullOrBlank()) return@collectLatest
+                val key = hero?.info?.plotKey ?: return@collectLatest
+                if (!hero.info.plot.isNullOrBlank()) return@collectLatest
                 val plot = vm.descriptionFor(key)?.takeIf { it.isNotBlank() } ?: return@collectLatest
-                val filled = hero.copy(plot = plot)
+                val filled = hero.copy(info = hero.info.copy(plot = plot))
                 shownHero.value = filled
                 heroSink.value(filled)
             }
@@ -671,13 +721,23 @@ fun HomeLoungeTab(
                     vm.playChannels(channels, index)
                     onPlay()
                 },
-                onLongClick = { menu = HomeMenu.Channel(channel, channels, index) },
+                onLongClick = { menu = HomeMenu.Channel(channel, channels) },
                 onFocus = { noteFocus(row, rowIndex, index) },
             )
         }
     }
 
-    /** A catalogue poster, with TMDB's art when the provider shipped none. */
+    /**
+     * A catalogue poster, with TMDB's art when the provider shipped none.
+     *
+     * No year on Home, and that is a layout decision rather than an editorial
+     * one. [PosterCard] reserves a caption line for the year whether or not it
+     * draws one, which takes a poster card to ~257dp — more than the shelf
+     * lane can show under the hero, so every Home poster row lost its bottom
+     * edge to the screen. The year is on the card in Movies and Shows, where
+     * the grid has the height for it, and on the detail page under it; on a
+     * home shelf it is the least of what the artwork already says.
+     */
     @Composable
     fun MoviePoster(
         movie: Movie,
@@ -691,7 +751,6 @@ fun HomeLoungeTab(
             PosterCard(
                 title = movie.name,
                 imageUrl = borrowedArt(vm, movie.artRef(), movie.poster),
-                year = movie.year,
                 progress = progress,
                 modifier = cardFocusModifier(row, index),
                 onClick = { onOpenMovie(movie) },
@@ -714,7 +773,7 @@ fun HomeLoungeTab(
             PosterCard(
                 title = series.name,
                 imageUrl = borrowedArt(vm, series.artRef(), series.poster),
-                year = series.year,
+                // No year — see [MoviePoster].
                 progress = progress,
                 modifier = cardFocusModifier(row, index),
                 // The detail screen lands on the part-watched episode's
@@ -737,7 +796,7 @@ fun HomeLoungeTab(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(170.dp),
+                .height(HOME_HERO_HEIGHT),
         ) {
             HomeHeroSlot(shownHero)
         }
@@ -824,7 +883,15 @@ fun HomeLoungeTab(
                     }
                 }
                 HomeRow.LiveSport -> Column {
-                    SectionTitle("Live sport · on now")
+                    // One grammar for every heading on this screen: what is in
+                    // the row, in plain words, and no " · " suffix. This said
+                    // "Live sport · on now", which says the same thing twice
+                    // and in two registers, while the row beside it said
+                    // "Recent channels" and showed what was on now with no
+                    // suffix at all. The cards already carry a programme line
+                    // and a progress bar; that is what says "on now", and the
+                    // heading only has to say what these are.
+                    SectionTitle("Sport on now")
                     LazyRow(
                         modifier = shelf.focusRestorer().shelfRingRoom(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -851,7 +918,6 @@ fun HomeLoungeTab(
                                 // fixture. The clubs are what the card is for.
                                 SportShelfCard(
                                     event = fixture.event,
-                                    quality = fixture.slot.quality,
                                     progress = fixture.progress(sportMinute),
                                     modifier = cardFocusModifier(row, index),
                                     onClick = {
@@ -869,7 +935,7 @@ fun HomeLoungeTab(
                     }
                 }
                 HomeRow.Favorites -> Column {
-                    SectionTitle("Favorites · on now")
+                    SectionTitle("Favorites")
                     LazyRow(
                         modifier = shelf.focusRestorer().shelfRingRoom(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -957,7 +1023,14 @@ fun HomeLoungeTab(
                     val slot = GENRE_SLOTS.indexOf(row)
                     val shelfData = genreShelves.getOrNull(slot)
                     if (shelfData != null) Column {
-                        SectionTitle(shelfData.first)
+                        // "Drama series", not "Drama". The genre alone sat
+                        // between "Highly rated films" and a row of channels
+                        // without saying which of the two it was — and these
+                        // shelves are always shows. Appended here rather than
+                        // built into the shelf, because the genre is the
+                        // row's IDENTITY: it keys the LazyColumn item and the
+                        // focus anchor that rides on it.
+                        SectionTitle("${shelfData.first} series")
                         LazyRow(
                             modifier = shelf.focusRestorer().shelfRingRoom(),
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -1033,10 +1106,101 @@ fun HomeLoungeTab(
  * The header reads the hero in a scope of its own, so a debounced hero swap
  * recomposes the header and nothing else — not the tab, its rows or the
  * cards in them.
+ *
+ * Home draws its own rather than sharing the browse grids' hero, because the
+ * two describe different things. A browse hero captions a poster the viewer is
+ * already looking at; Home's captions whatever kind of card focus is on, and
+ * on most landings that is a live channel — where the thing being offered is
+ * the PROGRAMME, and the channel name is only where it is. So this one has a
+ * second line, and it spends the height on it rather than on a synopsis.
+ *
+ * Three slots, and never four, because the whole column has to fit
+ * [HOME_HERO_HEIGHT]:
+ *
+ *  - the title, 36dp;
+ *  - one line under it, 32dp: the programme on live television, and on a
+ *    catalogue title nothing (it has none), which frees the slot for a single
+ *    line of synopsis at the bottom instead;
+ *  - the chips, 40dp with their spacer.
+ *
+ * 108dp either way. A Box of fixed height does not clip, so a fourth line
+ * would paint over the first shelf heading rather than being cut off.
  */
 @Composable
-private fun HomeHeroSlot(hero: State<HeroInfo?>) {
-    HeroHeader(hero.value)
+private fun HomeHeroSlot(hero: State<HomeHero?>) {
+    val shown = hero.value ?: return
+    androidx.compose.animation.AnimatedContent(
+        targetState = shown,
+        transitionSpec = {
+            androidx.compose.animation.fadeIn(
+                androidx.compose.animation.core.tween(
+                    NuxMotion.EmphasizedMs, easing = NuxMotion.StandardEasing,
+                )
+            ) togetherWith androidx.compose.animation.fadeOut(
+                androidx.compose.animation.core.tween(
+                    NuxMotion.FastMs, easing = NuxMotion.ExitEasing,
+                )
+            )
+        },
+        label = "homeHero",
+    ) { current ->
+        Column {
+            Text(
+                text = current.info.title,
+                style = MaterialTheme.typography.headlineMedium,
+                color = NuxColors.OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (current.line != null) {
+                Spacer(Modifier.height(4.dp))
+                // Not a chip. This is what is ON — the one line a viewer
+                // landing on Home reads to decide whether to press OK — and it
+                // spent months at chip size between "Live" and a quality
+                // badge, which is where a tag belongs and content does not.
+                Text(
+                    text = current.line,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = NuxColors.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (current.info.chips.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Accent by VALUE, not by position. Gold used to mean
+                    // whatever happened to be first, which was the year on a
+                    // detail page and the kind ("Movie", "Show") on a browse
+                    // tab — one colour saying two things on adjacent screens.
+                    // [HeroInfo.accentChip] now names the chip that earns it,
+                    // and Home has to ask the same question the other heroes do.
+                    current.info.chips.take(4).forEach { chip ->
+                        MetaChip(chip, accent = chip == current.info.accentChip)
+                    }
+                }
+            }
+            // Only where the second line is empty, which is every catalogue
+            // hero and no live one. One line, because there is room for one:
+            // the rest of a synopsis is the detail page's to tell.
+            if (current.line == null) {
+                val plot = remember(current.info.plot) {
+                    com.agoro.tv.data.PlotText.preferred(current.info.plot)
+                }
+                if (!plot.isNullOrBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = plot,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = NuxColors.OnSurfaceDim,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 620.dp),
+                    )
+                }
+            }
+        }
+    }
 }
 /**
  * The actions a Home card carries beyond OK. Channels borrow Live TV's
@@ -1066,11 +1230,12 @@ private fun HomeContextMenu(
             val isFav = menu.channel.isFavorite(favorites)
             ContextMenu(
                 title = menu.channel.displayName,
+                // No "Play", and it used to lead. Holding OK to reach a menu
+                // whose first item is what a short press already does is the
+                // rule this file states at the top, broken on the one card
+                // that gets a menu at all — and leading with it put the two
+                // actions a viewer held OK FOR in second and third place.
                 actions = listOf(
-                    MenuAction("Play") {
-                        vm.playChannels(menu.row, menu.index)
-                        onPlay()
-                    },
                     MenuAction(if (isFav) "Remove from favorites" else "Add to favorites") {
                         // Un-starring removes the card only from the
                         // Favorites shelf; on Recents or Live channels it
@@ -1078,7 +1243,9 @@ private fun HomeContextMenu(
                         if (isFav && menu.row === favoritesRow) onRemove()
                         vm.toggleFavorite(menu.channel)
                     },
-                    MenuAction("Hide this channel") {
+                    // Destructive: it takes the channel off every shelf and
+                    // out of the guide, and nothing on this screen undoes it.
+                    MenuAction("Hide this channel", destructive = true) {
                         onRemove()
                         vm.toggleHidden(menu.channel)
                     },

@@ -315,13 +315,20 @@ class PlayerSession internal constructor(
      * a frozen frame wearing a pause icon, three times over, before the error
      * card finally appeared. That is the whole of "it buffers, then it stops".
      *
-     * TiviMate's answer, and the right one: say which attempt this is, and go
-     * on saying it until the picture returns or the card takes over.
+     * TiviMate's answer, and the right one: say that a reconnect is running,
+     * and go on saying it until the picture returns or the card takes over.
+     * WHICH attempt it is stays in the log — the count was on the card for a
+     * while and it is the app's retry budget, not the viewer's, so all it
+     * offered was a number rising towards an unstated consequence.
      */
     var reconnectAttempt: Int by mutableIntStateOf(0)
         private set
 
-    /** How many attempts the ladder has, for "2 of 3". */
+    /**
+     * How many attempts the ladder has. Read by the log line that records
+     * which one is running, and by the budget tests — no longer by anything
+     * on screen.
+     */
     val reconnectTotal: Int get() = reconnectDelaysMs(request.isLive).size
 
     /**
@@ -601,7 +608,16 @@ class PlayerSession internal constructor(
             // itself never returns is invisible to a timer that arms on
             // `playing`, which the reconnect has already cleared. Each of
             // those is a viewer stuck on a chip forever.
-            deathTimer = if (b && !tuning && (request.isLive || request.isCatchup)) {
+            // Films too. This was live and catch-up only, and the reasoning
+            // was that a film which stalls is refilling and will come back —
+            // which is true right up until it does not. What a viewer got then
+            // was a frozen frame, no chip, no card, no sound and no end to it:
+            // the one state in this player with no way out but BACK, and
+            // nothing on screen saying BACK was needed. A stall has to
+            // TERMINATE somewhere, and the error card is where — it offers a
+            // retry, another way, the next episode and a way out, all of which
+            // beat a still picture forever.
+            deathTimer = if (b && !tuning) {
                 scope.launch {
                     delay(STALL_IS_DEATH_MS)
                     if (!buffering || tuning) return@launch
@@ -642,22 +658,26 @@ class PlayerSession internal constructor(
                 // process — the latch says no the second time, and the rungs
                 // below take over. See AudioOutputPolicy.
                 fault == PlaybackFault.AUDIO_OUTPUT && AudioOutputPolicy.latch(message) ->
-                    // Calm on purpose: it is automatic, it is once, and it
-                    // ends in sound. The reason is on the card if it does
-                    // not, and in the log either way.
-                    retryRebuilt("Adjusting audio for your TV…")
+                    // Silently. It is automatic, it is once, and it ends in
+                    // sound — and "Adjusting audio for your TV…" is the app
+                    // narrating its own repair work over the picture. The tune
+                    // card is already up for the whole of it, which is the
+                    // honest thing to show: this is taking a moment. The
+                    // reason is on the error card if it does not end in sound,
+                    // and in the log either way.
+                    retryRebuilt("audio output refused; rebuilding on the changed sink")
 
                 // Decoded audio whose timestamps keep jumping: the engine
                 // raises this once, when its latch turns, so the rebuild is
                 // unconditional. See PtsSmoother.
                 fault == PlaybackFault.AUDIO_TIMING ->
-                    retryRebuilt("Smoothing the audio timing…")
+                    retryRebuilt("audio timestamps jumping; rebuilding with the smoother")
 
                 // A video decoder that runs but never draws: rebuild on one
                 // that re-initialises instead of reusing. Same shape, same
                 // once-per-process latch. See VideoOutputPolicy.
                 fault == PlaybackFault.VIDEO_OUTPUT && VideoOutputPolicy.latch(message) ->
-                    retryRebuilt("Restarting the video decoder…")
+                    retryRebuilt("video decoder ran without drawing; re-initialising it")
 
                 // Wrong container format fails instantly and identically on
                 // every retry — step through the other Xtream live formats
@@ -731,6 +751,15 @@ class PlayerSession internal constructor(
                     // Up for the whole wait, and taken down by the picture
                     // coming back; see [reconnectAttempt].
                     reconnectAttempt = attempt + 1
+                    // Which try this is belongs here and not on the picture.
+                    // The card says "Reconnecting…" and sweeps; "(2 of 3)"
+                    // hands the viewer the app's retry budget to do arithmetic
+                    // with, and the number it counts towards is meaningless
+                    // without knowing what happens at the end of it.
+                    android.util.Log.i(
+                        "Agoro",
+                        "Reconnecting: attempt ${attempt + 1} of $reconnectTotal",
+                    )
                     val forSerial = tuneSerial
                     // Catch-up counts. It carries isLive = false because it
                     // seeks like a file, but the same panel serves it against
@@ -946,13 +975,16 @@ class PlayerSession internal constructor(
             StallAction.HOP -> swapSource()
             StallAction.EXHAUSTED -> false
         }
-        // Both ladders spent. Without this the when did nothing at all: the
-        // stall counter went on firing into a branch that could no longer act,
-        // so the picture froze and the app said nothing — "it buffers, then it
-        // stops". Say so, and let the retries below keep working the same
-        // source; a line that recovers on its own then plays again instead of
-        // sitting dead behind a full buffer.
-        if (!acted) statusMessage = "This feed keeps stalling — no other source to try."
+        // Both ladders spent, and nothing to say about it that the viewer can
+        // act on. "This feed keeps stalling — no other source to try." was a
+        // status report on the recovery machinery: it named a thing the app
+        // had run out of, over a picture that was either about to come back on
+        // its own or about to reach the error card, which says the same in
+        // words about the channel and offers a way out. The retries below keep
+        // working the same source either way.
+        if (!acted) {
+            android.util.Log.w("Agoro", "Stall ladder exhausted; staying on this source")
+        }
     }
 
     /**
@@ -1233,11 +1265,38 @@ class PlayerSession internal constructor(
         }
 
     /**
-     * One press of LEFT or RIGHT on bare VOD playback.
+     * One press of LEFT or RIGHT — on bare playback, or on the transport
+     * bar's scrubber, which is the same scrub by a different route.
      *
      * @param direction -1 back, +1 forward.
      */
     fun nudgeSeek(direction: Int) {
+        val duration = engine?.durationMs?.takeIf { it > 0 } ?: 0L
+        accumulateSeek { target -> seekTargetMs(target, direction, seekPresses, duration) }
+    }
+
+    /**
+     * One press of a button that names its own distance — the bar's ±10s pair.
+     *
+     * The ramp deliberately does not apply: a control labelled "Forward 10s"
+     * that moved a minute on its fourth press would be lying about itself.
+     * What it shares with [nudgeSeek] is the part that matters — the presses
+     * move a number and ONE seek runs when they stop, rather than a key-frame
+     * hunt and a re-buffer per press.
+     */
+    fun nudgeSeekBy(deltaMs: Long) {
+        val duration = engine?.durationMs?.takeIf { it > 0 } ?: 0L
+        accumulateSeek { target ->
+            val ceiling = (duration - END_GUARD_MS).coerceAtLeast(0L)
+            (target + deltaMs).coerceIn(0L, if (duration > 0) ceiling else Long.MAX_VALUE)
+        }
+    }
+
+    /**
+     * The accumulator both of them are: anchor on the first press, move the
+     * target, and commit a single seek [SEEK_COMMIT_MS] after the last one.
+     */
+    private fun accumulateSeek(step: (Long) -> Long) {
         val engine = engine ?: return
         val duration = engine.durationMs.takeIf { it > 0 } ?: 0L
         if (seekTargetMs == null) {
@@ -1249,7 +1308,7 @@ class PlayerSession internal constructor(
             seekTargetMs = seekAnchorMs
             seekPresses = 0
         }
-        seekTargetMs = seekTargetMs(seekTargetMs ?: 0L, direction, seekPresses, duration)
+        seekTargetMs = step(seekTargetMs ?: 0L)
         seekPresses++
         durationMs = duration
         seekJob = scope.launch {
@@ -1477,11 +1536,16 @@ class PlayerSession internal constructor(
      * same ladder from the top: the retries still run afterwards, on the
      * rebuilt player.
      */
-    private fun retryRebuilt(status: String) {
+    private fun retryRebuilt(why: String) {
         clearError()
         resetLadder(currentIndex)
         tuning = true
-        statusMessage = status
+        // To the log, not to the screen. Which component is being rebuilt is
+        // the definition of app machinery, and the three lines that used to
+        // ride on this were the only things in the player that talked about
+        // the player instead of about the channel. [retryTolerant] has always
+        // been silent for the same reason.
+        android.util.Log.i("Agoro", "Rebuilding the engine: $why")
         rebuildEngine()
     }
 

@@ -86,7 +86,15 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import com.agoro.tv.ui.components.requestFocusRetrying
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import com.agoro.tv.ui.theme.NuxColors
+import com.agoro.tv.ui.components.NuxFormat
+import com.agoro.tv.ui.theme.NuxShape
 import com.agoro.tv.ui.theme.NuxMotion
 import kotlinx.coroutines.launch
 
@@ -153,6 +161,67 @@ internal const val VOD_CONTINUE = "__continue__"
 
 /** Titles filed under a category the playlist never declared — see [CatalogIndex]. */
 internal const val VOD_MORE = "__more__"
+
+/**
+ * What the catch-all chip is called.
+ *
+ * "More" was pagination's word, not a category's: sitting at the end of a
+ * strip that begins with "All" it read as "the rest of the chips", and
+ * pressing it produced a grid of unrelated films. These are the titles the
+ * playlist filed under nothing, which is what "Other" says.
+ */
+private const val VOD_MORE_LABEL = "Other"
+
+/**
+ * A shelf the provider ships that says exactly what the strip's own "All"
+ * chip already says — "All Movies", "All Series". Two chips, the same
+ * catalogue, three characters apart on the same row.
+ *
+ * Dropped from the strip, not from the index: [VOD_ALL] already walks the
+ * whole catalogue, so nothing becomes unreachable.
+ */
+private val ALL_TITLES_SHELF =
+    Regex("^all\\s+(movies|films|series|shows|titles)$", RegexOption.IGNORE_CASE)
+
+private fun List<Category>.withoutAllShelf(): List<Category> =
+    filterNot { ALL_TITLES_SHELF.matches(it.name.trim()) }
+
+/**
+ * A category chip's label, in the app's own sentence case.
+ *
+ * The two strips disagreed with each other on the same shelf: the films said
+ * "Top Rated" and the shows said "Top rated", because the two labels are
+ * written in two places that have never been read side by side. Casing is
+ * decided HERE, where both strips are drawn, so they cannot drift again.
+ *
+ * Only a plain Title-Case word is lowered. Anything carrying a digit
+ * ("24/7"), a short all-caps code ("PPV", "UK", "4K") or a spelling of its
+ * own ("Sci-Fi") is left exactly as it arrived — those are names, and a
+ * rule that cannot tell a name from a shout would turn "PPV & Events" into
+ * "Ppv & events".
+ */
+internal fun categoryLabel(name: String): String {
+    val words = name.trim().split(' ').filter { it.isNotEmpty() }
+    if (words.isEmpty()) return name
+    return words.mapIndexed { index, word ->
+        when {
+            // The first word carries the sentence's capital — given one only
+            // when the whole word is lowercase, so a brand that spells itself
+            // ("iPlayer") is not rewritten into something it is not.
+            index == 0 -> if (word.none { it.isUpperCase() }) {
+                word.replaceFirstChar { it.uppercase() }
+            } else word
+            isPlainTitleCase(word) -> word.lowercase()
+            else -> word
+        }
+    }.joinToString(" ")
+}
+
+private fun isPlainTitleCase(word: String): Boolean =
+    word.length >= 3 &&
+        word[0].isUpperCase() &&
+        word.all { it.isLetter() } &&
+        word.drop(1).none { it.isUpperCase() }
 
 /** One spelling for the shortcut, so the duplicate check can't drift from it. */
 private const val VOD_NEW_LABEL = "Recently added"
@@ -271,6 +340,20 @@ data class HeroInfo(
     val poster: String?,
     val backdrop: String?,
     val chips: List<String>,
+    /**
+     * Which of [chips] is drawn in gold — by VALUE, not by position.
+     *
+     * The accent used to be "whichever chip is first", and first meant a
+     * different kind of fact on every surface: the kind ("Movie") on the
+     * browse grids, the year on the detail pages, "Live" on a channel. Gold
+     * was three different claims in one app, which is the same as making no
+     * claim at all.
+     *
+     * The rule for a catalogue title is the YEAR. A live surface keeps the
+     * default — its first chip is the live mark, and a live mark is the one
+     * other thing in this app gold is allowed to mean.
+     */
+    val accentChip: String? = chips.firstOrNull(),
     val plot: String?,
     /**
      * What to ask TMDB for when [backdrop] is null, which it is for every
@@ -287,47 +370,12 @@ data class HeroInfo(
     val plotKey: String? = null,
 )
 
-@Composable
-fun HeroHeader(hero: HeroInfo?) {
-    if (hero == null) return
-    androidx.compose.animation.AnimatedContent(
-        targetState = hero,
-        transitionSpec = {
-            androidx.compose.animation.fadeIn(
-                androidx.compose.animation.core.tween(NuxMotion.EmphasizedMs, easing = NuxMotion.StandardEasing)
-            ) togetherWith androidx.compose.animation.fadeOut(
-                androidx.compose.animation.core.tween(NuxMotion.FastMs, easing = NuxMotion.ExitEasing)
-            )
-        },
-        label = "hero",
-    ) { current ->
-        Column(modifier = Modifier.padding(bottom = 8.dp)) {
-            Text(
-                text = current.title,
-                style = MaterialTheme.typography.displaySmall,
-                color = NuxColors.OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                current.chips.take(4).forEachIndexed { i, chip -> MetaChip(chip, accent = i == 0) }
-            }
-            val plot = remember(current.plot) { PlotText.preferred(current.plot) }
-            if (!plot.isNullOrBlank()) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = plot,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = NuxColors.OnSurfaceDim,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 620.dp),
-                )
-            }
-        }
-    }
-}
+// HeroHeader lived here and is gone. Home was its only caller, and Home now
+// draws its own hero: the shared one was a fixed 170dp of mostly empty space
+// that squeezed the shelf lane below it to 260dp, ten dp short of a poster
+// row, so every poster on the Home screen was clipped at the bottom edge.
+// Home's replacement is 110dp and carries a live channel's programme on its
+// own line rather than as a chip. Nothing else ever used this.
 
 /**
  * Poster browsing with a category strip along the top — shared by Movies and
@@ -509,6 +557,7 @@ private fun VodBrowser(
                 .padding(bottom = 10.dp)
                 .focusRequester(categoriesFocus)
                 .focusRestorer()
+                .shelfRingRoom()
                 // The strip is this tab's top edge, so UP out of it belongs to
                 // the navigation above. Explicit, not geometric: the chips
                 // scroll horizontally, and the search happily sails from a
@@ -522,11 +571,24 @@ private fun VodBrowser(
                     } else false
                 },
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(end = 16.dp),
+            // The ring room the shelves and the grid already have. A
+            // CategoryItem scales 1.06 and fills solid white on focus, and a
+            // LazyRow clips its main axis — so the FIRST chip, which is the
+            // one focus arrives on, lost the left edge of that fill against
+            // the row's own bound and came out with a square corner. The row
+            // measures wider by [ShelfRingRoom] on each side and reports its
+            // original width; the matching content padding puts the resting
+            // chips back on the gutter line they were on.
+            contentPadding = PaddingValues(
+                start = com.agoro.tv.ui.components.ShelfRingRoom,
+                end = com.agoro.tv.ui.components.ShelfRingRoom + 16.dp,
+            ),
         ) {
             itemsIndexed(shown, key = { _, c -> c.id }) { _, category ->
                 CategoryItem(
-                    name = category.name,
+                    // Cased here, where both strips are drawn — see
+                    // [categoryLabel].
+                    name = categoryLabel(category.name),
                     selected = category.id == activeCategory,
                     onClick = { selectedCategory = category.id },
                     onFocus = {
@@ -757,10 +819,86 @@ internal fun BrowseHero(hero: HeroInfo?) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
-            current.chips.take(4).forEachIndexed { i, chip -> MetaChip(chip, accent = i == 0) }
+            current.chips.take(4).forEach { chip ->
+                MetaChip(chip, accent = chip == current.accentChip)
+            }
         }
     }
 }
+
+/**
+ * The catalogue tab before its index exists: the strip, the hero line and a
+ * row of posters, outlined and breathing.
+ *
+ * What was here was `Box(Modifier.fillMaxSize())` — nothing at all. On a
+ * 29,000-title playlist on a 2GB box the index takes long enough for that to
+ * be a tab that opens BLANK, which is the shape of a crash, so the viewer
+ * presses again and gets another blank screen for their trouble.
+ *
+ * Shaped like what is coming, for the reason the fixture list's skeleton is
+ * (see [SkeletonBar]): a spinner says "something is happening somewhere",
+ * while an outline says "a grid of posters starts here" and lets the real
+ * grid land INTO it rather than replace something that was somewhere else.
+ *
+ * Nothing here is focusable. The tab's own arrival focus is waiting on the
+ * grid, and a skeleton that could take focus would be a screen the viewer
+ * can walk around inside while it is still a drawing.
+ */
+@Composable
+private fun CatalogueSkeleton() {
+    val motion = rememberInfiniteTransition(label = "catalogueSkeleton")
+    // Held as State and read inside [SkeletonBar]'s draw lambda, never in
+    // composition: read with `by` here, every frame of the sweep would
+    // recompose this whole column.
+    val sweep = motion.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(1_500, easing = LinearEasing),
+            RepeatMode.Restart,
+        ),
+        label = "sweep",
+    )
+    Column(modifier = Modifier.fillMaxSize()) {
+        // The category strip: chips at the heights and the rhythm the real
+        // ones have, in unequal widths, because a row of identical blocks
+        // reads as a pattern rather than as words waiting to arrive.
+        Row(
+            modifier = Modifier.padding(bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            listOf(76.dp, 148.dp, 104.dp, 132.dp, 92.dp).forEach { width ->
+                SkeletonBar(
+                    width = width,
+                    height = SKELETON_CHIP_HEIGHT,
+                    sweep = sweep,
+                    shape = NuxShape.FilterChip,
+                )
+            }
+        }
+        // The hero's line of title, inside the band the real one occupies, so
+        // the posters below do not move when it fills in.
+        Box(
+            modifier = Modifier.fillMaxWidth().height(BROWSE_HERO_HEIGHT),
+            contentAlignment = androidx.compose.ui.Alignment.CenterStart,
+        ) {
+            SkeletonBar(width = 260.dp, height = 20.dp, sweep = sweep)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(GRID_GAP)) {
+            repeat(5) {
+                SkeletonBar(
+                    width = POSTER_TARGET_WIDTH,
+                    height = POSTER_TARGET_WIDTH * 3 / 2,
+                    sweep = sweep,
+                    shape = NuxShape.Card,
+                )
+            }
+        }
+    }
+}
+
+/** A resting [CategoryItem]: titleSmall's 24dp line in 12dp of padding. */
+private val SKELETON_CHIP_HEIGHT = 48.dp
 
 @Composable
 fun MoviesTab(
@@ -791,7 +929,7 @@ fun MoviesTab(
     val catalog by vm.catalog.collectAsState()
     val current = catalog?.takeIf { it.index.bundle === bundle }
     if (current == null) {
-        Box(Modifier.fillMaxSize())
+        CatalogueSkeleton()
         return
     }
     val index = current.index
@@ -811,9 +949,9 @@ fun MoviesTab(
             ) {
                 add(Category(id = VOD_NEW, name = VOD_NEW_LABEL))
             }
-            addAll(index.movieCategories)
+            addAll(index.movieCategories.withoutAllShelf())
             if (!index.moviesByCategory[VOD_MORE].isNullOrEmpty()) {
-                add(Category(id = VOD_MORE, name = "More"))
+                add(Category(id = VOD_MORE, name = VOD_MORE_LABEL))
             }
             addAll(genreCategories(index.movieGenres))
         }
@@ -827,7 +965,8 @@ fun MoviesTab(
         art = artRef(),
         year = year,
         progress = resumeProgress[url],
-        hero = toHero(),
+        // No kind chip: this is the Movies tab. See [Movie.toHero].
+        hero = toHero(kind = false),
         onOpen = { onOpenMovie(this) },
         // The same two words Home's catalogue menu uses, in the same order, so
         // the same hold on the same film reads the same on both screens. "Not
@@ -862,7 +1001,7 @@ fun MoviesTab(
             }
             VodPage(list.size, { list[it].id }, { list[it].entry() })
         },
-        initialHero = remember(index) { index.movies.firstOrNull()?.toHero() },
+        initialHero = remember(index) { index.movies.firstOrNull()?.toHero(kind = false) },
     )
 }
 
@@ -875,8 +1014,12 @@ fun SeriesTab(
 ) {
     if (bundle.series.isEmpty()) {
         StatusPane(
-            title = "No shows",
-            message = "This playlist doesn't carry a box-set library.",
+            title = "No series",
+            // "Series", the word the tab, the nav and Search all use. This
+            // screen said "shows" and "box-set library" — two more names for
+            // the same thing, on the screen a viewer reaches when the thing
+            // is missing and is least able to guess what it was called.
+            message = "This playlist doesn't carry a series library.",
             icon = Icons.Default.VideoLibrary,
             primaryAction = StatusAction("Switch playlist", onOpenSettings),
         )
@@ -886,7 +1029,7 @@ fun SeriesTab(
     val catalog by vm.catalog.collectAsState()
     val current = catalog?.takeIf { it.index.bundle === bundle }
     if (current == null) {
-        Box(Modifier.fillMaxSize())
+        CatalogueSkeleton()
         return
     }
     val index = current.index
@@ -910,9 +1053,9 @@ fun SeriesTab(
             ) {
                 add(Category(id = VOD_NEW, name = VOD_NEW_LABEL))
             }
-            addAll(index.seriesCategories)
+            addAll(index.seriesCategories.withoutAllShelf())
             if (!index.seriesByCategory[VOD_MORE].isNullOrEmpty()) {
-                add(Category(id = VOD_MORE, name = "More"))
+                add(Category(id = VOD_MORE, name = VOD_MORE_LABEL))
             }
             addAll(genreCategories(index.seriesGenres))
         }
@@ -927,7 +1070,7 @@ fun SeriesTab(
         year = year,
         // The episode the viewer is actually part-way through.
         progress = seriesProgress[id] ?: episodes?.firstNotNullOfOrNull { resumeProgress[it.url] },
-        hero = toHero(),
+        hero = toHero(kind = false),
         onOpen = { onOpenSeries(this) },
         // Focusing a poster warms its episodes — on curated proxies
         // (IPTVEditor) the request is what starts the upstream build, so by
@@ -955,7 +1098,7 @@ fun SeriesTab(
             }
             VodPage(list.size, { list[it].id }, { list[it].entry() })
         },
-        initialHero = remember(index) { index.series.firstOrNull()?.toHero() },
+        initialHero = remember(index) { index.series.firstOrNull()?.toHero(kind = false) },
     )
 }
 
@@ -970,31 +1113,42 @@ internal fun ratingChip(rating: Double): String {
     return "★ ${tenths / 10}.${kotlin.math.abs(tenths % 10)}"
 }
 
-internal fun Movie.toHero() = HeroInfo(
+/**
+ * [kind] is the "Movie"/"Series" chip, and it is only worth a chip where a
+ * surface MIXES the two — Search's results and Home's shelves. On the Movies
+ * tab it is the tab's own name repeated over every poster the viewer moves
+ * to, in the gold that is supposed to mean something.
+ */
+internal fun Movie.toHero(kind: Boolean = true) = HeroInfo(
     title = name,
     poster = poster,
     backdrop = backdrop,
     art = artRef(),
     chips = listOfNotNull(
-        "Movie",
+        "Movie".takeIf { kind },
         year?.toString(),
-        rating?.let { ratingChip(it) },
+        // Gated, like every other star in the app — see
+        // [NuxFormat.ratingWorthShowing]. A hero that reads "★ 1.0" is
+        // describing the catalogue's metadata, not the film.
+        rating?.takeIf { NuxFormat.ratingWorthShowing(it, voteCount) }?.let { ratingChip(it) },
         genre,
     ),
+    accentChip = year?.toString(),
     plot = plot,
 )
 
-internal fun Series.toHero() = HeroInfo(
+internal fun Series.toHero(kind: Boolean = true) = HeroInfo(
     title = name,
     poster = poster,
     backdrop = backdrop,
     art = artRef(),
     chips = listOfNotNull(
-        "Show",
+        "Series".takeIf { kind },
         year?.toString(),
-        rating?.let { ratingChip(it) },
+        rating?.takeIf { NuxFormat.ratingWorthShowing(it, voteCount) }?.let { ratingChip(it) },
         episodes?.let { "${it.size} episodes" },
         genre,
     ),
+    accentChip = year?.toString(),
     plot = plot,
 )

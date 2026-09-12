@@ -84,6 +84,17 @@ internal object PlayerTheme {
     // Panel geometry.
     val ChannelListWidth = 430.dp
     val CategoryWidth = 300.dp
+
+    /**
+     * The audio-and-subtitles panel: two columns of track rows, side by side.
+     *
+     * Wider than the options list because it holds two of everything, and
+     * still short of half the screen — the point of the panel is that the
+     * picture keeps playing beside it. A language name plus the engine's
+     * format word ("English • Dolby Digital+") is the longest row it has to
+     * take, and 266dp a column is what that needs at labelLarge.
+     */
+    val TracksPanelWidth = 600.dp
 }
 
 /**

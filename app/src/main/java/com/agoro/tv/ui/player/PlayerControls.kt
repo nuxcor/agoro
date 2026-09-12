@@ -82,8 +82,17 @@ internal fun PlayerControls(
     resolution: Pair<Int, Int>? = null,
     hdrFormat: String? = null,
     audioFormatLabel: String? = null,
+    /**
+     * Where a pending scrub would land, or null when none is in flight. The
+     * bar draws this instead of the playhead so the two ways of seeking on a
+     * film show the same thing moving — see [SeekBar].
+     */
+    seekTargetMs: Long? = null,
     onPlayPause: () -> Unit,
+    /** One fixed step, accumulated: the ±10s buttons. */
     onSeekBy: (Long) -> Unit,
+    /** One ramped step, accumulated: LEFT and RIGHT on the bar. -1 back, +1 on. */
+    onNudgeSeek: (Int) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onChannels: () -> Unit,
@@ -103,6 +112,13 @@ internal fun PlayerControls(
 ) {
     // Initial focus goes to the play/pause button — the one control
     // guaranteed to be in the row on both live and VOD.
+    //
+    // Including the Play that live grows while it is paused. The bar used to
+    // open on Channels there: a viewer whose stream had been stopped by the
+    // sleep timer or a CEC pause was handed a browse button, with the one
+    // control that answers the screen they are looking at sitting beside it
+    // unfocused. Whatever is prominent is what OK should already be pointing
+    // at.
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { playFocus.requestFocusRetrying() }
 
@@ -118,7 +134,8 @@ internal fun PlayerControls(
             SeekBar(
                 positionMs = positionMs,
                 durationMs = durationMs,
-                onSeekBy = onSeekBy,
+                seekTargetMs = seekTargetMs,
+                onNudgeSeek = onNudgeSeek,
                 onInteraction = onInteraction,
             )
         }
@@ -157,11 +174,13 @@ internal fun PlayerControls(
             // PLAY_PAUSE made OK's behaviour look random. But a live stream
             // that IS paused — the sleep timer, a CEC pause — needs a way
             // back, so the bar leads with Play exactly then.
-            if (isLive && !playing) {
+            val livePaused = isLive && !playing
+            if (livePaused) {
                 ControlButton(
                     icon = Icons.Default.PlayArrow,
                     label = "Play",
                     onClick = onPlayPause,
+                    modifier = Modifier.focusRequester(playFocus),
                     prominent = true,
                     showLabel = true,
                 )
@@ -171,7 +190,8 @@ internal fun PlayerControls(
                     Icons.AutoMirrored.Filled.List,
                     "Channels",
                     onChannels,
-                    modifier = if (isLive) Modifier.focusRequester(playFocus) else Modifier,
+                    modifier = if (isLive && !livePaused) Modifier.focusRequester(playFocus)
+                    else Modifier,
                     showLabel = labelled,
                 )
             }
@@ -180,7 +200,8 @@ internal fun PlayerControls(
                     Icons.Default.GridView,
                     "Guide",
                     onGuide,
-                    modifier = if (hasPlaylist) Modifier else Modifier.focusRequester(playFocus),
+                    modifier = if (hasPlaylist || livePaused) Modifier
+                    else Modifier.focusRequester(playFocus),
                     showLabel = labelled,
                 )
             }
@@ -367,14 +388,24 @@ private fun ControlButton(
     tint: Color = NuxColors.OnSurface,
     showLabel: Boolean = false,
 ) {
+    // A film's transport row stays icon-only at rest — the buttons are the
+    // universal ones and the picture is what the viewer came for — but a bare
+    // 22dp glyph at ten feet is a shape, not a word: FastRewind and
+    // SkipPrevious are the same two triangles with a line somewhere. So the
+    // focused one says what it is, and only the focused one, which costs the
+    // row nothing at rest and answers the question exactly when it is being
+    // asked. Live's row names everything, because it has the width and its
+    // actions (Guide, Channels, PiP) are not universal glyphs at all.
+    var focused by remember { mutableStateOf(false) }
+    val labelUp = showLabel || focused
     // Same focus language as the rest of the app: a white ring over a lifted
     // surface. This used to fill solid gold with no ring — the player taught the
     // opposite of what every browse screen taught, and gold is the brand colour,
     // not the focus colour. The ring reads over video; a fill alone did not.
     Surface(
         onClick = onClick,
-        modifier = modifier,
-        shape = ClickableSurfaceDefaults.shape(if (showLabel) PlayerTheme.PillShape else CircleShape),
+        modifier = modifier.onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(if (labelUp) PlayerTheme.PillShape else CircleShape),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (prominent) PlayerTheme.ProminentFill else Color.Transparent,
             focusedContainerColor = NuxFocus.container,
@@ -383,7 +414,7 @@ private fun ControlButton(
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = NuxFocus.ButtonScale),
         border = ClickableSurfaceDefaults.border(
-            focusedBorder = if (showLabel) NuxFocus.ring22 else NuxFocus.ringCircle,
+            focusedBorder = if (labelUp) NuxFocus.ring22 else NuxFocus.ringCircle,
         ),
     ) {
         Row(
@@ -391,29 +422,47 @@ private fun ControlButton(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.padding(if (prominent) 14.dp else 10.dp),
         ) {
-            Icon(icon, contentDescription = label, modifier = Modifier.size(if (prominent) 28.dp else 22.dp))
-            if (showLabel) {
-                Text(label, style = MaterialTheme.typography.labelMedium)
+            // 28dp, and 36 on the one the row is built around. 22dp was drawn
+            // for a bar that labelled nothing and is a hair under what this
+            // panel renders legibly from a sofa.
+            Icon(icon, contentDescription = label, modifier = Modifier.size(if (prominent) 36.dp else 28.dp))
+            if (labelUp) {
+                Text(label, style = MaterialTheme.typography.labelLarge)
             }
         }
     }
 }
 
+/**
+ * The scrubber, and the SAME seek as the one bare LEFT and RIGHT perform.
+ *
+ * It used to run its own model: every press seeked for real, ten seconds at a
+ * time, no ramp and no accumulator — which is precisely the key-frame hunt per
+ * press that SeekRamp was written to remove, so a film had two seeking
+ * behaviours depending on whether the transport bar happened to be up. Now
+ * both routes go through the session's accumulator: the presses move a number,
+ * the bar draws where that number is, and one seek runs when the viewer stops.
+ */
 @Composable
 private fun SeekBar(
     positionMs: Long,
     durationMs: Long,
-    onSeekBy: (Long) -> Unit,
+    seekTargetMs: Long?,
+    onNudgeSeek: (Int) -> Unit,
     onInteraction: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
+    // Where the scrub is heading while one is pending, the playhead otherwise.
+    // A bar that sat still under a viewer's pressing was the other half of the
+    // same complaint.
+    val shownMs = seekTargetMs ?: positionMs
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
-            formatPlayerTime(positionMs),
+            formatPlayerTime(shownMs),
             style = MaterialTheme.typography.labelMedium,
             color = NuxColors.OnSurface,
         )
@@ -426,15 +475,15 @@ private fun SeekBar(
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     when (event.key.nativeKeyCode) {
-                        AndroidKeyEvent.KEYCODE_DPAD_LEFT -> { onSeekBy(-10_000); onInteraction(); true }
-                        AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> { onSeekBy(10_000); onInteraction(); true }
+                        AndroidKeyEvent.KEYCODE_DPAD_LEFT -> { onNudgeSeek(-1); onInteraction(); true }
+                        AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> { onNudgeSeek(+1); onInteraction(); true }
                         else -> false
                     }
                 }
                 .onFocusChanged { focused = it.isFocused }
                 .focusable()
         ) {
-            val fraction = (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
+            val fraction = (shownMs.toFloat() / durationMs).coerceIn(0f, 1f)
             Box(
                 modifier = Modifier
                     .fillMaxHeight()

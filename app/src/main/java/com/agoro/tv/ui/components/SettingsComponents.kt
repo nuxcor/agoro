@@ -37,10 +37,16 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
  * whatever controls belong to it.
  *
  * Rhythm is fixed here rather than per call site — titleSmall title,
- * labelMedium description (the old groups mixed labelSmall and labelMedium at
- * random), Space.s between description and controls. The leading spacer lifts
- * the list's Space.m item gap to Space.l between groups; [divider] adds a soft
- * hairline for the sections that used to fake one with an extra Spacer.
+ * bodySmall description, Space.s between description and controls. The
+ * leading spacer lifts the list's Space.m item gap to Space.l between groups;
+ * [divider] adds a soft hairline for the sections that used to fake one with
+ * an extra Spacer.
+ *
+ * The description was labelMedium, which is the metadata rung: a sentence
+ * explaining what a whole group of settings does is prose, and prose is a
+ * body style. bodySmall rather than the bodyMedium the informational lines
+ * inside a group take, so the explanation still sits a step behind the facts
+ * it introduces.
  */
 @Composable
 fun SettingsGroup(
@@ -70,7 +76,7 @@ fun SettingsGroup(
             Spacer(Modifier.height(Space.xs))
             Text(
                 description,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = NuxColors.OnSurfaceDim,
             )
         }

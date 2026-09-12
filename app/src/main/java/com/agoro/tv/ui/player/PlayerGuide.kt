@@ -447,8 +447,12 @@ private fun GuideDetails(
             }
             Spacer(Modifier.height(8.dp))
             Text(
+                // labelMedium, not labelSmall: a hint nobody can read is a
+                // hint nobody has. 14sp is this app's floor for metadata —
+                // version strings, channel numbers — and the one line that
+                // teaches two keys is not metadata.
                 text = "CH +/− page  •  BACK resume",
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = NuxColors.OnSurfaceDim,
                 maxLines = 1,
             )

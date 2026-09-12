@@ -57,7 +57,23 @@ import kotlinx.coroutines.launch
 import com.agoro.tv.data.isFavorite
 
 /** Bump when the key map changes so the banner hints re-teach once. */
-private const val KEY_HINTS_VERSION = 3
+private const val KEY_HINTS_VERSION = 4
+
+/**
+ * How long a mid-stream stall has to last before the player admits to it.
+ *
+ * Short refills are what a buffer is FOR, and naming one turns an ordinary
+ * pause into a reported failure — which is why the corner chip that used to
+ * announce every one of them was taken out. What replaced it was nothing at
+ * all, though, and nothing is the wrong answer past a second or so: a film
+ * that stops dead with no chip, no glyph (the pause glyph is suppressed while
+ * buffering) and no sound is indistinguishable from a crashed app.
+ *
+ * So: under this, silence, exactly as before. Past it, the sweep — no words,
+ * no chip, no "Buffering…", just the player's one indeterminate motion in the
+ * middle of the screen saying the picture is coming.
+ */
+private const val BUFFERING_SWEEP_AFTER_MS = 1_500L
 
 /**
  * How long one ATTEMPT at a stream may stand before it is declared dead.
@@ -279,6 +295,16 @@ private fun buildPipParams(
 
 private val ASPECT_LABELS = listOf("Fit", "Stretch", "Zoom")
 private val SLEEP_CHOICES = listOf(0, 30, 60, 90)
+
+/**
+ * Playback speeds, cycled by the options row. The same six the tracks sheet
+ * offered as chips, in the same order — the control moved, the choices did not.
+ */
+private val SPEED_CHOICES = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+
+/** "2x", not "2.0x": trailing zeros trimmed the way 1x already was. */
+private fun formatSpeed(speed: Float): String =
+    speed.toString().trimEnd('0').trimEnd('.') + "x"
 
 @Composable
 fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
@@ -906,6 +932,19 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
         }
     }
 
+    // A stall that has outlasted the grace above. Held in its own flag rather
+    // than read live, so the delay is what decides — and cleared the instant
+    // the picture comes back, which is what makes a short refill show nothing.
+    var stallShown by remember { mutableStateOf(false) }
+    LaunchedEffect(session.buffering, session.tuning) {
+        if (!session.buffering || session.tuning) {
+            stallShown = false
+            return@LaunchedEffect
+        }
+        delay(BUFFERING_SWEEP_AFTER_MS)
+        stallShown = true
+    }
+
     // Transient status toast.
     LaunchedEffect(session.statusMessage) {
         if (session.statusMessage != null) {
@@ -955,26 +994,19 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
         }
     }
 
-    // A mid-stream stall earns a corner chip, and only after a grace period:
-    // tuning has its own card, and sub-second hiccups deserve nothing.
+    // A mid-stream stall earns the sweep, and only after a grace period:
+    // tuning has its own card, and a refill that clears inside
+    // BUFFERING_SWEEP_AFTER_MS is the buffer doing its job and is still shown
+    // nothing. See stallShown, above, and the AnimatedVisibility that draws it.
     //
-    // Films too, and later than live. The chip was live-only for a while, on
-    // the reasoning that a film refills often and naming each refill made an
-    // ordinary pause look like a failure. Those refills are the complaint
-    // now, and hiding them made it worse: a film that stops with nothing on
-    // screen reads as a broken stream, and a viewer cannot tell a refill from
-    // a crash. Netflix shows the wait on a film as plainly as on anything
-    // else. The grace is longer on a film — a refill that clears in under a
-    // second and a half is the buffer doing its job and is still shown
-    // nothing — and the log records what each one was, so the next report
-    // names a cause rather than a symptom.
-    //
-    // No "Buffering…" chip. It sat in the top corner naming a condition the
-    // viewer could already see, and it was the only thing on screen that
-    // spoke in the app's own vocabulary rather than about their television.
-    // A short refill now shows nothing, which is what a short refill is
-    // worth; a stall that turns into a fault still gets the tune card and
-    // then the error card, in words about the channel.
+    // Still no "Buffering…" chip. That chip sat in the top corner naming a
+    // condition the viewer could already see, in the app's own vocabulary
+    // rather than in words about their television — and every short refill
+    // fired it, which turned the buffer working normally into a reported
+    // failure. What is left is motion and no words: past a second and a half
+    // the picture has plainly stopped, and saying nothing at all then is
+    // indistinguishable from a crash. A stall that turns into a fault still
+    // gets the tune card and then the error card, in words about the channel.
 
     // BACK closes whatever is open, and from bare playback it leaves. One
     // meaning, and the same one every time.
@@ -1043,7 +1075,7 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
         }
     }
 
-    // Shared by the tracks sheet's chips and the options menu's cycle row.
+    // The options menu's cycle row, and the per-channel override it saves.
     fun applyAspect(mode: Int) {
         session.scaleMode = mode
         engine.setScaleMode(mode)
@@ -1088,8 +1120,7 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                     PlayerKeyAction.CenterArm -> session.centerArmed = true
                     PlayerKeyAction.CenterLongPress -> {
                         session.centerLongPressFired = true
-                        session.layer =
-                            if (request.isLive) PlayerLayer.Options else PlayerLayer.Tracks
+                        session.layer = PlayerLayer.Options
                     }
                     PlayerKeyAction.CenterRelease -> {
                         session.centerArmed = false
@@ -1132,7 +1163,10 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                         session.layer = PlayerLayer.ChannelList
                     }
                     PlayerKeyAction.OpenOptions -> session.layer = PlayerLayer.Options
-                    PlayerKeyAction.OpenTracks -> session.layer = PlayerLayer.Tracks
+                    // Both land on the options panel; see the action's own
+                    // note. The tracks sheet is reached from the row in it
+                    // that names what it holds.
+                    PlayerKeyAction.OpenTracks -> session.layer = PlayerLayer.Options
                     PlayerKeyAction.ShowControls -> {
                         session.centerArmed = false
                         session.poke()
@@ -1217,10 +1251,31 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                 // The same card, because it is the same thing from where the
                 // viewer sits — the channel they asked for, coming up — and a
                 // second card would only be another way of waiting.
-                note = if (reconnecting) {
-                    "Reconnecting… (${session.reconnectAttempt} of ${session.reconnectTotal})"
-                } else null,
+                // No "(2 of 3)". The retry budget is the app's arithmetic,
+                // not the viewer's, and a count that rises towards a number
+                // whose meaning is never stated reads as a threat. The sweep
+                // under the name is the motion that says something is still
+                // happening; the count is in the log. See PlayerSession.
+                note = if (reconnecting) "Reconnecting…" else null,
             )
+        }
+
+        // A stall that has lasted long enough to be worth answering: the
+        // player's own sweep, centred, with nothing written on it.
+        //
+        // Not while the tune card is up — that card is already this motion,
+        // under a name — and not behind the guide, which owns the screen. It
+        // is deliberately the SAME animation as the tune card's: a viewer
+        // cannot tell a re-tune from a refill and should not have to learn two
+        // pictures for "the stream is coming".
+        AnimatedVisibility(
+            visible = stallShown && !showTuneUi && session.errorMessage == null &&
+                !inPip && session.layer != PlayerLayer.Guide,
+            enter = PlayerMotion.enterFade(),
+            exit = PlayerMotion.exitFade(),
+            modifier = Modifier.align(Alignment.Center),
+        ) {
+            SweepTrack()
         }
 
         // The next episode: announced in the corner while this one runs out,
@@ -1433,16 +1488,25 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                     resolution = session.videoSize,
                     hdrFormat = session.hdrType?.label,
                     audioFormatLabel = session.audioFormatLabel,
+                    // Both seek routes go through the session's accumulator
+                    // now. The bar used to call engine.seekTo per press — a
+                    // key-frame hunt and a re-buffer each time, on a box
+                    // fetching over IPTV — which is the exact behaviour
+                    // SeekRamp exists to prevent on bare LEFT/RIGHT. One film,
+                    // one seeking model.
+                    seekTargetMs = session.seekTargetMs,
                     onPlayPause = { session.togglePlayPause(); session.poke() },
-                    onSeekBy = { delta -> engine.seekTo(engine.positionMs + delta); session.poke() },
+                    onSeekBy = { delta -> session.nudgeSeekBy(delta); session.poke() },
+                    onNudgeSeek = { direction -> session.nudgeSeek(direction); session.poke() },
                     onPrevious = { engine.previous(); session.poke() },
                     onNext = { engine.next(); session.poke() },
                     onChannels = { session.layer = PlayerLayer.ChannelList },
                     onGuide = { session.layer = PlayerLayer.Guide },
-                    onOptions = {
-                        session.layer =
-                            if (request.isLive) PlayerLayer.Options else PlayerLayer.Tracks
-                    },
+                    // One options panel, live or film. A film used to go
+                    // straight to the tracks sheet, which is why quality,
+                    // speed, aspect and sleep had to live on it; they are in
+                    // the options list now, and the list is what both open.
+                    onOptions = { session.layer = PlayerLayer.Options },
                     onPip = {
                         (context as? android.app.Activity)?.let { activity ->
                             if (android.os.Build.VERSION.SDK_INT >= 26) {
@@ -1593,9 +1657,30 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                     session.positionMs = 0
                     vm.playChannels(channels, index)
                 },
-                onExitToHome = { session.layer = PlayerLayer.None; onExit() },
                 onDismiss = { session.closePanel() },
             )
+        }
+
+        // What the stream turns out to offer, read once per panel opening
+        // rather than per frame: walking ExoPlayer's track groups is cheap but
+        // not free, and none of it changes while a menu is on screen except
+        // when the viewer themselves change it — which is what the tick is
+        // for. Keyed on the layer so opening either panel re-reads, and on the
+        // index so a zap never shows the last channel's rungs.
+        var trackTick by remember { mutableIntStateOf(0) }
+        val videoRungs = remember(session.layer, session.currentIndex, trackTick) {
+            engine.videoTracks()
+        }
+        val videoSelection = remember(session.layer, session.currentIndex, trackTick) {
+            if (engine.isForcingHighest) com.agoro.tv.player.HIGHEST_QUALITY
+            else videoRungs.firstOrNull { it.selected }?.id
+        }
+        // A panel with nothing in it is worse than no row at all: it is focus
+        // trapped, so the remote does nothing until BACK. Most live streams
+        // carry one soundtrack and no subtitles, so this is the common case
+        // and not an edge.
+        val canChooseTracks = remember(session.layer, session.currentIndex, trackTick) {
+            engine.audioTracks().size > 1 || engine.textTracks().isNotEmpty()
         }
 
         AnimatedVisibility(
@@ -1605,27 +1690,12 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
         ) {
             TracksOverlay(
                 engine = engine,
-                isVod = !request.isLive,
-                scaleMode = session.scaleMode,
-                onScaleMode = { mode -> applyAspect(mode) },
-                speed = session.speed,
-                onSpeed = { sp ->
-                    session.speed = sp
-                    engine.setSpeed(sp)
-                    scope.launch { prefs.setVodSpeed(sp) }
-                },
-                sleepMinutes = session.sleepChoiceMinutes,
-                onSleep = { minutes -> setSleepMinutes(minutes) },
                 onAudioSelected = { track ->
                     scope.launch { prefs.setPreferredAudioLanguage(track.language) }
                 },
                 onSubtitleSelected = { track ->
                     scope.launch { prefs.setPreferredSubtitleLanguage(track?.language) }
                 },
-                // Auto vs. the top rung is the one video choice worth carrying
-                // to the next channel; a specific rung belongs to this stream.
-                onVideoQuality = { mode -> scope.launch { prefs.setVideoQuality(mode) } },
-                onDismiss = { session.closePanel() },
             )
         }
 
@@ -1638,7 +1708,6 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                 CatchupOverlay(
                     vm = vm,
                     channel = catchupChannel,
-                    onDismiss = { session.closePanel() },
                     onPlay = { program, url ->
                         session.layer = PlayerLayer.None
                         session.positionMs = 0
@@ -1663,18 +1732,47 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                 } else {
                     channel?.displayName ?: item?.title.orEmpty()
                 },
+                isLive = request.isLive,
                 isFavoritable = request.isLive && channel != null,
                 isFavorite = channel != null && channel.isFavorite(favorites),
                 hasCatchup = request.isLive && (channel?.archiveDays ?: 0) > 0,
                 aspectLabel = ASPECT_LABELS.getOrElse(session.scaleMode) { ASPECT_LABELS[0] },
                 sleepLabel = if (session.sleepChoiceMinutes == 0) "Off"
                 else "${session.sleepChoiceMinutes}m",
+                // Live has no speed: a broadcast plays at the speed it is
+                // broadcast at, and the control was on the tracks sheet behind
+                // an isVod flag for exactly that reason.
+                speedLabel = if (request.isLive) null else formatSpeed(session.speed),
                 canHide = request.isLive && channel != null,
+                videoRungs = videoRungs,
+                videoSelection = videoSelection,
+                canChooseTracks = canChooseTracks,
                 feedLabel = feedLabel,
                 onFavoriteToggle = { channel?.let { vm.toggleFavorite(it) } },
                 onCatchup = { session.layer = PlayerLayer.Catchup },
                 onTracks = { session.layer = PlayerLayer.Tracks },
+                onVideoSelect = { id ->
+                    engine.selectVideoTrack(id)
+                    // Auto vs. the top rung is the one video choice worth
+                    // carrying to the next channel; a specific rung belongs to
+                    // this stream and is deliberately not persisted.
+                    when (id) {
+                        null -> scope.launch { prefs.setVideoQuality(0) }
+                        com.agoro.tv.player.HIGHEST_QUALITY ->
+                            scope.launch { prefs.setVideoQuality(1) }
+                    }
+                    trackTick++
+                },
                 onAspectCycle = { applyAspect((session.scaleMode + 1) % ASPECT_LABELS.size) },
+                onSpeedCycle = {
+                    val next = SPEED_CHOICES[
+                        (SPEED_CHOICES.indexOf(session.speed).coerceAtLeast(0) + 1) %
+                            SPEED_CHOICES.size
+                    ]
+                    session.speed = next
+                    engine.setSpeed(next)
+                    scope.launch { prefs.setVodSpeed(next) }
+                },
                 onNextFeed = {
                     if (session.nextFeed()) {
                         // Remembered against the fixture, so pressing its row
@@ -1698,7 +1796,6 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                     session.statusMessage = "Channel hidden — manage in Settings"
                     session.layer = PlayerLayer.None
                 },
-                onDismiss = { session.closePanel() },
             )
         }
 

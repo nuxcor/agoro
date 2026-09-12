@@ -29,18 +29,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
 import com.agoro.tv.MainViewModel
 import com.agoro.tv.data.Category
 import com.agoro.tv.data.ContentBundle
+import com.agoro.tv.ui.components.MetaChip
 import com.agoro.tv.ui.components.ScreenTitle
 import com.agoro.tv.ui.components.WideItem
-import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.Space
 
 @Composable
@@ -55,11 +55,12 @@ internal fun ChannelManager(vm: MainViewModel, bundle: ContentBundle, onClose: (
             ScreenTitle("Manage channels", modifier = Modifier.weight(1f))
             OutlinedButton(onClick = onClose) { Text("Done") }
         }
-        Text(
-            "OK hides or shows a channel everywhere. Type a channel number to jump.",
-            style = MaterialTheme.typography.labelMedium,
-            color = NuxColors.OnSurfaceDim,
-        )
+        // No instruction line. It told the viewer what OK does — which the
+        // rows then told them again, one by one, in a subtitle apiece — and
+        // an app that has to explain its own OK key on a screen with two
+        // columns and one action is describing itself rather than showing a
+        // list. What the screen has to do is make a hidden channel LOOK
+        // hidden; see the rows below.
         Spacer(Modifier.height(14.dp))
 
         // This is the screen for finding one unwanted channel among the few
@@ -126,16 +127,31 @@ internal fun ChannelManager(vm: MainViewModel, bundle: ContentBundle, onClose: (
             ) {
                 itemsIndexed(channels, key = { _, c -> c.id }) { index, channel ->
                     val isHidden = channel.url in hidden
+                    // A hidden channel LOOKS hidden: dimmed, with one word at
+                    // the trailing edge. This is the only screen whose entire
+                    // job is spotting hidden channels, and a hidden row used
+                    // to differ from a shown one by the wording of a 14sp
+                    // subtitle — so scanning a few hundred rows meant reading
+                    // every one of them.
+                    //
+                    // No subtitle on a shown row, and no quality badge on any
+                    // of them. "Shown — OK to hide" is an instruction wearing
+                    // a fact's clothes, and "FHD" is the provider's own claim
+                    // about a stream, which has nothing to do with whether
+                    // the viewer wants the channel in their list.
+                    val hiddenMark: (@Composable () -> Unit)? =
+                        if (isHidden) {
+                            { MetaChip("Hidden") }
+                        } else null
                     WideItem(
                         title = channel.displayName,
-                        subtitle = if (isHidden) "Hidden — OK to show" else "Shown — OK to hide",
-                        badge = channel.quality,
                         imageUrl = channel.logo,
-                        modifier = if (index == jump.targetIndex) {
+                        trailing = hiddenMark,
+                        modifier = (if (index == jump.targetIndex) {
                             Modifier.focusRequester(jump.focusRequester)
                         } else {
                             Modifier
-                        },
+                        }).alpha(if (isHidden) 0.5f else 1f),
                         onClick = { vm.toggleHidden(channel) },
                     )
                 }

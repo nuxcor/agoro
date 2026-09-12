@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -32,6 +35,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.agoro.tv.MainViewModel
@@ -149,7 +153,16 @@ internal fun ChannelBanner(
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (channel != null && channel.isFavorite(favorites)) {
-                    Text("★", style = MaterialTheme.typography.titleSmall, color = NuxColors.Primary)
+                    // An icon, not a ★ typed into a Text: TV system fonts
+                    // regularly have no glyph for it and draw a tofu box
+                    // beside the channel name. Components.kt made the same
+                    // move for the rating star.
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = null,
+                        tint = NuxColors.Primary,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
             }
             val current = nowNext?.now
@@ -195,8 +208,18 @@ internal fun ChannelBanner(
                     // The switcher that changes it lives in the options menu,
                     // and it is not a thing anyone would think to look for
                     // there, so the line that raises the question also says
-                    // where the answer is.
-                    text = "Feed $feedLabel  ·  OK → Try another feed",
+                    // where the answer is — on the key that actually opens it.
+                    // A tap of OK opens the channel list (see
+                    // playerKeyAction); it is the HOLD that reaches the
+                    // options, and a banner that teaches the wrong key sends
+                    // the viewer somewhere else every time they believe it.
+                    //
+                    // No "1080p50" after it either. What the stream turned out
+                    // to be is a badge, and the badges live in one place — the
+                    // end of the transport row, see [StreamBadges] — because a
+                    // banner is up on every zap and a resolution in the corner
+                    // of every channel is a readout nobody asked for.
+                    text = "Feed $feedLabel  ·  Hold OK to try another",
                     style = MaterialTheme.typography.labelMedium,
                     color = NuxColors.OnSurfaceDim,
                     maxLines = 1,
@@ -215,16 +238,43 @@ internal fun ChannelBanner(
             }
             if (showKeyHints) {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    // INFO while the banner is up opens the controls, so
-                    // that is what the hint says; "INFO Info" on the thing
-                    // INFO had just opened said nothing.
-                    text = "OK Options  ·  ◀ Channels  ·  ▲▼ Change channel  ·  INFO More",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NuxColors.OnSurfaceDim,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                // The map the player actually has. It used to read "OK
+                // Options · ◀ Channels", and OK has opened the CHANNEL LIST
+                // since the day the select key was given to browsing — the
+                // options are the hold, or MENU (see playerKeyAction). A hint
+                // line is the one piece of copy a viewer takes literally, so
+                // being wrong in it costs more than not having it; when it
+                // changed, KEY_HINTS_VERSION went up so the people who had
+                // already learned the wrong thing are taught the right one.
+                //
+                // The arrows are icons. ▲▼ rendered as a pair of tofu boxes
+                // on exactly the televisions this line exists for, and the
+                // left arrow was pointing at a key that is no longer the
+                // interesting one.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    KeyHint("OK Channels")
+                    KeyHintDot()
+                    KeyHint("Hold OK Options")
+                    KeyHintDot()
+                    Icon(
+                        Icons.Default.KeyboardArrowUp,
+                        contentDescription = null,
+                        tint = NuxColors.OnSurfaceDim,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = NuxColors.OnSurfaceDim,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    KeyHint("Change channel")
+                    KeyHintDot()
+                    KeyHint("INFO More")
+                }
             }
         }
 
@@ -243,6 +293,27 @@ internal fun ChannelBanner(
             maxLines = 1,
         )
     }
+}
+
+/** One phrase of the banner's key hints. */
+@Composable
+private fun KeyHint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = NuxColors.OnSurfaceDim,
+        maxLines = 1,
+    )
+}
+
+/** The separator between them, so the spacing is the Row's and not a string's. */
+@Composable
+private fun KeyHintDot() {
+    Text(
+        text = "·",
+        style = MaterialTheme.typography.labelSmall,
+        color = NuxColors.OnSurfaceDim,
+    )
 }
 
 /**
@@ -318,23 +389,6 @@ internal fun TuneCard(
     /** Why this is taking a moment, when it is more than an ordinary tune. */
     note: String? = null,
 ) {
-    val motion = androidx.compose.animation.core.rememberInfiniteTransition(label = "tune")
-    // One light sweeping left-to-right, restarting — a scanner bounce reads
-    // as retro, a single direction reads as progress.
-    val sweep by motion.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-            androidx.compose.animation.core.tween(
-                1_100,
-                easing = androidx.compose.animation.core.FastOutSlowInEasing,
-            ),
-            androidx.compose.animation.core.RepeatMode.Restart,
-        ),
-        label = "sweep",
-    )
-    val trackWidth = 200.dp
-    val glowWidth = 72.dp
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -369,36 +423,69 @@ internal fun TuneCard(
             )
         }
         Spacer(Modifier.height(14.dp))
+        SweepTrack()
+    }
+}
+
+/**
+ * The player's one indeterminate indicator: a light travelling a thin line,
+ * left to right, restarting.
+ *
+ * It is the motion under the tune card's channel name, and on its own — with
+ * no card, no words, nothing else at all — it is what a stall that has lasted
+ * long enough to be worth answering shows in the middle of the screen. The
+ * same gesture in both places on purpose: from the couch they are one event,
+ * the picture is not here yet, and a player with two different waiting
+ * animations is two different apps.
+ *
+ * A single direction, not a bounce: a scanner reads as retro, one direction
+ * reads as progress. The glow starts fully off the left edge and exits fully
+ * right, so the loop point is invisible.
+ */
+@Composable
+internal fun SweepTrack(modifier: Modifier = Modifier) {
+    val motion = androidx.compose.animation.core.rememberInfiniteTransition(label = "sweepTrack")
+    val sweep by motion.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(
+                1_100,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing,
+            ),
+            androidx.compose.animation.core.RepeatMode.Restart,
+        ),
+        label = "sweep",
+    )
+    val trackWidth = 200.dp
+    val glowWidth = 72.dp
+    Box(
+        modifier = modifier
+            .width(trackWidth)
+            .height(3.dp)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
+            .background(NuxColors.OnSurface.copy(alpha = 0.16f)),
+    ) {
         Box(
             modifier = Modifier
-                .width(trackWidth)
-                .height(3.dp)
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
-                .background(NuxColors.OnSurface.copy(alpha = 0.16f)),
-        ) {
-            Box(
-                modifier = Modifier
-                    // The glow starts fully off the left edge and exits fully
-                    // right, so the loop point is invisible. Read inside
-                    // graphicsLayer, so each frame of the sweep is a draw and
-                    // nothing more — as a Modifier.offset(x = …) parameter the
-                    // animated value was read in composition, and every frame
-                    // recomposed, re-measured and re-laid-out the card.
-                    .graphicsLayer {
-                        translationX = (trackWidth + glowWidth).toPx() * sweep - glowWidth.toPx()
-                    }
-                    .width(glowWidth)
-                    .fillMaxHeight()
-                    .background(
-                        androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            listOf(
-                                androidx.compose.ui.graphics.Color.Transparent,
-                                NuxColors.Primary,
-                                androidx.compose.ui.graphics.Color.Transparent,
-                            )
+                // Read inside graphicsLayer, so each frame of the sweep is a
+                // draw and nothing more — as a Modifier.offset(x = …)
+                // parameter the animated value was read in composition, and
+                // every frame recomposed, re-measured and re-laid-out the card.
+                .graphicsLayer {
+                    translationX = (trackWidth + glowWidth).toPx() * sweep - glowWidth.toPx()
+                }
+                .width(glowWidth)
+                .fillMaxHeight()
+                .background(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        listOf(
+                            androidx.compose.ui.graphics.Color.Transparent,
+                            NuxColors.Primary,
+                            androidx.compose.ui.graphics.Color.Transparent,
                         )
-                    ),
-            )
-        }
+                    )
+                ),
+        )
     }
 }

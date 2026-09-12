@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import com.agoro.tv.ui.components.Artwork
 import androidx.compose.ui.text.style.TextAlign
@@ -237,19 +238,35 @@ private fun SkeletonFixtureRow(sweep: State<Float>, gapAbove: Dp) {
  *
  * Drawn, not composed: the animated value is read inside [drawBehind], so a
  * sweep costs a draw per frame and nothing above it recomposes at all.
+ *
+ * Shared with the catalogue tabs' [CatalogueSkeleton] — one shimmer in the
+ * app, so a tab that is still building looks the same wherever it is.
  */
 @Composable
-private fun SkeletonBar(
+internal fun SkeletonBar(
     width: Dp,
     height: Dp,
     sweep: State<Float>,
     modifier: Modifier = Modifier,
+    /**
+     * A pill by default, which is what a line of text becomes. Pass a real
+     * shape for the block placeholders — a poster clipped to half its own
+     * height is a lozenge, not a poster.
+     */
+    shape: Shape = RoundedCornerShape(height / 2),
 ) {
     Box(
         modifier
-            .widthIn(max = width)
+            // width, not widthIn(max). A Box with no children measures at its
+            // constraints' MINIMUM, so a max-only bound left every
+            // fixed-width bar here — the league headings, both crests, the
+            // status column — measuring zero and drawing nothing: the
+            // skeleton was two bars per row and a lot of empty space. The
+            // weighted bars are unaffected, since a weight hands the child
+            // fixed constraints that either form coerces into.
+            .width(width)
             .height(height)
-            .clip(RoundedCornerShape(height / 2))
+            .clip(shape)
             .drawBehind {
                 drawRect(NuxColors.SurfaceRaised)
                 // The band starts fully off the left edge and leaves fully to
@@ -677,9 +694,15 @@ private fun FixtureRow(
     }
 }
 
-/** A gold dot and the word, which is all "on now" needs to say. */
+/**
+ * A gold dot and the word, which is all "on now" needs to say.
+ *
+ * Internal because Search says the same thing about a programme and had
+ * grown a second spelling of it — an "ON NOW" chip — on the two surfaces in
+ * the app that report something is on. One mark for one fact.
+ */
 @Composable
-private fun LiveBadge() {
+internal fun LiveBadge() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
@@ -709,7 +732,10 @@ private fun fixtureStatus(event: SportsEvent, nowMs: Long, clock: SimpleDateForm
     val minutes = ((start - nowMs) / 60_000).toInt()
     return when {
         minutes <= 1 -> "Starts now"
-        minutes < 60 -> "in $minutes min"
+        // Sentence case, like every other label in the column. "Starts now"
+        // and "in 45 min" stacked in one column read as two different apps
+        // writing the same fact.
+        minutes < 60 -> "In $minutes min"
         // The app's clock format, so a 12-hour viewer doesn't read "20:00"
         // here beside "8:00 PM" in the guide.
         else -> clock.format(Date(start))

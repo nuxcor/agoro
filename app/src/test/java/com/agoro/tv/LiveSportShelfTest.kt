@@ -240,8 +240,8 @@ class LiveSportShelfTest {
         )
         val card = liveSportShelf(listOf(ucl(1940144)), listOf(slot), now).single()
         val hero = fixtureHero(card)
-        assertEquals("Liverpool v Atletico Madrid", hero.title)
-        assertTrue(hero.chips.contains("Champions League"))
+        assertEquals("Liverpool v Atletico Madrid", hero.info.title)
+        assertTrue(hero.info.chips.contains("Champions League"))
     }
 
     /** Another pack, another paragraph, and the header is the same line. */
@@ -253,8 +253,8 @@ class LiveSportShelfTest {
                 "8K EXCLUSIVE | UK: MAX PPV 17",
         )
         val hero = fixtureHero(liveSportShelf(listOf(ucl(1896469)), listOf(slot), now).single())
-        assertEquals("Liverpool v Atletico Madrid", hero.title)
-        assertTrue(hero.chips.first() == "Live")
+        assertEquals("Liverpool v Atletico Madrid", hero.info.title)
+        assertTrue(hero.info.chips.first() == "Live")
     }
 
     /**
@@ -266,8 +266,10 @@ class LiveSportShelfTest {
     fun `the header asks for no synopsis`() {
         val slot = slot(1, "Live | Liverpool vs. Atlético Madrid | all | US: SOCCER PPV 13")
         val hero = fixtureHero(liveSportShelf(listOf(ucl(1)), listOf(slot), now).single())
-        assertNull(hero.plot)
-        assertNull(hero.plotKey)
+        assertNull(hero.info.plot)
+        // And no second line either: the wrapper carries a programme title for a
+        // live channel, and a fixture is not a programme.
+        assertNull(hero.line)
     }
 
     // --- the pipeline, end to end ---------------------------------------------

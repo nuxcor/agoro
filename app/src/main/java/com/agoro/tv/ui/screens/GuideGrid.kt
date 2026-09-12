@@ -7,7 +7,9 @@ package com.agoro.tv.ui.screens
 
 import androidx.tv.material3.Icon
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.Icons
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.foundation.ScrollState
@@ -55,6 +57,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -78,15 +81,15 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.LiveChannel
+import com.agoro.tv.data.TextNorm
 import com.agoro.tv.ui.components.Artwork
+import com.agoro.tv.ui.components.NuxFormat
 import com.agoro.tv.ui.components.requestFocusRetrying
 import com.agoro.tv.ui.components.rememberClockFormat
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxShape
 import com.agoro.tv.ui.theme.Space
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -130,6 +133,15 @@ internal val CHANNEL_COLUMN_WIDTH = 330.dp
 internal val CHANNEL_COLUMN_GAP = 8.dp
 // 52, not 62: the row carried a second deck for the quality chip and no
 // longer does, and every dp here is a channel the viewer can see at once.
+//
+// It STAYS at 52 now that the cell's time line is 16sp/20 rather than 14sp/16
+// (see CELL_TIME_STYLE), and that is a deliberate refusal. The guide's whole
+// vertical budget is four rows: on a 540dp canvas the tab is left ~430dp, of
+// which the category strip, the header, the ruler and their gaps take ~200 —
+// so a row costs 58dp with its spacing and a fifth one does not exist. Four
+// dp on the row is sixteen across the grid, which is the fourth channel. The
+// four extra dp the taller line needs come out of the cell's own insets
+// instead, which are spacing and not information. See [ProgramCell].
 private val ROW_HEIGHT = 52.dp
 
 /** The narrowest cell that still shows a title and a focus ring — 61dp on a
@@ -255,6 +267,37 @@ internal fun layoutGuideRow(
         cursor = end
     }
     return GuideRowLayout(cells, ((windowEnd - cursor) / 60_000f) - borrowedMinutes)
+}
+
+/**
+ * Which programmes the viewer has a reminder on, so the guide can say so.
+ *
+ * Setting one used to leave no trace anywhere: the cell looked exactly as it
+ * had, the header chip still offered to set the reminder that was already set,
+ * and pressing OK again quietly scheduled the same alarm a second time. A mark
+ * in the cell and a chip in the header are the whole of the fix — a viewer who
+ * can see the reminder is not going to press OK again to check.
+ *
+ * A holder rather than a value parameter, because of where it is read. The
+ * cells read it themselves, so a reminder press invalidates the composed cells
+ * and nothing above them; handed down as a Set it would have changed a
+ * parameter of the grid, the rows and every cell in them, and the host would
+ * have recomposed its whole body to deliver it.
+ *
+ * In memory only. Nothing in the app persists reminders — the alarm lives in
+ * AlarmManager and is not readable back — so this knows about the ones set in
+ * this sitting, which is the sitting in which a viewer would press OK twice.
+ */
+@Stable
+class GuideReminders {
+    var ids by mutableStateOf(emptySet<String>())
+        private set
+
+    fun isSet(programId: String): Boolean = programId in ids
+
+    fun mark(programId: String) {
+        ids = ids + programId
+    }
 }
 
 /** A focusable cell in the registry: the span it answers for, and how to land on it. */
@@ -535,6 +578,21 @@ internal fun GuideGrid(
      * own — the player overlay's arrangement.
      */
     digitState: MutableState<String>? = null,
+    /**
+     * The guide has not arrived yet — it is downloading, or has not been asked
+     * for.
+     *
+     * An empty lane says "No information", and while the guide is still coming
+     * that is a false statement: on a fresh install every lane on the screen
+     * said it at once, which reads as a guide that is broken rather than one
+     * that is a few seconds away. Loading, the lane draws its slab and nothing
+     * else; the words are reserved for a guide that arrived and genuinely has
+     * nothing for this channel. No spinner — sixty of them, one per lane, to
+     * say something the lanes filling in says better.
+     */
+    guideLoading: Boolean = false,
+    /** Programmes with a reminder already on them — see [GuideReminders]. */
+    reminders: GuideReminders? = null,
 ) {
     val gridFocus = remember { GuideGridFocus(anchorMs = nowMs) }
     val scope = rememberCoroutineScope()
@@ -809,13 +867,21 @@ internal fun GuideGrid(
                         } else {
                             moveFocusVertically(-1)
                         }
-                    // No case for LEFT. Out of the channel column it used to
-                    // open a category drawer over the guide; that drawer is
-                    // gone (2026-08-27) because the category strip along the
-                    // top of the guide is already the way in, and a second one
-                    // arrived unannounced on a key people press while walking
-                    // the channel list. Unhandled here, LEFT falls through to
-                    // the nav drawer, which is what it does everywhere else.
+                    // LEFT at the channel column is where the row ends, and
+                    // it now stops there.
+                    //
+                    // It used to open a category drawer over the guide; that
+                    // drawer went in 2026-08-27, and the comment here went on
+                    // claiming the key "falls through to the nav drawer" long
+                    // after navigation became a top bar with no drawer left to
+                    // fall into. What it actually did was hand an unconsumed
+                    // LEFT to Compose's focus search at the screen's left edge,
+                    // which has nothing to find and answers by parking focus on
+                    // whatever it likes — the strip, most often, from a row
+                    // deep in the list. Consumed, the ring stays put. Only from
+                    // the channel column: between programme cells LEFT is
+                    // ordinary travel along the row.
+                    AndroidKeyEvent.KEYCODE_DPAD_LEFT -> !gridFocus.focusedIsCell
                     AndroidKeyEvent.KEYCODE_CHANNEL_UP -> pageChannels(+1)
                     AndroidKeyEvent.KEYCODE_CHANNEL_DOWN -> pageChannels(-1)
                     in AndroidKeyEvent.KEYCODE_0..AndroidKeyEvent.KEYCODE_9 -> {
@@ -849,6 +915,8 @@ internal fun GuideGrid(
                     dpPerMinute = dpPerMinute,
                     laneWidth = laneWidth,
                     gridFocus = gridFocus,
+                    guideLoading = guideLoading,
+                    reminders = reminders,
                     playing = channel.id == playingChannelId,
                     onFocus = { program -> onFocus(channel, program) },
                     onPlayChannel = { onPlayChannel(channel) },
@@ -929,7 +997,23 @@ internal fun TimeRuler(
      * an entirely different question.
      */
     dayLabel: String? = null,
-    onDayClick: (() -> Unit)? = null,
+    /**
+     * LEFT and RIGHT on the focused chip: -1 a day back, +1 forward.
+     *
+     * The chip used to be a cycle — one OK advanced it, and day fourteen wrapped
+     * to today — which is a control that can only be driven forwards and a
+     * fourteen-press walk back from the far end. Nothing said so, either: a
+     * chip that reads as a label is not a thing a viewer tries LEFT on. It is a
+     * stepper now, with the chevrons drawn on it, and the direction keys do
+     * what their arrows say.
+     */
+    onDayStep: ((Int) -> Unit)? = null,
+    /** OK on the chip: straight back to today, from any day. */
+    onDayToday: (() -> Unit)? = null,
+    /** Whether a day exists in each direction — the chevron that leads nowhere
+     *  dims rather than lying about where the guide's data stops. */
+    canStepBack: Boolean = false,
+    canStepForward: Boolean = false,
     dayFocus: FocusRequester? = null,
     dayUp: FocusRequester? = null,
     /** DOWN from the day chip. Intercepted rather than left to the geometric
@@ -938,7 +1022,11 @@ internal fun TimeRuler(
     onDayDown: (() -> Unit)? = null,
 ) {
     val fmt = rememberClockFormat()
-    val dayFmt = remember { SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()) }
+    // The app's one date idiom — see [NuxFormat.DAY_PATTERN]. This wrote
+    // "Thu, 11 Sep 2026", the header wrote the same, the day chip and the
+    // schedule sheet each wrote something else, and the year is noise on a
+    // guide that reaches a fortnight.
+    val dayFmt = remember { NuxFormat.dayFormat() }
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         // The date names the day being VIEWED — on today it duplicated the
         // header's clock corner an inch away, so it only renders when paging.
@@ -953,51 +1041,98 @@ internal fun TimeRuler(
             modifier = Modifier.width(CHANNEL_COLUMN_WIDTH + CHANNEL_COLUMN_GAP),
             contentAlignment = Alignment.CenterStart,
         ) {
-            if (onDayClick != null && dayLabel != null) {
+            if (onDayStep != null && dayLabel != null) {
                 Surface(
-                    onClick = onDayClick,
+                    // OK is the way home. A stepper's own keys move a day at a
+                    // time, which leaves OK free for the one destination a
+                    // viewer wants from deep in next week — and it is the same
+                    // answer the first BACK gives, so the two agree.
+                    onClick = { onDayToday?.invoke() },
                     modifier = Modifier
                         .then(dayFocus?.let { Modifier.focusRequester(it) } ?: Modifier)
                         .focusProperties { dayUp?.let { up = it } }
                         .onPreviewKeyEvent { event ->
-                            if (onDayDown != null &&
-                                event.type == KeyEventType.KeyDown &&
-                                event.key.nativeKeyCode == AndroidKeyEvent.KEYCODE_DPAD_DOWN
-                            ) {
-                                onDayDown()
-                                true
-                            } else false
+                            if (event.type != KeyEventType.KeyDown) {
+                                return@onPreviewKeyEvent false
+                            }
+                            when (event.key.nativeKeyCode) {
+                                // Consumed in both directions whether or not
+                                // there is a day to go to: nothing sits beside
+                                // this chip, so an unconsumed LEFT or RIGHT is
+                                // handed to a focus search that can only take
+                                // the ring somewhere unrelated.
+                                AndroidKeyEvent.KEYCODE_DPAD_LEFT -> {
+                                    onDayStep(-1)
+                                    true
+                                }
+                                AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                    onDayStep(+1)
+                                    true
+                                }
+                                AndroidKeyEvent.KEYCODE_DPAD_DOWN ->
+                                    if (onDayDown != null) {
+                                        onDayDown()
+                                        true
+                                    } else false
+                                else -> false
+                            }
                         },
-                    shape = ClickableSurfaceDefaults.shape(NuxShape.Chip),
-                    // Quiet at rest like an unselected chip: this names where
-                    // the grid is, it is not a thing that is switched on.
+                    // The category strip's focus language, not a second one.
+                    // These two controls sit twenty dp apart and spoke
+                    // differently — a solid white fill up there, a ring on a
+                    // raised surface down here — so the two rows above the grid
+                    // read as two unrelated toolbars. Focus is a FILL in this
+                    // app; see [CategoryItem], which this now matches down to
+                    // the shape and the scale.
+                    shape = ClickableSurfaceDefaults.shape(NuxShape.FilterChip),
                     colors = ClickableSurfaceDefaults.colors(
                         containerColor = Color.Transparent,
-                        focusedContainerColor = NuxColors.SurfaceRaised,
-                        contentColor = NuxColors.OnSurface,
-                        focusedContentColor = NuxColors.OnSurface,
+                        focusedContainerColor = NuxColors.FocusBorder,
+                        contentColor = NuxColors.OnSurfaceDim,
+                        // Dark ON the fill: white on white is a blank pill.
+                        focusedContentColor = NuxColors.Background,
                     ),
                     scale = ClickableSurfaceDefaults.scale(
                         focusedScale = com.agoro.tv.ui.theme.NuxFocus.ButtonScale,
                     ),
                     border = ClickableSurfaceDefaults.border(
-                        focusedBorder = com.agoro.tv.ui.theme.NuxFocus.ring8,
+                        focusedBorder = androidx.tv.material3.Border.None,
                     ),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        // Tighter than the category chips' 20/12 on purpose:
+                        // this row's height is grid height, and every dp the
+                        // ruler takes is taken off the last channel visible.
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
+                        // The chevrons ARE the affordance — the calendar glyph
+                        // that used to sit here said "this is a date", which
+                        // the label already says, and said nothing about the
+                        // one thing a viewer could not guess.
+                        //
+                        // Dimmed by alpha rather than by colour, because the
+                        // content colour flips to dark on the focused white
+                        // fill and a fixed grey would vanish into it.
                         Icon(
-                            Icons.Default.CalendarMonth,
+                            Icons.Default.ChevronLeft,
                             contentDescription = null,
-                            modifier = Modifier.size(15.dp),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .alpha(if (canStepBack) 1f else 0.3f),
                         )
                         Text(
                             text = dayLabel,
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1,
+                        )
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(16.dp)
+                                .alpha(if (canStepForward) 1f else 0.3f),
                         )
                     }
                 }
@@ -1053,8 +1188,16 @@ internal fun TimeRuler(
             var t = windowStart + range.first * slotMillis
             val rulerEnd = windowStart + (range.last + 1) * slotMillis
             while (t < rulerEnd) {
-                // The half-hour containing "now" is called out instead of
-                // labelled with a time you'd have to compare against a clock.
+                // The half-hour containing "now" is marked, not renamed.
+                //
+                // It used to REPLACE its time with the words "ON NOW", which
+                // made the current half-hour the only slot on the ruler with no
+                // time on it — so the one column a viewer looks at first could
+                // not be read off the ruler at all, and "what time does this
+                // finish" meant counting slots from the next one. It was also
+                // the fourth thing on screen saying "now" at once. The label
+                // stays a time and goes gold, which is what every other now
+                // signal here does.
                 val isNow = nowMs >= t && nowMs < t + 30 * 60_000L
                 val slotStart = t
                 // Keyed on the slot, so a label keeps its node when the
@@ -1063,11 +1206,11 @@ internal fun TimeRuler(
                 // bucket advanced, and each re-laid its text to say so.
                 key(slotStart) {
                     // Measured, not guessed. The pin limit used to reserve a fixed
-                    // 72dp for the label, which is both too little for "ON NOW"
-                    // and — at MIN_DP_PER_MINUTE, where a half-hour slot is 78dp —
-                    // only 6dp of travel. Past the limit the label slid under the
-                    // lane's clip edge and rendered as a fragment: the guide's most
-                    // important marker read "N NOW" for most of every hour.
+                    // 72dp for the label, which — at MIN_DP_PER_MINUTE, where a
+                    // half-hour slot is 78dp — left only 6dp of travel. Past the
+                    // limit the label slid under the lane's clip edge and rendered
+                    // as a fragment, so the ruler read "0 PM" for most of every
+                    // hour.
                     var labelWidthPx by remember { mutableIntStateOf(0) }
                     fun pinLimit(density: Density): Float = with(density) {
                         // Minus a gap, so a pinned label never butts against the
@@ -1080,11 +1223,11 @@ internal fun TimeRuler(
                         timelineScroll.value - ((slotStart - windowStart) / 60_000f) * perMinPx
                     }
                     Text(
-                        text = if (isNow) "ON NOW" else fmt.format(Date(slotStart)),
+                        text = fmt.format(Date(slotStart)),
                         style = MaterialTheme.typography.labelMedium,
                         // Gold, like every other "now" signal on this screen —
-                        // the header chip, the marker line, the cell bar. Red is
-                        // the app's error and REC colour and said neither here.
+                        // the marker line and the cell's own bar. Red is the
+                        // app's error and REC colour and said neither here.
                         color = if (isNow) NuxColors.Primary else NuxColors.OnSurfaceDim,
                         // getLineWidth, not size.width: the Text is stretched to
                         // the full slot, so its layout size is the slot — which
@@ -1126,7 +1269,10 @@ internal fun TimeRuler(
             if (after > 0) Spacer(Modifier.width(dpPerMinute * 30 * after))
         }
     }
-    Spacer(Modifier.height(6.dp))
+    // 4dp, not 6. Gaps above the grid are channels: this one, the strip's and
+    // the header's together pay for the four dp the guide's raised type costs
+    // per row, so the fourth channel is still whole at the bottom of the pane.
+    Spacer(Modifier.height(4.dp))
 }
 
 @Composable
@@ -1143,6 +1289,8 @@ private fun GuideRow(
     dpPerMinute: Dp,
     laneWidth: Dp,
     gridFocus: GuideGridFocus,
+    guideLoading: Boolean,
+    reminders: GuideReminders?,
     playing: Boolean,
     onFocus: (EpgProgram?) -> Unit,
     onPlayChannel: () -> Unit,
@@ -1160,9 +1308,22 @@ private fun GuideRow(
     // back the same programmes yields an EQUAL layout, so every remember
     // keyed on it below — the requesters, the registration, the window —
     // holds, and the focused cell is never disposed to be rebuilt identical.
+    //
+    // Placeholders are not programmes and never become cells. The panel fills a
+    // channel with no schedule with a two-hour entry called "TV Guide
+    // unavailable", and the guide gave it everything a real programme gets: a
+    // cell reading "9:00 PM • Now", an ON NOW chip, a progress bar and a
+    // countdown to a show that does not exist — and OK on it offered a reminder
+    // for it. Dropped here, the lane a channel like ABC News Live or C-SPAN
+    // gets is the same neutral slab a channel with no listings at all gets,
+    // where OK plays the channel. One place, so the rendering pass, the focus
+    // registry and the header cannot disagree about it.
     val layout = remember(channel.id, programsKey, windowStart, windowEnd) {
         layoutGuideRow(
-            programsFor(channel).filter { it.endMs > windowStart && it.startMs < windowEnd },
+            programsFor(channel).filter {
+                it.endMs > windowStart && it.startMs < windowEnd &&
+                    !TextNorm.isProgrammePlaceholder(it.title)
+            },
             windowStart,
             windowEnd,
         )
@@ -1176,6 +1337,13 @@ private fun GuideRow(
     val fmt = rememberClockFormat()
     val startLabels = remember(layout, fmt) {
         layout.cells.map { fmt.format(Date(it.program.startMs)) }
+    }
+    // Cleaned once per layout for the same reason, and for the same cost: the
+    // broadcaster flags XMLTV writes into titles ("**Visually Signed**The
+    // Highland Vet", "[S]Bargain Hunt") reached the screen verbatim, asterisks
+    // and all. See [TextNorm.cleanProgrammeTitle].
+    val titles = remember(layout) {
+        layout.cells.map { TextNorm.cleanProgrammeTitle(it.program.title) }
     }
 
     // Register this row's cells for time-anchored UP/DOWN and CH paging. The
@@ -1264,7 +1432,10 @@ private fun GuideRow(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                // 6dp down from 8: at 8 the row's content box was 36dp and the
+                // logo in it is 40, so every logo in the column was being
+                // squeezed by four dp it never had. 6 leaves exactly 40.
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             ) {
                 // The number is the address the digit keys answer to — here
                 // and in the player — so the row that defines it shows it.
@@ -1345,7 +1516,9 @@ private fun GuideRow(
                         }
                         .width(dpPerMinute * ((windowEnd - windowStart) / 60_000L).toInt())
                         .height(ROW_HEIGHT)
-                        .padding(end = 2.dp, top = 6.dp, bottom = 6.dp),
+                        // The programme cells' insets, so the slab sits on the
+                        // same two lines they do — see [ProgramCell].
+                        .padding(end = 2.dp, top = 3.dp, bottom = 3.dp),
                     // 8dp like the programme cells beside it, so one ring token
                     // serves the whole lane.
                     shape = ClickableSurfaceDefaults.shape(NuxShape.Chip),
@@ -1367,6 +1540,16 @@ private fun GuideRow(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.CenterStart,
                     ) {
+                        // The words only once the guide has actually answered.
+                        //
+                        // While it is still downloading, every lane on the
+                        // screen said "No information" at the same time — which
+                        // on a fresh install is the first thing the guide ever
+                        // says, it is not true, and it reads as a guide that is
+                        // broken rather than one that is ten seconds away. The
+                        // slab alone says "nothing here yet" without claiming
+                        // anything, and the lanes fill in as packs land.
+                        //
                         // Pinned to the visible edge, not the lane's start.
                         // This lane spans the whole 30-hour window while the
                         // view sits at "now", so a label at its start was
@@ -1374,14 +1557,16 @@ private fun GuideRow(
                         // simply blank — the channel looked broken rather
                         // than unlisted. Offsetting by the scroll keeps the
                         // one thing it has to say where it can be read.
-                        Text(
-                            "No information",
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1,
-                            modifier = Modifier
-                                .offset { IntOffset(timelineScroll.value, 0) }
-                                .padding(start = 16.dp),
-                        )
+                        if (!guideLoading) {
+                            Text(
+                                "No information",
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                modifier = Modifier
+                                    .offset { IntOffset(timelineScroll.value, 0) }
+                                    .padding(start = 16.dp),
+                            )
+                        }
                     }
                 }
             } else {
@@ -1423,7 +1608,9 @@ private fun GuideRow(
                         }
                         ProgramCell(
                             program = spec.program,
+                            title = titles[i],
                             startLabel = startLabels[i],
+                            reminders = reminders,
                             upFocus = upFromRow,
                             widthMinutes = spec.widthMinutes,
                             startMinutesFromWindow = (spec.clampedStartMs - windowStart) / 60_000f,
@@ -1571,13 +1758,26 @@ private fun rememberVisibleCellRange(
 // NuxTypography is the theme's own object, so these are the same styles
 // MaterialTheme.typography would have handed back.
 private val CELL_TITLE_STYLE = NuxTypography.titleSmall.copy(lineHeight = 22.sp)
-private val CELL_TIME_STYLE = NuxTypography.labelMedium.copy(lineHeight = 16.sp)
+// labelMedium exactly as the theme sets it: 16sp on a 20sp line. It used to
+// force the line down to 16sp to buy back four dp in a tight cell, which under
+// a 14sp font merely removed the leading — and under the 16sp labelMedium is
+// now, crops the descenders off the one line in the guide that says WHEN.
+// [ProgramCell]'s insets pay for the four dp instead.
+private val CELL_TIME_STYLE = NuxTypography.labelMedium
 
 @Composable
 private fun ProgramCell(
     program: EpgProgram,
+    /** The title as a viewer reads it — the row cleans it once per layout. */
+    title: String,
     /** The start time, already formatted — the row does it once per layout. */
     startLabel: String,
+    /**
+     * Read here rather than handed down as a Boolean, so setting a reminder
+     * invalidates the composed cells and nothing above them — see
+     * [GuideReminders].
+     */
+    reminders: GuideReminders?,
     upFocus: FocusRequester?,
     widthMinutes: Float,
     startMinutesFromWindow: Float,
@@ -1612,7 +1812,14 @@ private fun ProgramCell(
                 onNow -> onPlayLive()
                 over && hasArchive -> onCatchup()
                 !over -> onSchedule() // sets a reminder
-                else -> Unit
+                // A finished programme on a channel with no catch-up. This was
+                // `Unit`: a focusable cell that answered OK with nothing at
+                // all, which is the one thing a remote must never meet — there
+                // is no way to tell a dead key from a slow app. It plays the
+                // channel, which is what OK does on the channel cell beside it
+                // and on an empty lane, so every cell in a row answers the same
+                // question the same way.
+                else -> onPlayLive()
             }
         },
         modifier = Modifier
@@ -1622,12 +1829,14 @@ private fun ProgramCell(
             // Caller has already reconciled this against the ruler; see layoutGuideRow.
             .width(dpPerMinute * widthMinutes)
             .height(ROW_HEIGHT)
-            // 4dp of row gap each side, not 6: the row lost 10dp when the
-            // quality deck came off it and the two text lines inside did
-            // not — the time line was being sliced through its middle by
-            // the cell's bottom edge. The budget is now exactly the two
-            // lines (22 + 16) plus the insets, see the Column below.
-            .padding(end = 2.dp, top = 4.dp, bottom = 4.dp),
+            // 3dp of row gap each side. The budget is exact and it is worth
+            // writing down: ROW_HEIGHT is 52, the two text lines are 22 and 20,
+            // and the ten dp left over are these two insets plus the Column's
+            // four below — which is the lane the progress bar draws in. The
+            // time line went from a 16dp line to a 20dp one when labelMedium
+            // became 16sp, and this is where those four dp came from, because
+            // the row itself cannot grow without costing the fourth channel.
+            .padding(end = 2.dp, top = 3.dp, bottom = 3.dp),
         shape = ClickableSurfaceDefaults.shape(NuxShape.Chip),
         scale = ClickableSurfaceDefaults.scale(
             focusedScale = com.agoro.tv.ui.theme.NuxFocus.RowScale,
@@ -1689,25 +1898,54 @@ private fun ProgramCell(
                             (widthMinutes * perMinPx - 120.dp.toPx()).coerceAtLeast(0f)
                         if (timelineScroll.value - startPx <= maxPin) drawContent()
                     }
-                    // 2dp above, 4dp below: the progress bar draws inside
-                    // the bottom inset instead of across the time line.
-                    .padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 4.dp),
+                    // Nothing above, 4dp below: the progress bar draws inside
+                    // the bottom inset instead of across the time line, and the
+                    // title's own 22dp line box carries the leading that used
+                    // to be spent on a top inset.
+                    .padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
             ) {
                 Text(
-                    text = program.title,
+                    text = title,
                     style = CELL_TITLE_STYLE,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    // Time only. "OK to record" repeated on every future
-                    // cell was the same sentence dozens of times per screen;
-                    // the header teaches it once, for the focused cell.
-                    text = if (airingNow) "$startLabel • Now" else startLabel,
-                    style = CELL_TIME_STYLE,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        // The time, and nothing else.
+                        //
+                        // "OK to record" on every future cell was the same
+                        // sentence dozens of times per screen, and the "• Now"
+                        // that replaced it on the current one was the fifth
+                        // thing on screen saying the same word: the ruler's
+                        // gold slot, the gold now-line crossing this very
+                        // cell, the bar along its bottom edge and the header's
+                        // countdown all say it already.
+                        text = startLabel,
+                        style = CELL_TIME_STYLE,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        // Yields to the bell rather than pushing it out of a
+                        // sixteen-minute cell; fill = false so the time still
+                        // sits against the cell's left edge in a wide one.
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    // The mark a reminder leaves. Setting one used to change
+                    // nothing on screen at all, so the only way to find out
+                    // whether the press had registered was to press OK again —
+                    // which set the same alarm a second time.
+                    if (reminders?.isSet(program.id) == true) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = null,
+                            tint = NuxColors.Primary,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
             }
             // How far through, without leaving the grid — the header repeats it
             // in words, but the header describes only the focused cell.

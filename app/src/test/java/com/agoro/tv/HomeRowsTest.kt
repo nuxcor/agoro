@@ -482,20 +482,52 @@ class HomeRowsTest {
     @Test
     fun `channel hero degrades to bare channel without a guide`() {
         val hero = channelHero(channel, null)
-        assertEquals("beIN Sports", hero.title)
-        assertEquals(listOf("Live", "FHD"), hero.chips)
-        assertNull(hero.plot)
+        assertEquals("beIN Sports", hero.info.title)
+        // One chip. The quality tier used to ride along here and on every card
+        // below; stream badges belong to the player's button row, and with no
+        // SD in the app the tier only ever said HD or FHD anyway.
+        assertEquals(listOf("Live"), hero.info.chips)
+        assertNull(hero.line)
     }
 
+    /**
+     * The programme is content, so it gets a line — not a 14sp pill wedged
+     * between "Live" and a quality badge, which is where a viewer landing on
+     * Home used to find the only thing on the hero worth reading.
+     */
     @Test
-    fun `channel hero carries the current programme`() {
+    fun `channel hero carries the current programme on its own line`() {
         val now = EpgProgram(
             id = "p", title = "Match of the Day", description = "Highlights",
             startMs = 0L, endMs = 1L, hasArchive = false,
         )
         val hero = channelHero(channel, MainViewModel.NowNext(now = now, next = null))
-        assertEquals(listOf("Live", "FHD", "Match of the Day"), hero.chips)
-        assertEquals("Highlights", hero.plot)
+        assertEquals(listOf("Live"), hero.info.chips)
+        assertEquals("Match of the Day", hero.line)
+    }
+
+    /**
+     * The two faults the guide's own data carries, at the screen most viewers
+     * meet first. Broadcasters write accessibility flags into the title, and
+     * the panel fills empty schedules with an entry that is not a programme.
+     */
+    @Test
+    fun `channel hero cleans flags and refuses the panel's filler`() {
+        fun heroFor(title: String) = channelHero(
+            channel,
+            MainViewModel.NowNext(
+                now = EpgProgram(
+                    id = "p", title = title, description = null,
+                    startMs = 0L, endMs = 1L, hasArchive = false,
+                ),
+                next = null,
+            ),
+        )
+        assertEquals(
+            "The Highland Vet",
+            heroFor("**Visually Signed**The Highland Vet").line,
+        )
+        assertNull(heroFor("TV Guide unavailable").line)
     }
 
     // --- Recently added --------------------------------------------------------

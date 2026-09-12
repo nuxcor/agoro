@@ -244,7 +244,11 @@ class XtreamClient(
             val stop = obj.str("stop_timestamp")?.toLongOrNull() ?: return@mapNotNull null
             EpgProgram(
                 id = obj.str("id") ?: "$streamId:$start",
-                title = obj.str("title")?.fromBase64() ?: "Untitled",
+                // The panel's own EPG carries the same broadcaster flags the
+                // XMLTV files do, and this is the second of the two doors a
+                // programme comes through. Both clean; nothing downstream has
+                // to remember to.
+                title = TextNorm.cleanProgrammeTitle(obj.str("title")?.fromBase64() ?: "Untitled"),
                 description = obj.str("description")?.fromBase64()?.takeIf { it.isNotBlank() },
                 startMs = start * 1000,
                 endMs = stop * 1000,

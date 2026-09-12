@@ -1502,7 +1502,6 @@ class ContentRepository(context: Context) {
                             tmdb.posterUrl ?: enriched.poster
                         } else enriched.poster ?: tmdb.posterUrl,
                         backdrop = tmdb.backdropUrl,
-                        reviews = tmdb.reviews,
                         cast = enriched.cast ?: tmdb.cast,
                         director = enriched.director ?: tmdb.director,
                     )
@@ -1525,7 +1524,6 @@ class ContentRepository(context: Context) {
                 tmdb.posterUrl ?: series.poster
             } else series.poster ?: tmdb.posterUrl,
             backdrop = tmdb.backdropUrl,
-            reviews = tmdb.reviews,
             cast = series.cast ?: tmdb.cast,
             director = series.director ?: tmdb.director,
             // The panel's exact id where it sent one, otherwise the id the

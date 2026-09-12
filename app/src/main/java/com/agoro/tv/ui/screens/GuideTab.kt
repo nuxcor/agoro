@@ -14,12 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,6 +49,8 @@ import com.agoro.tv.data.Category
 import com.agoro.tv.data.ContentBundle
 import com.agoro.tv.data.ContentRepository
 import com.agoro.tv.data.EpgProgram
+import com.agoro.tv.data.TextNorm
+import com.agoro.tv.ui.components.NuxFormat
 import com.agoro.tv.ui.components.rememberProgramDescription
 import com.agoro.tv.ui.components.spendGutter
 import com.agoro.tv.ui.theme.Space
@@ -59,14 +59,8 @@ import com.agoro.tv.ui.components.Artwork
 import com.agoro.tv.ui.components.rememberClockFormat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LiveTv
 import androidx.tv.material3.Icon
-import com.agoro.tv.ui.components.StatusAction
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import com.agoro.tv.ui.components.MetaChip
-import com.agoro.tv.ui.components.StatusPane
 import com.agoro.tv.ui.components.requestFocusRetrying
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.focus.focusRequester
@@ -74,22 +68,29 @@ import androidx.compose.ui.focus.focusRestorer
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxMotion
 import com.agoro.tv.ui.theme.NuxShape
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.agoro.tv.data.answersTo
 
 /**
- * Budget on a 960x540dp TV canvas, measured on device rather than estimated:
- * 540 − 64 (vertical gutters) − 56 (category strip with its padding) − 36
- * (ruler + spacer) − 10 (header spacer) leaves 374dp, and four channel rows
- * need 266 (4×62 + 3×6) — so the header gets at most 108dp. At the previous
- * 120dp the fourth row was clipped mid-row at the pane's bottom edge on every
- * screen. A guide showing fewer than four channels stops being a guide, which
- * is why the rows win this trade.
+ * Budget on a 960x540dp TV canvas. The tab is handed what the top navigation
+ * band and the bottom gutter leave — 540 − 78 − 32 = 430dp — and out of it the
+ * category strip takes 54 (a 48dp chip and its gap), the ruler 36 (its label
+ * line and the spacer under it) and the gap under this header 6. Four channel
+ * rows need 226 (4×52 + 3×6), which leaves the header 108dp at the very most.
+ *
+ * At 104 it fits exactly four lines of type: the title (32), the time line
+ * (20) and two lines of synopsis (48), with four dp of gaps between them. That
+ * is what the header's 220dp progress bar used to spend, and it only ever
+ * appeared while something was on now — which is precisely when the synopsis
+ * has something to say, so the two were competing for the same dp and the
+ * synopsis lost. See [GuideHeader].
+ *
+ * A guide showing fewer than four channels stops being a guide, which is why
+ * the rows win this trade and why nothing above the grid may grow without
+ * something else above it shrinking.
  */
 private val HEADER_HEIGHT = 104.dp
 
@@ -123,6 +124,13 @@ fun GuideTab(
      * here when the host has no use for it.
      */
     gridHandle: GuideGridHandle = remember { GuideGridHandle() },
+    /**
+     * Programmes the viewer has already asked to be reminded about — see
+     * [GuideReminders]. Owned by the host, like [gridHandle], because the
+     * "What's on" sheet sets reminders too and a bell that appears for one
+     * route and not the other is worse than no bell at all.
+     */
+    reminders: GuideReminders = remember { GuideReminders() },
 ) {
     val epgState by vm.epgState.collectAsState()
     val coverage by vm.guideCoverage.collectAsState()
@@ -133,15 +141,15 @@ fun GuideTab(
     // The grid IS the channel list, so replacing it with an error pane meant a
     // playlist whose xmltv URL 404s — routine, not exotic — had no way to play
     // any channel at all: no rows, no number keys, no hold-OK menu. The prompt
-    // rides above a working grid instead, and the lanes simply read "No
-    // information" until a guide arrives.
+    // rides above a working grid instead, and the lanes stand empty until a
+    // guide arrives.
     val notice: GuideNotice? = when (val state = epgState) {
         // No banner while it downloads. It said "channels are ready to watch
         // now", which is true and therefore not worth a bar across the top of
-        // the screen for the whole load — the lanes already read "No
-        // information" until programmes arrive, and they fill in as packs
-        // land. Only a guide that FAILED still says so, because that one the
-        // viewer can act on.
+        // the screen for the whole load. The lanes say nothing at all
+        // meanwhile — see [guideLoading] below — and fill in as packs land.
+        // Only a guide that FAILED still says so, because that one the viewer
+        // can act on.
         is ContentRepository.EpgState.Idle,
         is ContentRepository.EpgState.Loading -> null // see [GuideNotice]
 
@@ -171,13 +179,21 @@ fun GuideTab(
     // that opened nothing.
     var pinPendingCategory by remember { mutableStateOf<String?>(null) }
     val lockedIds = remember(bundle, pin, unlocked) {
-        bundle.liveCategories.filter { vm.isLockedCategory(it.name) }
-            .map { it.id }.toSet()
+        lockedCategoryIds(bundle) { vm.isLockedCategory(it) }
     }
     // Same list and same filtering as the channel view — see
     // LiveCategories.kt. The caller owns which one is selected.
-    val categories = remember(bundle, favorites, recents, allChannels) {
-        liveCategoryList(bundle, allChannels, favorites, recents)
+    //
+    // The strip is built from the list that is GATED on having channels, not
+    // from the bundle's categories: a shelf whose every channel has been hidden
+    // used to keep its chip, and OK on it swapped in an empty grid with no copy
+    // in it, a header that fell back to the word "Guide", and nothing below for
+    // DOWN to land on — so focus stayed on the chip and the press looked like
+    // the app ignoring the remote. Locked categories are the exception the
+    // gate takes: their channels are filtered out until the PIN, and dropping
+    // them would take the PIN prompt's only door with them.
+    val categories = remember(bundle, favorites, recents, allChannels, lockedIds) {
+        liveCategoryList(bundle, allChannels, favorites, recents, keepWhenEmpty = lockedIds)
     }
     val allView by vm.allChannelsView.collectAsState()
     // A lookup, not a filter over every channel — see LiveCategoryIndex.
@@ -213,12 +229,11 @@ fun GuideTab(
     // to find something must not act on every name you pass over on the way.
     // OK selects, and nothing else does.
     if (allChannels.isEmpty()) {
-        StatusPane(
-            title = "No live channels",
-            message = "This playlist has no live streams, or they are all hidden.",
-            icon = Icons.Default.LiveTv,
-            primaryAction = StatusAction("Open Settings", onOpenSettings),
-        )
+        // The same pane the tab shows when the playlist carries no live
+        // streams at all — see [NoLiveChannelsPane]. Two panes twenty lines
+        // apart, with two sentences and two button labels, for conditions a
+        // viewer cannot tell apart and would fix in the same place.
+        NoLiveChannelsPane(onOpenSettings)
         return
     }
 
@@ -446,12 +461,23 @@ fun GuideTab(
         androidx.compose.foundation.lazy.LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            // DOWN mirrors UP's route: strip → day chip when one is showing,
-            // else straight into the grid. Intercepted, not left to geometry —
-            // only the leftmost chips even have the day chip below them, and
-            // from the rest DOWN found nothing and bounced back to chip one.
+            // DOWN goes strip → day chip when one is showing, else straight
+            // into the grid. Intercepted, not left to geometry — only the
+            // leftmost chips even have the day chip below them, and from the
+            // rest DOWN found nothing and bounced back to chip one.
+            //
+            // UP out of the grid no longer mirrors this, deliberately: it
+            // returns here in one press, past the day chip. Going DOWN a viewer
+            // is arriving at the grid and passes the day on the way, which is
+            // where a day belongs; going UP they are leaving for a category or
+            // a tab, and a stop at a time control is a press spent on a
+            // question they did not ask. See [GuideGrid]'s upFromTopRow.
             modifier = Modifier
-                .padding(bottom = 10.dp)
+                // 6dp, not 10. The gaps above the grid are channels — this
+                // one, the header's and the ruler's together pay for the four
+                // dp per row the guide's raised type costs, so the fourth
+                // channel is still whole at the bottom of the pane.
+                .padding(bottom = 6.dp)
                 // The requester lives on the ROW, not on a chip.
                 //
                 // It used to be attached to the first chip, on the reasoning
@@ -537,23 +563,32 @@ fun GuideTab(
             program = { focusedProgram ?: restingProgram.takeIf { focusedChannel == null } },
             nowMs = nowTick,
             categoryName = categories.firstOrNull { it.id == categoryId }?.name,
+            reminders = reminders,
             preview = {
                 GuidePreviewSurface(preview, modifier = Modifier.fillMaxSize())
             },
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
 
         TimeRuler(
             windowStart, windowEnd, nowTick,
             nowTick + dayOffset * 24 * 3600_000L, timelineScroll, dpPerMinute,
             laneWidth = laneWidth,
             dayLabel = if (maxDayOffset > 0) dayLabel(dayOffset) else null,
-            // Cycles rather than clamping: one control, and the way back from
-            // the last day is never a hunt for a second one that has quietly
-            // greyed itself out.
-            onDayClick = if (maxDayOffset > 0) {
-                { dayOffset = if (dayOffset >= maxDayOffset) 0 else dayOffset + 1 }
+            // A stepper, not a cycle.
+            //
+            // One OK used to advance the day and wrap day fourteen back to
+            // today, which is a control with no reverse: getting back from
+            // Friday week was thirteen more presses forward, and the way that
+            // actually worked — the first BACK returns to now — is invisible.
+            // The direction keys step, clamped at both ends so a press never
+            // teleports a fortnight, and OK is the way home from anywhere.
+            onDayStep = if (maxDayOffset > 0) {
+                { step: Int -> dayOffset = (dayOffset + step).coerceIn(0, maxDayOffset) }
             } else null,
+            onDayToday = { jumpToNow() },
+            canStepBack = dayOffset > 0,
+            canStepForward = dayOffset < maxDayOffset,
             dayFocus = dayFocus,
             dayUp = chipsFocus,
             onDayDown = { scope.launch { gridHandle.focusAnchor() } },
@@ -564,9 +599,26 @@ fun GuideTab(
             lastPlayedChannelId = lastPlayedChannelId,
             handle = gridHandle,
             digitState = digitState,
-            // UP from the grid meets the day control first — it sits directly
-            // above — and UP again reaches the category strip.
-            upFromTopRow = if (maxDayOffset > 0) dayFocus else chipsFocus,
+            // UP from the top row goes to the category strip, whatever is
+            // between them.
+            //
+            // It used to stop at the day chip, which sits at the FAR LEFT of
+            // the ruler: UP from a cell on the right-hand edge of the row threw
+            // the ring diagonally across the screen to a control the viewer had
+            // not asked for, and leaving the tab from there took two more
+            // presses. The day chip is a time control, not a rung on the
+            // vertical route out of the grid — it is still on the way DOWN
+            // (strip, day, grid), which is the direction a viewer is arriving
+            // to choose a day in. focusRestorer on the strip means UP returns
+            // to the chip that was last focused rather than to chip one.
+            upFromTopRow = chipsFocus,
+            // Reserve "No information" for a guide that arrived with none.
+            // Idle counts as loading: it is the state before the first fetch on
+            // a fresh install, and a playlist with no guide source configured
+            // reaches Error rather than staying here.
+            guideLoading = epgState is ContentRepository.EpgState.Idle ||
+                epgState is ContentRepository.EpgState.Loading,
+            reminders = reminders,
             channels = channels,
             // Remembered, not rebuilt per composition: an unstable lambda
             // is a changed parameter, and a changed parameter recomposes
@@ -632,8 +684,20 @@ fun GuideTab(
                 // not, so the same press did two different things depending on
                 // the channel; with recording gone the fallback is the whole
                 // behaviour and OK means one thing everywhere.
-                vm.scheduleReminder(channel, program)
-                statusMessage = "Reminder set: ${program.title}"
+                //
+                // Twice is not twice. A second OK on the same programme used to
+                // schedule the same alarm again and say "Reminder set" again,
+                // with nothing on screen ever having said it was set the first
+                // time. The cell carries a bell and the header chip says so
+                // now, and a repeat press reports rather than re-arms.
+                if (reminders.isSet(program.id)) {
+                    statusMessage = "Reminder already set"
+                } else {
+                    vm.scheduleReminder(channel, program)
+                    reminders.mark(program.id)
+                    statusMessage =
+                        "Reminder set: ${TextNorm.cleanProgrammeTitle(program.title)}"
+                }
             },
         )
     }
@@ -690,11 +754,14 @@ private fun GuideHeader(
     program: () -> EpgProgram?,
     nowMs: Long,
     categoryName: String?,
+    /** Which programmes already have a reminder — see [GuideReminders]. */
+    reminders: GuideReminders,
     /** Video for the focused channel, when previewing is on and one is running. */
     preview: @Composable () -> Unit = {},
 ) {
     val timeFmt = rememberClockFormat()
-    val dateFmt = remember { SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()) }
+    // The app's one date idiom, with no year on it — see [NuxFormat.DAY_PATTERN].
+    val dateFmt = remember { NuxFormat.dayFormat() }
     // Debounced, the way the Home hero is, so travelling rows costs the
     // header nothing until the viewer rests. Every DOWN used to re-key the
     // artwork on the new channel at once, and a 200×104dp request is a
@@ -704,7 +771,13 @@ private fun GuideHeader(
     // The first answer shows immediately: a header that opens blank for
     // 180ms reads as a header that is broken.
     val liveChannel = channel()
-    val liveProgram = program()
+    // A placeholder is not a programme, and everything below this line treats
+    // what it is handed as one — the countdown, the chip, the synopsis lookup.
+    // The grid drops them before they can be focused, so this is the second
+    // door: the resting programme the header shows before anything has focus
+    // is read straight out of the guide table. See
+    // [TextNorm.isProgrammePlaceholder].
+    val liveProgram = program()?.takeUnless { TextNorm.isProgrammePlaceholder(it.title) }
     var shown by remember { mutableStateOf(liveChannel to liveProgram) }
     LaunchedEffect(liveChannel, liveProgram) {
         if (shown.first != null) delay(NuxMotion.HeroDebounceMs.toLong())
@@ -757,10 +830,23 @@ private fun GuideHeader(
             preview()
         }
 
+        // Four lines in 104dp, and the arithmetic is the design: title 32,
+        // time 20, synopsis 2 x 24 = 48, leaving four dp of gaps. The progress
+        // BAR is what paid for it.
+        //
+        // It cost a whole 18dp deck — bar, gap and countdown — exactly when
+        // there was something on now, which is exactly when there is a synopsis
+        // worth reading; the synopsis was left ~14dp for a 48dp block and
+        // clipped to a sliver of first line. The cell in the grid already draws
+        // that programme's progress along its bottom edge, under the gold now
+        // line crossing it, so the header was drawing a third copy of the same
+        // fact. The words are what the header is for, and the countdown keeps
+        // them — folded onto the time line, where it reads as one sentence
+        // about when this programme is.
         Column(modifier = Modifier.weight(1f)) {
             // Spaced: the weighted title column otherwise runs right up to
-            // the clock, and a long title's "OK to record" chip sat touching
-            // the time with nothing between them.
+            // the clock, and a long title's chip sat touching the time with
+            // nothing between them.
             Row(
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(Space.l),
@@ -771,7 +857,10 @@ private fun GuideHeader(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Text(
-                            text = currentProgram?.title ?: current?.displayName ?: "Guide",
+                            // Cleaned, like every other title the app shows —
+                            // see [TextNorm.cleanProgrammeTitle].
+                            text = currentProgram?.let { TextNorm.cleanProgrammeTitle(it.title) }
+                                ?: current?.displayName ?: "Guide",
                             style = MaterialTheme.typography.headlineSmall.copy(
                                 fontWeight = FontWeight.SemiBold
                             ),
@@ -780,29 +869,39 @@ private fun GuideHeader(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false),
                         )
-                        // One contextual chip teaches what OK does to the
-                        // focused programme — the grid's cells stay clean.
+                        // One contextual chip, and only where OK does something
+                        // a viewer cannot guess. No ON NOW chip: the countdown
+                        // on the line below says a programme is running, in
+                        // words, and the grid says it three more ways — the
+                        // gold ruler slot, the now line and the cell's own bar.
+                        // Five ways of saying "now" is four too many.
+                        //
+                        // The labels are things rather than instructions:
+                        // "OK to remind" told the viewer which key to press,
+                        // which is the house style's example of what a label
+                        // must not be.
                         if (currentProgram != null) {
                             when {
-                                nowMs in currentProgram.startMs until currentProgram.endMs ->
-                                    MetaChip("ON NOW", accent = true)
                                 currentProgram.startMs > nowMs ->
-                                    MetaChip(
-                                        "OK to remind"
-                                    )
-                                (current?.archiveDays ?: 0) > 0 ->
-                                    MetaChip("OK for catch-up")
+                                    if (reminders.isSet(currentProgram.id)) {
+                                        MetaChip("Reminder set", accent = true)
+                                    } else {
+                                        MetaChip("Set a reminder")
+                                    }
+                                currentProgram.endMs <= nowMs &&
+                                    (current?.archiveDays ?: 0) > 0 -> MetaChip("Catch-up")
                                 else -> Unit
                             }
                         }
                     }
                     if (currentProgram != null) {
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(2.dp))
                         Text(
-                            text = "${timeFmt.format(Date(currentProgram.startMs))} – " +
-                                timeFmt.format(Date(currentProgram.endMs)),
+                            text = programTimeLine(currentProgram, nowMs) { timeFmt.format(Date(it)) },
                             style = MaterialTheme.typography.labelLarge,
                             color = NuxColors.OnSurfaceDim,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -813,52 +912,39 @@ private fun GuideHeader(
                     horizontalAlignment = Alignment.End,
                     modifier = Modifier.widthIn(max = 300.dp),
                 ) {
+                    // What the grid below is a list OF.
+                    //
+                    // Nineteen chips do not fit on a strip, so the selected one
+                    // scrolls out of sight within a few presses and nothing on
+                    // the screen then names the category being browsed — the
+                    // chip's gold was the only answer, and it was off-screen.
+                    //
+                    // In this corner rather than above the title, which is
+                    // where an eyebrow belongs, because the header is 104dp and
+                    // the left column is four lines deep already: a fifth line
+                    // there takes one off the synopsis. This column carried a
+                    // single line in a 104dp box, and the pairing reads
+                    // honestly — where you are, above when you are.
+                    if (!categoryName.isNullOrBlank()) {
+                        Text(
+                            text = categoryName,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = NuxColors.OnSurfaceDim,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     Text(
                         text = "${timeFmt.format(Date(nowMs))}  •  ${dateFmt.format(Date(nowMs))}",
                         style = MaterialTheme.typography.labelMedium,
                         color = NuxColors.OnSurface,
-                    )
-                }
-            }
-
-            // Progress only means something for whatever is on right now.
-            if (currentProgram != null && nowMs in currentProgram.startMs until currentProgram.endMs) {
-                Spacer(Modifier.height(8.dp))
-                val span = (currentProgram.endMs - currentProgram.startMs).coerceAtLeast(1)
-                val progress = ((nowMs - currentProgram.startMs).toFloat() / span).coerceIn(0f, 1f)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(220.dp)
-                            .height(5.dp)
-                            .clip(NuxShape.Track)
-                            .background(NuxColors.SurfaceVariant)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(progress)
-                                .background(NuxColors.Primary)
-                        )
-                    }
-                    // Rounded up: integer division reported "0 minutes left"
-                    // for the last minute, beside a bar that wasn't full.
-                    val minutesLeft =
-                        ((currentProgram.endMs - nowMs + 59_999) / 60_000L).coerceAtLeast(0L)
-                    Text(
-                        text = if (minutesLeft == 1L) "1 minute left" else "$minutesLeft minutes left",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = NuxColors.OnSurfaceDim,
                         maxLines = 1,
                     )
                 }
             }
 
             if (!synopsis.isNullOrBlank()) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = synopsis,
                     style = MaterialTheme.typography.bodyMedium,
@@ -873,13 +959,39 @@ private fun GuideHeader(
 
 
 /**
+ * The header's time line: when this programme is, and, while it is on, how much
+ * of it is left — "8:00 PM – 9:00 PM  ·  25 minutes left".
+ *
+ * One line instead of a deck. The remaining time used to arrive as a 220dp
+ * progress bar with the countdown beside it, which appeared only while
+ * something was on now and took 18dp of a 104dp header exactly when the
+ * synopsis had something to say. Both facts are about WHEN, so they read as one
+ * sentence; the bar itself is drawn by the focused cell in the grid.
+ *
+ * A function of its own, and pure, because the rounding is the part that gets
+ * this wrong: integer division reports "0 minutes left" for the last minute of
+ * a programme that is plainly still running.
+ */
+internal fun programTimeLine(
+    program: EpgProgram,
+    nowMs: Long,
+    clock: (Long) -> String,
+): String {
+    val span = "${clock(program.startMs)} – ${clock(program.endMs)}"
+    if (nowMs !in program.startMs until program.endMs) return span
+    val minutesLeft = ((program.endMs - nowMs + 59_999) / 60_000L).coerceAtLeast(0L)
+    return span + "  ·  " + if (minutesLeft == 1L) "1 minute left" else "$minutesLeft minutes left"
+}
+
+/**
  * What, if anything, is wrong with the guide sitting above the grid.
  *
  * There is deliberately no "still loading" state. A bar reading "channels are
  * ready to watch now" for the length of a guide download says nothing the
  * viewer can act on, and sat across the top of the screen the whole time; the
- * lanes read "No information" until programmes arrive and fill in as they do.
- * Only a guide that FAILED gets a notice.
+ * lanes stand empty until programmes arrive and fill in as they do — they say
+ * "No information" only once a guide has arrived without any. Only a guide
+ * that FAILED gets a notice.
  */
 internal sealed interface GuideNotice {
 
@@ -955,12 +1067,6 @@ private fun GuideNoticeBar(notice: GuideNotice) {
 
 
 /**
- * Day-pager chevron that is only focusable while it can act. tv-material's
- * disabled buttons deliberately stay focusable but draw no focus ring, which
- * here made the first focus entry into the tab land on an invisible, inert
- * control.
- */
-/**
  * "Today", "Tomorrow", then the date itself — never a bare offset.
  *
  * Dated from TODAY, not from the guide's [baseStartMs]. That anchor is "now,
@@ -978,7 +1084,7 @@ internal fun dayLabel(offset: Int, nowMs: Long = System.currentTimeMillis()): St
                 timeInMillis = nowMs
                 add(java.util.Calendar.DAY_OF_YEAR, offset)
             }
-            SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(day.time)
+            NuxFormat.dayFormat().format(day.time)
         }
     }
 
