@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-12T15:30:02Z",
+ "generated": "2026-09-12T20:31:40Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -52,7 +52,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/124.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3307.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Bundesliga",
@@ -67,7 +67,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3841.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Bundesliga",
@@ -79,7 +79,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2950.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/125.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Bundesliga",
@@ -94,7 +94,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/126.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/268.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Bundesliga",
@@ -109,7 +109,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/7911.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/134.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Premier League",
@@ -121,7 +121,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/349.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/337.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Premier League",
@@ -133,7 +133,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/362.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/393.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Premier League",
@@ -145,7 +145,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/363.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/306.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Premier League",
@@ -160,7 +160,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/384.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/373.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Premier League",
@@ -169,7 +169,7 @@
    "start": "2026-09-12T14:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/364.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/370.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "La Liga",
@@ -178,7 +178,7 @@
    "start": "2026-09-12T14:15Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/97.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/88.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Ligue 1",
@@ -190,7 +190,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/180.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/174.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -202,7 +202,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/112.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/103.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Bundesliga",
@@ -217,7 +217,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/122.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/137.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "La Liga",
@@ -229,7 +229,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/93.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3751.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Premier League",
@@ -241,7 +241,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/367.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/368.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Ligue 1",
@@ -253,7 +253,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/172.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2502.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Ligue 1",
@@ -262,7 +262,7 @@
    "start": "2026-09-12T18:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3236.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/7868.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Ligue 1",
@@ -271,7 +271,7 @@
    "start": "2026-09-12T18:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/273.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/179.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Ligue 1",
@@ -280,7 +280,7 @@
    "start": "2026-09-12T18:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/6851.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/167.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Serie A",
@@ -289,7 +289,7 @@
    "start": "2026-09-12T18:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/105.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2925.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "La Liga",
@@ -301,7 +301,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/101.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Premier League",
@@ -310,7 +310,7 @@
    "start": "2026-09-12T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/366.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "MLS",
