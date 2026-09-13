@@ -2088,7 +2088,59 @@ object SportsParser {
             for (t in home + away) byToken[t]?.let(seen::addAll)
             if (seen.isEmpty()) return@mapNotNull onMatchday(event, playingDays, nowMs)
             val hits = seen.filter { pairs(home, away, it) }
-            if (hits.isEmpty()) return@mapNotNull onMatchday(event, playingDays, nowMs)
+            if (hits.isEmpty()) {
+                // A club already spoken for cannot be playing someone else.
+                //
+                // Reported from the box on 2026-09-13: "Man City vs Aston
+                // Villa", live, on a day Manchester City were playing
+                // Manchester United and Aston Villa were not playing at all.
+                // No such match existed. The schedule could not pair the row —
+                // it never can, for a fixture that is not real — and the
+                // matchday guard below then waved it through, because its only
+                // question is whether the COMPETITION is playing, and the
+                // Premier League very much was.
+                //
+                // So ask the sharper question the schedule can already answer:
+                // is either of these clubs committed to a different opponent
+                // around then? Manchester City kicking off against Manchester
+                // United at half past three is proof that the same club is not
+                // also playing Aston Villa, whatever a slot name says.
+                //
+                // [sameSide] is what makes this safe, and a shared token is
+                // not: it holds only when one spelling contains the other, so
+                // "Coventry City" and "Norwich City" are different clubs while
+                // "Bielefeld" and "Arminia Bielefeld" are one. A guard written
+                // on tokens would have deleted every other City in the league
+                // the moment one of them kicked off.
+                //
+                // BOTH clubs have to be ones the schedule can name, and that
+                // second condition is the one that makes this safe rather than
+                // destructive. "Inter vs. Napoli" against a schedule holding
+                // "Internazionale v Napoli" is the SAME match spelled two ways:
+                // Napoli pairs, Inter does not, and on the commitment test
+                // alone that reads as Napoli being busy elsewhere and deletes a
+                // real fixture. But the schedule has never heard of anything
+                // called Inter, and a club it cannot name is a club it cannot
+                // testify about. Silence is not evidence, here as everywhere
+                // else in this file.
+                //
+                // When it CAN name both — Manchester City by its own alt
+                // spelling, Aston Villa from its cup tie later that week — and
+                // still has one of them kicking off against somebody else, the
+                // row is not a spelling problem. It is a fixture that does not
+                // exist.
+                val anchor = event.startMs ?: nowMs
+                fun known(side: Set<String>): Boolean = side.any { t ->
+                    byToken[t]?.any { sameSide(side, it.home) || sameSide(side, it.away) } == true
+                }
+                val committedElsewhere = seen.any { f ->
+                    kotlin.math.abs(f.start - anchor) <= MATCHDAY_WINDOW_MS &&
+                        (sameSide(home, f.home) || sameSide(home, f.away) ||
+                            sameSide(away, f.home) || sameSide(away, f.away))
+                }
+                if (committedElsewhere && known(home) && known(away)) return@mapNotNull null
+                return@mapNotNull onMatchday(event, playingDays, nowMs)
+            }
             // An exact pair beats a subset pair, and that is what keeps Paris
             // Saint-Germain away from Paris FC: "Paris FC" reduces to {PARIS},
             // which IS a subset of {PARIS, SAINT, GERMAIN}, and both clubs
