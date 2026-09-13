@@ -44,7 +44,16 @@ internal sealed interface PlayerKeyAction {
     /** The channel options menu (live) — MENU or long-press OK. */
     data object OpenOptions : PlayerKeyAction
 
-    /** The tracks/options sheet (VOD) — MENU or long-press OK. */
+    /**
+     * The same gesture on a film — MENU or long-press OK.
+     *
+     * Named for the sheet it used to raise. Both land on the options panel
+     * now: the tracks sheet became audio and subtitles only, and everything
+     * else it used to carry (quality, aspect, speed, sleep) moved to the
+     * options list, which a film could not otherwise reach. PlayerScreen owns
+     * that mapping; this stays a distinct action because the two gestures come
+     * from different screens and a key map is not the place to lose that.
+     */
     data object OpenTracks : PlayerKeyAction
 
     data class Digit(val digit: Int) : PlayerKeyAction
@@ -63,7 +72,7 @@ internal sealed interface PlayerKeyAction {
      */
     data object CenterArm : PlayerKeyAction
 
-    /** OK held down (first key repeat): channel options / VOD tracks. */
+    /** OK held down (first key repeat): the options panel, live or film. */
     data object CenterLongPress : PlayerKeyAction
 
     /** OK released after a long press: swallow it, clear the center state. */
@@ -103,8 +112,8 @@ internal const val ZAP_REPEAT_EVERY = 6
  *   LEFT → channel list · RIGHT → controls · INFO → banner (again → controls)
  *   UP/DOWN & CH± → zap · GUIDE → grid · digits → number tune
  *   LAST_CHANNEL/RED → back to previous · PLAY_PAUSE → pause · BACK → exit
- * VOD no-chrome: OK/UP/DOWN → controls · LEFT/RIGHT → ±10s seek ·
- *   long-OK / MENU → tracks.
+ * VOD no-chrome: OK/UP/DOWN → controls · LEFT/RIGHT → ramped seek ·
+ *   long-OK / MENU → options.
  */
 internal fun playerKeyAction(
     code: Int,

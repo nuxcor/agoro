@@ -15,15 +15,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.focusRequester
@@ -57,7 +54,6 @@ import com.agoro.tv.data.UpdateManager
 import com.agoro.tv.ui.components.ConfirmDialog
 import com.agoro.tv.ui.components.MetaChip
 import com.agoro.tv.ui.components.PlaylistOptionsDialog
-import com.agoro.tv.ui.components.ScreenTitle
 import com.agoro.tv.ui.components.SettingsChoiceRow
 import com.agoro.tv.ui.components.SettingsGroup
 import com.agoro.tv.ui.components.TextInputDialog
@@ -190,9 +186,11 @@ internal fun SettingsTab(
         // sliced through the middle of its text by the pane edge.
         contentPadding = PaddingValues(top = Space.s, bottom = Space.xxl),
     ) {
-        item(key = "header") {
-            ScreenTitle("Settings")
-        }
+        // No "Settings" heading. The selected tab above already says
+        // Settings, in the app's largest chrome, and no other tab restates
+        // its own name at the top of its pane — the heading was a line of
+        // the panel spent telling the viewer where they had just navigated
+        // to. (Manage channels keeps its title: it is a screen, not a tab.)
 
         // A build made for one provider has an ACCOUNT, not "playlists" — the
         // source rows named a server host and the Add button invited a second
@@ -277,7 +275,13 @@ internal fun SettingsTab(
                     if (signedInAs != null) {
                         Text(
                             text = "Signed in as $signedInAs",
-                            style = MaterialTheme.typography.labelMedium,
+                            // bodyMedium, like every informational line on
+                            // this pane. labelMedium is the metadata rung —
+                            // version strings and channel numbers — and the
+                            // whole of Settings had drifted onto it, so a
+                            // screen made of nothing but facts to READ was
+                            // set in the app's smallest type.
+                            style = MaterialTheme.typography.bodyMedium,
                             color = NuxColors.OnSurface,
                         )
                         if (info != null) Spacer(Modifier.height(Space.xs))
@@ -304,7 +308,7 @@ internal fun SettingsTab(
                                         add("${info.activeConnections ?: 0} of ${info.maxConnections} connections in use")
                                     }
                                 }.joinToString("   •   "),
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = if (expired || inactive || expiringSoon) NuxColors.Error
                                 else NuxColors.OnSurfaceDim,
                             )
@@ -317,7 +321,7 @@ internal fun SettingsTab(
                                     inactive -> "Your provider reports this account as inactive."
                                     else -> "Your subscription renews soon."
                                 },
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = NuxColors.OnSurfaceDim,
                             )
                         }
@@ -345,12 +349,24 @@ internal fun SettingsTab(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                // Outlined, and Refresh below is filled: one filled button
+                // per group, on the action the group exists for. Adding a
+                // playlist is a setup act done once; refreshing is what this
+                // row is walked to.
                 if (!brandedBuild) {
-                    Button(onClick = onAddPlaylist) { Text("Add playlist") }
+                    OutlinedButton(onClick = onAddPlaylist) { Text("Add playlist") }
                 }
                 // The label is the progress indicator: one stable button, so a
                 // load in flight can't move focus out from under the press.
-                OutlinedButton(
+                //
+                // Filled, and without the refresh glyph it used to carry. The
+                // pane wore three button treatments at once — an icon pill
+                // here, outlined pills beside it, a filled one two groups
+                // down — so weight and decoration said nothing about what any
+                // of them did. The rule now is one filled button per group,
+                // on the action that group exists for, and no glyphs: a word
+                // is enough for every button on this pane.
+                Button(
                     onClick = {
                         pendingLoadMessage = "Playlist refreshed"
                         vm.refresh()
@@ -358,8 +374,6 @@ internal fun SettingsTab(
                     enabled = !loadingNow,
                     modifier = Modifier.focusRequester(refreshFocus),
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh playlist", modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
                     Text(if (loadingNow) "Refreshing…" else "Refresh")
                 }
                 // No "Remove current" here. Holding OK on any playlist row
@@ -405,7 +419,10 @@ internal fun SettingsTab(
             // not discovered later by finding something unlocked.
             SettingsGroup(
                 title = "Parental control",
-                description = "Optional. Categories whose names look adult are hidden everywhere " +
+                // Not "Optional." — every setting on this pane is optional,
+                // and a description opening by saying so spends its first
+                // word telling the viewer nothing.
+                description = "Categories whose names look adult are hidden everywhere " +
                     "until you enter the PIN.",
                 divider = true,
             ) {
@@ -418,7 +435,7 @@ internal fun SettingsTab(
                             "In this playlist: ${restricted.take(6).joinToString(", ")}" +
                                 if (restricted.size > 6) " and ${restricted.size - 6} more" else ""
                         },
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = if (restricted.isEmpty()) NuxColors.OnSurfaceDim else NuxColors.Primary,
                     )
                     Spacer(Modifier.height(Space.s))
@@ -456,7 +473,11 @@ internal fun SettingsTab(
                 // version now stands alone and cannot be the part that goes.
                 Text(
                     text = "Version ${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.labelMedium,
+                    // The one line on this pane that stays at the metadata
+                    // floor, which is what labelSmall is for: nobody reads a
+                    // build number to make a decision, they read it out to
+                    // someone else.
+                    style = MaterialTheme.typography.labelSmall,
                     color = NuxColors.OnSurfaceDim,
                 )
                 // How the last run ended, when it ended badly. Read once —
@@ -475,7 +496,7 @@ internal fun SettingsTab(
                     Spacer(Modifier.height(Space.xs))
                     Text(
                         text = "Last unexpected close: ${lastExit.sentence()}",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         softWrap = true,
                         color = NuxColors.OnSurfaceDim,
                     )
@@ -506,7 +527,7 @@ internal fun SettingsTab(
                     Spacer(Modifier.height(Space.xs))
                     Text(
                         text = status,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         softWrap = true,
                         // Only the three states that produce a status string
                         // can reach this; the rest returned null above and are
@@ -551,43 +572,23 @@ internal fun SettingsTab(
         item(key = "storage") {
             SettingsGroup(title = "Storage", divider = true) {
                 val r = storageReport
+                // One line and a button. What was here was a four-bucket
+                // breakdown — artwork, guide, downloads, other — and a second
+                // line counting what would be KEPT, which is a disk-usage
+                // report on a television: accountancy about the app's own
+                // internals, written for whoever built it. The only decision
+                // on offer is whether to clear the caches, and the only fact
+                // that bears on it is how much that frees.
                 Text(
                     text = if (r == null) "Measuring…" else "${mb(r.reclaimableBytes)} of caches",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = NuxColors.OnSurfaceDim,
                 )
-                if (r != null) {
-                    Spacer(Modifier.height(Space.xs))
-                    // Every bucket in the headline is named, Other included.
-                    // Leaving it out meant the figures never added up to the
-                    // total, which is the "where did the space go" question
-                    // this panel exists to answer.
-                    Text(
-                        text = "Artwork ${mb(r.imagesBytes)} · Guide ${mb(r.guideBytes)} · " +
-                            "Downloads ${mb(r.updatesBytes)} · Other ${mb(r.otherCacheBytes)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = NuxColors.OnSurfaceDim,
-                    )
-                    // Counted, and plainly not on offer. A viewer who clears
-                    // everything and still sees hundreds of megabytes against
-                    // the app deserves to know what is holding them.
-                    Spacer(Modifier.height(Space.xs))
-                    Text(
-                        text = "Kept: catalogue ${mb(r.catalogueBytes)}" +
-                            if (r.recordingsCount > 0) {
-                                " · ${r.recordingsCount} recording" +
-                                    (if (r.recordingsCount == 1) "" else "s") +
-                                    " ${mb(r.recordingsBytes)}"
-                            } else "",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = NuxColors.OnSurfaceDim,
-                    )
-                }
                 storageFreed?.let {
                     Spacer(Modifier.height(Space.xs))
                     Text(
                         text = if (it > 0) "Freed ${mb(it)}." else "Nothing to free.",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = NuxColors.Secondary,
                     )
                 }
@@ -625,7 +626,10 @@ internal fun SettingsTab(
         item(key = "backup") {
             SettingsGroup(title = "Backup & restore", divider = true) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = {
+                    // Filled: the group's own action, the way Refresh and
+                    // Clear caches are for theirs. Restoring is the rarer and
+                    // more destructive half and stays outlined.
+                    Button(onClick = {
                         vm.exportBackup { path ->
                             // No path: it is app storage a TV has no file
                             // browser for, and it didn't fit the pill anyway.

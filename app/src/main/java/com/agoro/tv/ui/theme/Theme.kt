@@ -203,8 +203,17 @@ val NuxTypography = Typography(
     bodyMedium = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
     bodySmall = TextStyle(fontSize = 16.sp, lineHeight = 22.sp),
     labelLarge = TextStyle(fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-    labelMedium = TextStyle(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
-    // Floor: never smaller than this, and only for de-emphasised metadata.
+    // 16sp, not 14: labelMedium and labelSmall were byte-identical, so the
+    // scale had a rung that said nothing and the two names got picked by feel.
+    // What that cost was legibility — labelMedium had drifted onto the guide's
+    // cell times, the player's status toasts, the programme line on every Home
+    // card and the whole informational body of Settings, all of them CONTENT a
+    // viewer reads from a sofa, all of them at the metadata floor. The rung now
+    // steps on weight against labelLarge and on size against labelSmall.
+    labelMedium = TextStyle(fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
+    // Floor: never smaller than this, and only for de-emphasised metadata —
+    // a version string, a channel number, a vote count. If a viewer has to
+    // READ it to choose something, it does not belong here.
     labelSmall = TextStyle(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
 )
 

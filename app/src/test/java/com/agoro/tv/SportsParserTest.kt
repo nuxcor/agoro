@@ -2184,4 +2184,67 @@ class SportsParserTest {
         )
         assertEquals("only the game being played", listOf("49ers v Rams"), rows.map { it.title })
     }
+
+    /**
+     * Reported from the box on 2026-09-13: "antwerp vs another club showing
+     * champions league u lol".
+     *
+     * Club Brugge is one of the twenty-four clubs in the manifest's Champions
+     * League roster and Antwerp is in no roster at all, so the one-sided
+     * branch took the only club it recognised and handed the row that club's
+     * competition. It is a Belgian Pro League fixture.
+     *
+     * The matchday guard could not save it either: it only challenges a
+     * competition the schedule has fixtures FOR, and on a day the Champions
+     * League is not playing there are none to challenge it with.
+     *
+     * A cup entrant proves its domestic league, never the cup. The match still
+     * shows — it just stops claiming a competition it is not in.
+     */
+    @Test
+    fun `one club in a cup roster does not bill the cup`() {
+        val now = ms(2026, 9, 13, 18, 0, "Europe/Brussels")
+        val roster = mapOf("Champions League" to listOf("Club Brugge", "Sporting CP"))
+        val e = SportsParser.parse(
+            1, "Live | Antwerp vs. Club Brugge | all | 13-09-2026 | 18:30 (GMT)", now, roster,
+        )!!
+        assertEquals("", e.league)
+        assertEquals("Antwerp", e.home)
+        assertEquals("Club Brugge", e.away)
+    }
+
+    /** Both entrants meeting IS the cup, and that still reads. */
+    @Test
+    fun `two clubs in a cup roster still bill the cup`() {
+        val now = ms(2026, 9, 13, 18, 0, "Europe/Brussels")
+        val roster = mapOf("Champions League" to listOf("Club Brugge", "Sporting CP"))
+        val e = SportsParser.parse(
+            1, "Live | Club Brugge vs. Sporting CP | all | 13-09-2026 | 18:30 (GMT)", now, roster,
+        )!!
+        assertEquals("Champions League", e.league)
+    }
+
+    /** A domestic league is still inferable from one side; that prior is good. */
+    @Test
+    fun `one club in a domestic roster still bills the league`() {
+        val now = ms(2026, 9, 13, 15, 0, "Europe/London")
+        val roster = mapOf("Premier League" to listOf("Coventry City"))
+        val e = SportsParser.parse(
+            1, "Live | Coventry City vs. Barnsley | all | 13-09-2026 | 15:00 (GMT)", now, roster,
+        )!!
+        assertEquals("Premier League", e.league)
+    }
+
+    /** And a pack that NAMES the competition is asserting it, not guessing. */
+    @Test
+    fun `a slot that names the cup keeps it`() {
+        val now = ms(2026, 9, 13, 18, 0, "Europe/Brussels")
+        val roster = mapOf("Champions League" to listOf("Club Brugge"))
+        val e = SportsParser.parse(
+            1,
+            "Live | Champions League : Antwerp vs. Club Brugge | all | 13-09-2026 | 18:30 (GMT)",
+            now, roster,
+        )!!
+        assertEquals("Champions League", e.league)
+    }
 }

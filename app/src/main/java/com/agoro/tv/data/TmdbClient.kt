@@ -18,8 +18,6 @@ data class TmdbInfo(
     val overview: String?,
     val posterUrl: String?,
     val backdropUrl: String?,
-    /** "author — excerpt" strings, at most three. */
-    val reviews: List<String>,
     /** Top-billed actors, comma-separated. */
     val cast: String?,
     val director: String?,
@@ -48,8 +46,8 @@ data class TmdbEpisode(
 )
 
 /**
- * Minimal TMDB client used to enrich movies/series with ratings, overviews
- * and review excerpts. Requires a user-supplied API key (Settings).
+ * Minimal TMDB client used to enrich movies/series with ratings, overviews,
+ * artwork and credits. Requires a user-supplied API key (Settings).
  */
 class TmdbClient(private val http: OkHttpClient, private val apiKey: String) {
 
@@ -113,20 +111,14 @@ class TmdbClient(private val http: OkHttpClient, private val apiKey: String) {
         val first = runCatching { searchFirst(kind, title, year) }.getOrNull() ?: return null
         val id = first.int("id") ?: return null
 
-        val reviews = get("https://api.themoviedb.org/3/$kind/$id/reviews?api_key=$apiKey")
-            ?.let { root ->
-                (root["results"] as? JsonArray).orEmpty().mapNotNull { el ->
-                    val obj = el as? JsonObject ?: return@mapNotNull null
-                    val author = obj.str("author") ?: "Anonymous"
-                    // Through ReviewText, not a whitespace collapse: these are
-                    // web-form bodies full of tags, markdown and the URL of
-                    // the blog they were copied from, and all of it used to
-                    // reach the screen verbatim.
-                    val content = ReviewText.clean(obj.str("content"))
-                        ?: return@mapNotNull null
-                    "$author — $content"
-                }.take(3)
-            } ?: emptyList()
+        // No reviews request. It fetched three scraped web-form opinions per
+        // title for a block at the bottom of the movie page that no remote
+        // could ever scroll to — the page did not make them focusable, so they
+        // sat below the fold unreachable. The block is gone, and with it the
+        // only reader, so this was a whole HTTP round-trip per enriched title
+        // spent on data nothing would ever show. On a 2GB Wi-Fi-only box,
+        // across a catalogue this size, that is the kind of cost worth not
+        // paying. ReviewText went with it.
 
         // TV credits list directors per-episode, so for series this usually
         // yields cast only — the provider's director field fills that gap.
@@ -151,7 +143,6 @@ class TmdbClient(private val http: OkHttpClient, private val apiKey: String) {
             overview = first.str("overview")?.takeIf { it.isNotBlank() },
             posterUrl = first.posterUrl(),
             backdropUrl = first.backdropUrl(),
-            reviews = reviews,
             cast = cast,
             director = director,
             tmdbId = id,

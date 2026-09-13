@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import com.agoro.tv.ui.components.Artwork
 import androidx.compose.ui.text.style.TextAlign
@@ -115,7 +116,7 @@ fun SportTab(
             title = "Sports isn't set up",
             message = "This playlist carries no fixture listings.",
             icon = Icons.Default.SportsSoccer,
-            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse live TV") { onBrowse(HomeTab.Live) },
         )
         return
     }
@@ -237,19 +238,35 @@ private fun SkeletonFixtureRow(sweep: State<Float>, gapAbove: Dp) {
  *
  * Drawn, not composed: the animated value is read inside [drawBehind], so a
  * sweep costs a draw per frame and nothing above it recomposes at all.
+ *
+ * Shared with the catalogue tabs' [CatalogueSkeleton] — one shimmer in the
+ * app, so a tab that is still building looks the same wherever it is.
  */
 @Composable
-private fun SkeletonBar(
+internal fun SkeletonBar(
     width: Dp,
     height: Dp,
     sweep: State<Float>,
     modifier: Modifier = Modifier,
+    /**
+     * A pill by default, which is what a line of text becomes. Pass a real
+     * shape for the block placeholders — a poster clipped to half its own
+     * height is a lozenge, not a poster.
+     */
+    shape: Shape = RoundedCornerShape(height / 2),
 ) {
     Box(
         modifier
-            .widthIn(max = width)
+            // width, not widthIn(max). A Box with no children measures at its
+            // constraints' MINIMUM, so a max-only bound left every
+            // fixed-width bar here — the league headings, both crests, the
+            // status column — measuring zero and drawing nothing: the
+            // skeleton was two bars per row and a lot of empty space. The
+            // weighted bars are unaffected, since a weight hands the child
+            // fixed constraints that either form coerces into.
+            .width(width)
             .height(height)
-            .clip(RoundedCornerShape(height / 2))
+            .clip(shape)
             .drawBehind {
                 drawRect(NuxColors.SurfaceRaised)
                 // The band starts fully off the left edge and leaves fully to
@@ -312,7 +329,7 @@ private fun Fixtures(
                 else -> "Fixtures appear here $cue minutes before kick-off."
             },
             icon = Icons.Default.SportsSoccer,
-            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse live TV") { onBrowse(HomeTab.Live) },
         )
         return
     }
@@ -326,11 +343,32 @@ private fun Fixtures(
     // handed one at a time.
     val lines = remember(fixtures, leagueOrder) {
         buildList {
+            val claimed = HashSet<SportsEvent>()
             for (league in leagueOrder) {
                 val inLeague = fixtures.filter { it.league == league }
                 if (inLeague.isEmpty()) continue
                 add(FixtureLine.Header(league))
-                inLeague.forEach { add(FixtureLine.Fixture(league, it)) }
+                inLeague.forEach { add(FixtureLine.Fixture(league, it)); claimed.add(it) }
+            }
+            // Everything no heading claimed, rather than nothing.
+            //
+            // The loop above only ever asked the manifest's own league list,
+            // so a fixture whose competition is not in it fell through every
+            // heading and was never drawn — silently, with no count anywhere
+            // saying rows had gone. That was survivable while every league was
+            // inferred from a roster keyed by the same list, and stopped being
+            // survivable the moment a row was allowed to carry NO competition:
+            // "Antwerp vs Club Brugge" is a real match, and the fix that took
+            // the wrong Champions League badge off it would have taken the
+            // whole match off this screen instead.
+            //
+            // "Other", the same word the catalogue strip uses for titles the
+            // playlist never categorised. It says what it is — a fixture we
+            // could not name a competition for — without inventing one.
+            val rest = fixtures.filterNot { it in claimed }
+            if (rest.isNotEmpty()) {
+                add(FixtureLine.Header(OTHER_FIXTURES))
+                rest.forEach { add(FixtureLine.Fixture(OTHER_FIXTURES, it)) }
             }
         }
     }
@@ -677,9 +715,15 @@ private fun FixtureRow(
     }
 }
 
-/** A gold dot and the word, which is all "on now" needs to say. */
+/**
+ * A gold dot and the word, which is all "on now" needs to say.
+ *
+ * Internal because Search says the same thing about a programme and had
+ * grown a second spelling of it — an "ON NOW" chip — on the two surfaces in
+ * the app that report something is on. One mark for one fact.
+ */
 @Composable
-private fun LiveBadge() {
+internal fun LiveBadge() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
@@ -696,6 +740,9 @@ private fun LiveBadge() {
     }
 }
 
+/** The heading for fixtures no league in the manifest claimed. */
+private const val OTHER_FIXTURES = "Other"
+
 /**
  * Null — the LIVE badge — for something already running; otherwise how long
  * until kick-off, because a clock time on its own makes the viewer do the
@@ -709,7 +756,10 @@ private fun fixtureStatus(event: SportsEvent, nowMs: Long, clock: SimpleDateForm
     val minutes = ((start - nowMs) / 60_000).toInt()
     return when {
         minutes <= 1 -> "Starts now"
-        minutes < 60 -> "in $minutes min"
+        // Sentence case, like every other label in the column. "Starts now"
+        // and "in 45 min" stacked in one column read as two different apps
+        // writing the same fact.
+        minutes < 60 -> "In $minutes min"
         // The app's clock format, so a 12-hour viewer doesn't read "20:00"
         // here beside "8:00 PM" in the guide.
         else -> clock.format(Date(start))

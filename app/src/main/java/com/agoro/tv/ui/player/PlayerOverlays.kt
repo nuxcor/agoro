@@ -17,10 +17,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,12 +42,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
@@ -72,7 +80,7 @@ internal fun PlayerBadge(text: String, color: Color) {
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelLarge,
             color = color,
             // A corner pill, not a paragraph: "Recording scheduled: <long
             // programme title>" wrapped into three lines over the picture.
@@ -111,12 +119,10 @@ internal fun DigitEntryPill(text: String, dim: Boolean = false) {
 internal fun CatchupOverlay(
     vm: MainViewModel,
     channel: LiveChannel,
-    onDismiss: () -> Unit,
     onPlay: (EpgProgram, String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var programs by remember(channel.id) { mutableStateOf<List<EpgProgram>?>(null) }
-    val closeFocus = remember { FocusRequester() }
     val listFocus = remember { FocusRequester() }
 
     LaunchedEffect(channel.id) {
@@ -127,14 +133,14 @@ internal fun CatchupOverlay(
             .sortedByDescending { it.startMs }
     }
     // Focus opens on the newest programme — "what did I just miss" is the
-    // question this sheet answers — and only falls back to Close while the
-    // list is loading or empty. On Close, the list's first row was N presses
-    // of UP away through everything older.
+    // question this sheet answers. There is no Close button to fall back to
+    // any more: BACK closes every panel in this player, the panel is trapped
+    // so nothing else can take the key, and a row that duplicates a key the
+    // remote already has is a row in front of the thing the viewer came for.
+    // While the archive is still loading, or genuinely empty, nothing here is
+    // focusable — which is correct, because there is nothing to move to.
     LaunchedEffect(programs) {
-        val list = programs
-        if (list.isNullOrEmpty() || !listFocus.requestFocusRetrying()) {
-            closeFocus.requestFocusRetrying()
-        }
+        if (!programs.isNullOrEmpty()) listFocus.requestFocusRetrying()
     }
 
     val dayFmt = remember { SimpleDateFormat("EEE d MMM", Locale.getDefault()) }
@@ -161,7 +167,9 @@ internal fun CatchupOverlay(
             )
             Spacer(Modifier.height(18.dp))
             when {
-                programs == null -> CircularProgressIndicator(color = NuxColors.Primary)
+                // The app's waiting gesture, not the toolkit's ring: the same
+                // light on the same line the tune card and every pane use.
+                programs == null -> com.agoro.tv.ui.components.SweepTrack(width = 140.dp)
                 programs!!.isEmpty() -> Text(
                     "No archived programmes found for this channel.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -225,264 +233,165 @@ internal fun CatchupOverlay(
                     }
                 }
             }
-            Spacer(Modifier.height(14.dp))
-            Surface(
-                onClick = onDismiss,
-                shape = ClickableSurfaceDefaults.shape(PlayerTheme.PanelShape),
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = NuxColors.SurfaceVariant,
-                    focusedContainerColor = NuxFocus.container,
-                    contentColor = NuxColors.OnSurface,
-                    focusedContentColor = NuxColors.OnSurface,
-                ),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = NuxFocus.ButtonScale),
-                border = ClickableSurfaceDefaults.border(focusedBorder = NuxFocus.ring12),
-                modifier = Modifier.widthIn(min = 120.dp).focusRequester(closeFocus),
-            ) {
-                Text(
-                    "Close",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                )
-            }
         }
     }
 }
 
+/**
+ * Audio and subtitles: two columns, over the picture rather than instead of it.
+ *
+ * This used to be one left-aligned settings list behind a 96% scrim — video
+ * quality, aspect, speed, sleep timer, audio, subtitles, in that order, under
+ * a line reading "Now decoding 1080p FHD". That is a preferences screen
+ * wearing a player's clothes: the thing being watched vanished while the
+ * viewer changed the language of it, and five of the seven things on offer
+ * had nothing to do with the two they had opened it for.
+ *
+ * Everything that is not a TRACK moved into the channel options list, where
+ * the rest of "what this app can do to this stream" already lives. What is
+ * left is the one question this panel is ever opened to answer, laid out the
+ * way every streaming service lays it out: a column each, side by side, on a
+ * panel that takes the right of the screen and leaves the picture running.
+ *
+ * No codecs, no bitrates, no sentence explaining what "auto" means. The
+ * engine's own label for a soundtrack is what a viewer recognises it by, and
+ * nothing else here is the app's to say.
+ */
 @Composable
 internal fun TracksOverlay(
     engine: PlayerEngine,
-    isVod: Boolean,
-    scaleMode: Int,
-    onScaleMode: (Int) -> Unit,
-    speed: Float,
-    onSpeed: (Float) -> Unit,
-    sleepMinutes: Int,
-    onSleep: (Int) -> Unit,
     onAudioSelected: (Track) -> Unit,
     onSubtitleSelected: (Track?) -> Unit,
-    /** 0 adapt to bandwidth, 1 pin the top rung — remembered across channels. */
-    onVideoQuality: (Int) -> Unit,
-    onDismiss: () -> Unit,
 ) {
     var audio by remember { mutableStateOf(engine.audioTracks()) }
     var text by remember { mutableStateOf(engine.textTracks()) }
-    var video by remember { mutableStateOf(engine.videoTracks()) }
-    var decoded by remember { mutableStateOf(engine.videoResolution) }
-    var forcingHighest by remember {
-        mutableStateOf(engine.isForcingHighest)
-    }
-    val initialFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { initialFocus.requestFocusRetrying() }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { firstFocus.requestFocusRetrying() }
 
     // Tracks appear a beat after the stream opens, so keep looking while the
-    // sheet is up rather than showing "no alternate tracks" forever.
+    // sheet is up rather than settling on "no subtitles" forever.
     LaunchedEffect(engine) {
         repeat(20) {
             delay(500)
             audio = engine.audioTracks()
             text = engine.textTracks()
-            video = engine.videoTracks()
-            decoded = engine.videoResolution
         }
     }
 
     fun refresh() {
         audio = engine.audioTracks()
         text = engine.textTracks()
-        video = engine.videoTracks()
-        forcingHighest = engine.isForcingHighest
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PlayerTheme.ScrimStrong)
-            // Contained, not merely grouped — see Modifier.focusTrap.
-            .focusTrap()
-            .padding(horizontal = 64.dp, vertical = 40.dp)
-    ) {
-        Column {
-            Text(
-                text = "Playback options",
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = NuxColors.OnSurface,
-            )
-            decoded?.let { (w, h) ->
-                Text(
-                    text = "Now decoding ${com.agoro.tv.player.qualityLabel(w, h)}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = NuxColors.OnSurfaceDim,
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-
-            // Bounded: inside a Column the list measured with ALL the
-            // remaining height, so the Close button after it was laid out
-            // below the screen on any stream with more than a few rows —
-            // and it was the initial focus, so the sheet opened with no
-            // visible cursor. Focus opens on the first option instead.
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .focusRequester(initialFocus)
-                    .focusRestorer(),
-            ) {
-                if (video.isNotEmpty()) {
-                    item(key = "video-header") {
-                        Text(
-                            "Video quality",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = NuxColors.OnSurfaceDim,
-                        )
-                    }
-                    item(key = "video-highest") {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .width(PlayerTheme.TracksPanelWidth)
+                .fillMaxHeight()
+                // ScrimMedium on a panel, not ScrimStrong over the whole
+                // screen: the picture is what the viewer is choosing a
+                // soundtrack FOR, and blanking it to ask the question is the
+                // reason this sheet felt like leaving the film.
+                .background(PlayerTheme.ScrimMedium)
+                // Contained, not merely grouped — see Modifier.focusTrap.
+                .focusTrap()
+                .padding(horizontal = 24.dp, vertical = 28.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            TrackColumn(heading = "Audio", modifier = Modifier.weight(1f)) {
+                if (audio.isEmpty()) {
+                    item(key = "audio-none") { TrackNote("This stream has one soundtrack.") }
+                } else {
+                    itemsIndexed(audio, key = { _, track -> "a:${track.id}" }) { index, track ->
                         TrackRow(
-                            track = Track(
-                                com.agoro.tv.player.HIGHEST_QUALITY,
-                                "Highest available",
-                                forcingHighest,
-                            )
+                            track = track,
+                            modifier = if (index == 0) Modifier.focusRequester(firstFocus)
+                            else Modifier,
                         ) {
-                            engine.selectVideoTrack(com.agoro.tv.player.HIGHEST_QUALITY)
-                            onVideoQuality(1)
-                            refresh()
-                        }
-                    }
-                    item(key = "video-auto") {
-                        TrackRow(
-                            track = Track(
-                                "auto",
-                                "Auto — adapt to bandwidth",
-                                !forcingHighest && video.none { it.selected },
-                            )
-                        ) {
-                            engine.selectVideoTrack(null)
-                            onVideoQuality(0)
-                            refresh()
-                        }
-                    }
-                    items(video, key = { "v:${it.id}" }) { track ->
-                        TrackRow(track = track) {
-                            engine.selectVideoTrack(track.id)
-                            refresh()
-                        }
-                    }
-                    item(key = "video-gap") { Spacer(Modifier.height(10.dp)) }
-                }
-                item(key = "aspect") {
-                    OptionChips(
-                        label = "Aspect ratio",
-                        options = listOf("Fit", "Stretch", "Zoom"),
-                        selectedIndex = scaleMode,
-                        onSelect = onScaleMode,
-                    )
-                }
-                if (isVod) {
-                    item(key = "speed") {
-                        val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
-                        OptionChips(
-                            label = "Speed",
-                            options = speeds.map { speed ->
-                                // "2x", not "2.0x": trailing zeros trimmed the way 1x already was.
-                                val text = speed.toString().trimEnd('0').trimEnd('.')
-                                "${text}x"
-                            },
-                            selectedIndex = speeds.indexOf(speed).coerceAtLeast(0),
-                            onSelect = { onSpeed(speeds[it]) },
-                        )
-                    }
-                }
-                item(key = "sleep") {
-                    val choices = listOf(0, 30, 60, 90)
-                    OptionChips(
-                        label = "Sleep timer",
-                        options = choices.map { if (it == 0) "Off" else "${it}m" },
-                        selectedIndex = choices.indexOf(sleepMinutes).coerceAtLeast(0),
-                        onSelect = { onSleep(choices[it]) },
-                    )
-                }
-                if (audio.isNotEmpty()) {
-                    item(key = "audio-header") {
-                        Text(
-                            "Audio",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = NuxColors.OnSurfaceDim,
-                        )
-                    }
-                    items(audio, key = { "a:${it.id}" }) { track ->
-                        TrackRow(track = track) {
                             engine.selectAudioTrack(track.id)
                             onAudioSelected(track)
                             refresh()
                         }
                     }
                 }
-                item(key = "subs-header") {
-                    Text(
-                        "Subtitles",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = NuxColors.OnSurfaceDim,
-                        modifier = Modifier.padding(top = 10.dp),
-                    )
-                }
-                item(key = "subs-off") {
-                    TrackRow(track = Track("off", "Off", selected = text.none { it.selected })) {
-                        engine.selectTextTrack(null)
-                        onSubtitleSelected(null)
-                        refresh()
-                    }
-                }
-                items(text, key = { "t:${it.id}" }) { track ->
-                    TrackRow(track = track) {
-                        engine.selectTextTrack(track.id)
-                        onSubtitleSelected(track)
-                        refresh()
-                    }
-                }
-                if (audio.isEmpty() && text.isEmpty() && video.isEmpty()) {
-                    item(key = "none") {
-                        Text(
-                            "No alternate tracks in this stream.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = NuxColors.OnSurfaceDim,
-                        )
-                    }
-                }
             }
-
-            Spacer(Modifier.height(14.dp))
-            Surface(
-                onClick = onDismiss,
-                shape = ClickableSurfaceDefaults.shape(PlayerTheme.PanelShape),
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = NuxColors.SurfaceVariant,
-                    focusedContainerColor = NuxFocus.container,
-                    contentColor = NuxColors.OnSurface,
-                    focusedContentColor = NuxColors.OnSurface,
-                ),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = NuxFocus.ButtonScale),
-                border = ClickableSurfaceDefaults.border(focusedBorder = NuxFocus.ring12),
-                modifier = Modifier.widthIn(min = 120.dp),
-            ) {
-                Text(
-                    "Close",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                )
+            TrackColumn(heading = "Subtitles", modifier = Modifier.weight(1f)) {
+                if (text.isEmpty()) {
+                    item(key = "subs-none") { TrackNote("This stream has no subtitles.") }
+                } else {
+                    item(key = "subs-off") {
+                        TrackRow(
+                            track = Track("off", "Off", selected = text.none { it.selected }),
+                            // The anchor when the stream carries one soundtrack
+                            // and several subtitle tracks, which is most films:
+                            // the audio column has nothing focusable in it, and
+                            // an arrival request that lands nowhere leaves the
+                            // panel deaf to everything but BACK.
+                            modifier = if (audio.isEmpty()) Modifier.focusRequester(firstFocus)
+                            else Modifier,
+                        ) {
+                            engine.selectTextTrack(null)
+                            onSubtitleSelected(null)
+                            refresh()
+                        }
+                    }
+                    items(text, key = { "t:${it.id}" }) { track ->
+                        TrackRow(track = track) {
+                            engine.selectTextTrack(track.id)
+                            onSubtitleSelected(track)
+                            refresh()
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+/** One of the two columns: its heading, and its own scrolling list of rows. */
 @Composable
-private fun TrackRow(track: Track, onClick: () -> Unit) {
+private fun TrackColumn(
+    heading: String,
+    modifier: Modifier = Modifier,
+    content: LazyListScope.() -> Unit,
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = heading,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = NuxColors.OnSurface,
+            maxLines = 1,
+        )
+        Spacer(Modifier.height(10.dp))
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            content = content,
+        )
+    }
+}
+
+/**
+ * What a column says when it has nothing to offer — a fact about the stream,
+ * not a row. Deliberately not focusable: a single dead option is worse than a
+ * sentence, because the remote stops on it and OK does nothing.
+ */
+@Composable
+private fun TrackNote(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = NuxColors.OnSurfaceDim,
+    )
+}
+
+@Composable
+private fun TrackRow(track: Track, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
         // Still focusable when unsupported so it can be read, but selecting it
         // does nothing — pinning a rung the decoder rejects blacks out video.
         onClick = { if (track.supported) onClick() },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = ClickableSurfaceDefaults.shape(PlayerTheme.ChipShape),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (track.selected) PlayerTheme.SelectionTint
@@ -502,52 +411,31 @@ private fun TrackRow(track: Track, onClick: () -> Unit) {
         scale = ClickableSurfaceDefaults.scale(focusedScale = NuxFocus.RowScale),
         border = ClickableSurfaceDefaults.border(focusedBorder = NuxFocus.ring8),
     ) {
-        Text(
-            text = (if (track.selected) "✓  " else "") + track.label,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        )
-    }
-}
-
-@Composable
-private fun OptionChips(
-    label: String,
-    options: List<String>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
-) {
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleSmall,
-            color = NuxColors.OnSurfaceDim,
-        )
-        Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            options.forEachIndexed { index, option ->
-                Surface(
-                    onClick = { onSelect(index) },
-                    shape = ClickableSurfaceDefaults.shape(PlayerTheme.ChipShape),
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = if (index == selectedIndex) PlayerTheme.SelectionTint
-                        else PlayerTheme.RowFill,
-                        focusedContainerColor = NuxFocus.container,
-                        contentColor = if (index == selectedIndex) NuxColors.FocusBorder else NuxColors.OnSurface,
-                        focusedContentColor = NuxColors.OnSurface,
-                    ),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = NuxFocus.ButtonScale),
-                    border = ClickableSurfaceDefaults.border(focusedBorder = NuxFocus.ring8),
-                ) {
-                    Text(
-                        text = option,
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    )
-                }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+        ) {
+            // An icon, not a tick typed into the string. Plenty of TV system
+            // fonts have no glyph for U+2713 and draw a tofu box instead, and
+            // the two spaces that stood in for it on every unselected row put
+            // the labels of one list at two different left edges.
+            if (track.selected) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            } else {
+                Spacer(Modifier.width(18.dp))
             }
+            Text(
+                text = track.label,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
-        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -596,12 +484,28 @@ internal fun PlaybackErrorCard(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            // Not the channel's name: a channel does not finish, its stream
-            // does — and on a fixture slot the name is often the match.
-            text = if (ended) "The stream ended" else "Can't play $title",
+            // A fixed headline, and the NAME on its own line underneath.
+            // "Can't play {title}" was titleLarge with no line limit, so a
+            // fixture — "Real Madrid vs Manchester City — UEFA Champions
+            // League" — set three lines of headline type across the card
+            // before the card had said anything. The sentence is the same
+            // length whatever is playing now, and the thing that varies is
+            // bounded.
+            text = if (ended) "The stream ended" else "Can't play this",
             style = MaterialTheme.typography.titleLarge,
             color = NuxColors.OnSurface,
         )
+        if (title.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = NuxColors.OnSurfaceDim,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
         Spacer(Modifier.height(8.dp))
         Text(
             // Its own sentence rather than [plainLanguage]'s: this is the one
@@ -609,12 +513,12 @@ internal fun PlaybackErrorCard(
             // headline, and the body's job is to say what that USUALLY means
             // without claiming to know which it was.
             text = if (ended) {
-                "$title stopped sending. A programme or a fixture that has " +
-                    "finished looks exactly like this — retry if you think it " +
-                    "should still be on."
+                "A programme or a fixture that has finished looks exactly " +
+                    "like this — retry if you think it should still be on."
             } else plainLanguage(message),
             style = MaterialTheme.typography.bodyMedium,
             color = NuxColors.OnSurfaceDim,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
         Spacer(Modifier.height(24.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -635,12 +539,13 @@ internal fun PlaybackErrorCard(
                 ) { Text("Retry") }
             }
             if (canRetryTolerant) {
-                // Says what it does, not which component does it. The viewer
-                // has no model of demuxers and decoders, but "software" they
-                // know — and it sets the right expectation about the picture
-                // they may get back.
+                // What it means to the viewer, not what it does to the engine.
+                // "Try software decoding" is an instruction to a program: it
+                // asks someone holding a remote to have an opinion about
+                // demuxers, and the honest summary of the button is that there
+                // is one more thing the app can try.
                 androidx.tv.material3.OutlinedButton(onClick = onRetryTolerant) {
-                    Text("Try software decoding")
+                    Text("Try another way")
                 }
             }
             if (hasNext) {
@@ -659,15 +564,23 @@ internal fun PlaybackErrorCard(
 private fun plainLanguage(raw: String): String = when {
     raw.contains("403", true) || raw.contains("AUTHENTICATION", true) ->
         "The provider refused the connection. Your account may be at its connection limit, or the stream is no longer available."
+    // No "refresh the playlist in Settings": there is no such action in
+    // Settings, and a card that sends a viewer looking for a button that does
+    // not exist is worse than one that simply says what happened.
     raw.contains("404", true) || raw.contains("NOT_FOUND", true) ->
-        "The provider no longer has this stream. Try refreshing the playlist in Settings."
+        "The provider no longer has this stream."
     raw.contains("TIMEOUT", true) || raw.contains("UNSPECIFIED_IO", true) ->
         "The stream didn't respond. This is usually the provider or the network."
     raw.contains("DECODER", true) || raw.contains("DECODING", true) ->
         "This TV's hardware couldn't decode the stream."
-    // Already a sentence from the engine's own rewrite; make sure it reads
-    // as one (a period, no stray capital mid-line).
-    else -> raw.trim().trimEnd('.').let { if (it.isEmpty()) "The stream stopped." else "$it." }
+    // Already a sentence from the engine's own rewrite; make sure it reads as
+    // one. The engine writes its messages to be embedded mid-line, so they
+    // arrive lowercase — "your provider no longer offers this stream." under a
+    // headline is a fragment, not a sentence.
+    else -> raw.trim().trimEnd('.').let {
+        if (it.isEmpty()) "The stream stopped."
+        else it.replaceFirstChar(Char::uppercaseChar) + "."
+    }
 }
 
 /**
@@ -737,7 +650,8 @@ internal fun UpNextCard(
         // is still running, where "now" would be asking the viewer what they
         // think they are doing. The key is in the label because the pill no
         // longer has a line under it to name one.
-        action = if (secondsLeft != null) "OK  ▶  Watch now" else "OK  ▶  Play next",
+        action = if (secondsLeft != null) "Watch now" else "Play next",
+        actionIcon = Icons.Default.PlayArrow,
         // Both keys, both states — this one is the important one on the peek,
         // where the card arrived uninvited and the viewer needs to know it
         // can be sent away.
@@ -784,7 +698,8 @@ internal fun FinishedCard(
         heading = heading,
         meta = meta,
         artwork = artwork,
-        action = "OK  ↩  $action",
+        action = action,
+        actionIcon = Icons.AutoMirrored.Filled.Undo,
         // Not "BACK to hide": the card is the only thing on a screen where
         // nothing is playing, and hiding it leaves the viewer exactly where
         // this whole card exists to stop them being left.
@@ -810,6 +725,12 @@ private fun PlayerCornerCard(
     meta: String,
     artwork: String?,
     action: String,
+    /**
+     * Drawn between "OK" and the label, in place of the ▶ and ↩ that used to
+     * be typed into the string — TV system fonts routinely have no glyph for
+     * either and drew a tofu box in the middle of the one control on the card.
+     */
+    actionIcon: ImageVector,
     hint: String,
     secondsLeft: Int?,
     countdownFraction: Float,
@@ -881,13 +802,28 @@ private fun PlayerCornerCard(
             modifier = Modifier.fillMaxWidth().padding(horizontal = UpNextPad),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
+            Row(
                 modifier = Modifier
                     .clip(PlayerTheme.PillShape)
                     .background(NuxColors.Primary)
                     .padding(horizontal = 14.dp, vertical = 7.dp),
-                contentAlignment = Alignment.Center,
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                Text(
+                    text = "OK",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                    ),
+                    color = NuxColors.OnAccent,
+                    maxLines = 1,
+                )
+                Icon(
+                    actionIcon,
+                    contentDescription = null,
+                    tint = NuxColors.OnAccent,
+                    modifier = Modifier.size(18.dp),
+                )
                 Text(
                     text = action,
                     style = MaterialTheme.typography.labelMedium.copy(

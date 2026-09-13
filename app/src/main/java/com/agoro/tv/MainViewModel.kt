@@ -1386,6 +1386,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         RecordingScheduler.scheduleReminder(getApplication(), channel.displayName, program)
     }
 
+    /**
+     * Takes a reminder back, answering whether there was one to take.
+     *
+     * Setting a reminder used to be one-way: the guide left no mark on the
+     * cell, the header chip still read "OK to remind", and pressing OK again
+     * silently armed the same alarm over the top of itself. A viewer could
+     * neither see that it was set nor undo it.
+     */
+    fun cancelReminder(channel: LiveChannel, program: EpgProgram): Boolean =
+        RecordingScheduler.cancelReminder(getApplication(), channel.displayName, program)
+
     fun toggleHidden(channel: LiveChannel) {
         viewModelScope.launch { playerPrefs.toggleHidden(channel.url) }
     }

@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.runtime.mutableStateOf
@@ -41,8 +42,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
 import com.agoro.tv.MainViewModel
 import com.agoro.tv.data.ContentState
 import com.agoro.tv.data.Movie
@@ -59,9 +58,7 @@ import com.agoro.tv.ui.theme.HEADER_BAND_HEIGHT
 import com.agoro.tv.ui.theme.HeaderWash
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxMotion
-import com.agoro.tv.ui.theme.NuxShape
 import com.agoro.tv.ui.theme.Space
 import kotlinx.coroutines.delay
 
@@ -93,11 +90,37 @@ fun HomeScreen(
     }
     // Non-content tabs also work while the playlist is loading or failed.
     val contentState by vm.content.collectAsState()
-    val updateState by vm.updateState.collectAsState()
+    // Collected but deliberately NOT read in this scope. A download reports
+    // its progress several times a second, and reading the state here put the
+    // whole shell — header, content lane and every tab under it — on those
+    // ticks. Only the label is read, and only through a derived state, so this
+    // scope wakes when the WORDS change and not when the percentage does.
+    val updateState = vm.updateState.collectAsState()
+    // Only the three states where something can actually be done. Checking and
+    // Error stay out of the header: a background check that failed is not
+    // news, and Settings carries both in full.
+    val updateLabel by remember(updateState) {
+        derivedStateOf {
+            when (val u = updateState.value) {
+                is com.agoro.tv.data.UpdateManager.State.Available ->
+                    "Update to ${u.version.removePrefix("v")}"
+                // No percentage. The navigation is the last place in the app
+                // that should carry a readout: it recomposed the header on
+                // every tick and the label CHANGED WIDTH as it counted, so the
+                // controls beside it shifted while a viewer was aiming at
+                // them. A download the viewer did not ask to watch only has to
+                // say that it is happening; Settings has the detail for anyone
+                // who wants it.
+                is com.agoro.tv.data.UpdateManager.State.Downloading -> "Updating…"
+                is com.agoro.tv.data.UpdateManager.State.Ready -> "Install update"
+                else -> null
+            }
+        }
+    }
     // The Home lounge's focused-card hero, hoisted so its backdrop can draw
     // full-bleed across the content lane — outside the gutter-padded Box every
     // tab composes into. Debounced by the lounge before it lands here.
-    var homeHero by remember { mutableStateOf<HeroInfo?>(null) }
+    var homeHero by remember { mutableStateOf<HomeHero?>(null) }
     // The header is always composed and always visible. What this tracks is
     // whether it holds FOCUS — the content must not steal focus back while
     // the viewer is choosing a destination, and the guide stands its BACK
@@ -118,15 +141,6 @@ fun HomeScreen(
     // Hoisted above the Ready branch so a refresh cycle doesn't wipe tab state.
     val tabStateHolder = rememberSaveableStateHolder()
 
-    // BACK from inside the content pane jumps focus to the header first; on
-    // the header, BACK asks for confirmation instead of instantly quitting.
-    var exitArmed by remember { mutableStateOf(false) }
-    LaunchedEffect(exitArmed) {
-        if (exitArmed) {
-            delay(2_500)
-            exitArmed = false
-        }
-    }
     val contentFocus = remember { FocusRequester() }
     // Whether anything in the content lane holds focus right now. The
     // parking loops below check it before every attempt: a tab that has
@@ -190,13 +204,19 @@ fun HomeScreen(
     }
 
     // BACK from the content goes UP to the header — the same journey the
-    // D-pad makes, so the two never disagree about where "out" is. On the
-    // header it arms the exit instead of quitting on the spot.
+    // D-pad makes, so the two never disagree about where "out" is.
+    //
+    // And from the header it leaves, by not being handled here at all: the
+    // system's own back takes it, the back stack is empty at the top level,
+    // and the app closes. It used to arm a "Press BACK again to exit" toast
+    // first, which made leaving a three-press job — card, header, arm, go —
+    // on a platform where every app exits on one BACK from its top level.
+    // Nothing is lost by leaving: the app reopens where it was. The toast was
+    // a phone habit, where BACK is the only way out and an accidental exit
+    // costs a whole navigation stack; a TV remote has a HOME button beside
+    // BACK and the launcher is one press either way.
     BackHandler(enabled = !headerFocused) {
         focusHeader()
-    }
-    BackHandler(enabled = headerFocused && !exitArmed) {
-        exitArmed = true
     }
 
     Box(
@@ -266,8 +286,8 @@ fun HomeScreen(
     ) {
         if (tab == HomeTab.Home && contentState is ContentState.Ready) {
             BackdropLayer(
-                borrowedArt(vm, homeHero?.art, homeHero?.backdrop, wide = true)
-                    ?: homeHero?.poster,
+                borrowedArt(vm, homeHero?.info?.art, homeHero?.info?.backdrop, wide = true)
+                    ?: homeHero?.info?.poster,
                 bleedX = 0.dp,
                 bleedY = 0.dp,
             )
@@ -366,7 +386,7 @@ fun HomeScreen(
                         onEditPlaylist = onEditPlaylist,
                     )
                 } else when (val state = contentState) {
-                    is ContentState.Loading -> StatusPane(title = state.message, loading = true)
+                    is ContentState.Loading -> StatusPane(loading = true)
                     is ContentState.Error -> StatusPane(
                         title = "Couldn't load your playlist",
                         message = state.message,
@@ -435,12 +455,28 @@ fun HomeScreen(
         // same reason — the content refuses focus while the header holds
         // it (LocalArrivalFocusAllowed), so the gate has to drop first.
         onSelect = {
+            // Whether this commit changes what is on screen at all. The
+            // commonest move on the header is not a tab change: it is BACK to
+            // the header and then OK or DOWN to get back into the page you
+            // were already on.
+            val sameTab = it == tab
             if (it == HomeTab.Search) openSearch() else tab = it
             // The gate first: the content refuses focus while the header
             // holds it (LocalArrivalFocusAllowed), so the hand-off can only
             // land after this drops.
             headerFocused = false
-            shellScope.launch {
+            if (sameTab) {
+                // Nothing is being swapped, so there is nothing to wait for.
+                // The tab's own arrival focus was spent when the viewer first
+                // entered it, so this went to the backstop ladder below —
+                // 300ms of delay before the first attempt — and the header
+                // read as a control that takes a beat to respond on the one
+                // press it gets most. The pane is composed and laid out; its
+                // focusRestorer puts focus back on the card that was left.
+                // Retried a few times only because a requestFocus can be
+                // REFUSED (it returns false, it does not throw).
+                shellScope.launch { parkInContent(retries = 10, intervalMs = 40) }
+            } else shellScope.launch {
                 // WAIT before reaching for focus, and then check it stuck.
                 //
                 // Every tab seats its own arrival focus; the shell is only a
@@ -468,17 +504,7 @@ fun HomeScreen(
         },
         itemFocus = navFocus,
         onHeaderFocusChanged = { headerFocused = it },
-        // Only the three states where something can actually be done.
-        // Checking and Error stay out of the header: a background check
-        // that failed is not news, and Settings carries both in full.
-        updateLabel = when (val u = updateState) {
-            is com.agoro.tv.data.UpdateManager.State.Available ->
-                "Update to ${u.version.removePrefix("v")}"
-            is com.agoro.tv.data.UpdateManager.State.Downloading ->
-                "Downloading… ${u.progressPercent}%"
-            is com.agoro.tv.data.UpdateManager.State.Ready -> "Install update"
-            else -> null
-        },
+        updateLabel = updateLabel,
         // The same call Settings' one button makes, so the two can never
         // disagree about what pressing means in a given state.
         onUpdate = { vm.downloadAndInstallUpdate() },
@@ -498,30 +524,5 @@ fun HomeScreen(
         // the update control live, and the readout sat straight on top of them.
         modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 4.dp, end = 4.dp),
     )
-    androidx.compose.animation.AnimatedVisibility(
-        visible = exitArmed,
-        enter = androidx.compose.animation.fadeIn(
-            tween(NuxMotion.StandardMs, easing = NuxMotion.StandardEasing)
-        ) + androidx.compose.animation.slideInVertically(
-            tween(NuxMotion.StandardMs, easing = NuxMotion.StandardEasing)
-        ) { it / 2 },
-        exit = androidx.compose.animation.fadeOut(
-            tween(NuxMotion.FastMs, easing = NuxMotion.ExitEasing)
-        ),
-        modifier = Modifier.align(Alignment.BottomCenter),
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(bottom = 24.dp)
-                .background(NuxColors.Scrim, NuxShape.Row)
-                .padding(horizontal = 18.dp, vertical = 10.dp),
-        ) {
-            Text(
-                "Press BACK again to exit",
-                style = MaterialTheme.typography.labelLarge,
-                color = NuxColors.OnSurface,
-            )
-        }
-    }
     }
 }

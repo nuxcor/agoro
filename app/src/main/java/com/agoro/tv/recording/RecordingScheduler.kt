@@ -22,22 +22,36 @@ import android.os.Build
  */
 object RecordingScheduler {
 
+    /**
+     * The alarm's identity, built in exactly one place.
+     *
+     * Action and data are what make PendingIntents distinct — extras are NOT
+     * part of the comparison — so without them every reminder is the same
+     * PendingIntent and FLAG_UPDATE_CURRENT quietly replaces the previous one.
+     * Keyed on the programme's id, not its title: "BBC News at Ten" tonight and
+     * tomorrow are two reminders, and the same programme on two channels is two
+     * more.
+     *
+     * Setting and cancelling must agree on this to the byte, or cancel silently
+     * matches nothing and the alarm still fires after the app has told the
+     * viewer it is gone. That is why it is a function rather than two copies.
+     */
+    private fun reminderIntent(
+        context: Context,
+        channelName: String,
+        program: com.agoro.tv.data.EpgProgram,
+    ) = Intent(context, ReminderReceiver::class.java)
+        .setAction("com.agoro.tv.REMINDER")
+        .setData(android.net.Uri.parse("dzidzi://reminder/${program.id.hashCode()}"))
+        .putExtra("title", program.title)
+        .putExtra("channel", channelName)
+
     fun scheduleReminder(context: Context, channelName: String, program: com.agoro.tv.data.EpgProgram) {
         // Kept verbatim from before recording was removed. Rewriting it from
         // scratch lost three things at once, all of them silent: the exact-alarm
         // permission guard, the identity that keeps two reminders apart, and the
         // clamp that lets one fire for a programme already inside the minute.
-        val intent = Intent(context, ReminderReceiver::class.java)
-            // Action and data are what make PendingIntents distinct — extras are
-            // NOT part of the comparison — so without them every reminder is the
-            // same PendingIntent and FLAG_UPDATE_CURRENT quietly replaces the
-            // previous one. Keyed on the programme's id, not its title: "BBC News
-            // at Ten" tonight and tomorrow are two reminders, and the same
-            // programme on two channels is two more.
-            .setAction("com.agoro.tv.REMINDER")
-            .setData(android.net.Uri.parse("dzidzi://reminder/${program.id.hashCode()}"))
-            .putExtra("title", program.title)
-            .putExtra("channel", channelName)
+        val intent = reminderIntent(context, channelName, program)
         val pi = PendingIntent.getBroadcast(
             context,
             program.id.hashCode(),
@@ -62,6 +76,35 @@ object RecordingScheduler {
             am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
             requestExactAlarms(context)
         }
+    }
+
+    /**
+     * Takes a reminder back off the alarm queue.
+     *
+     * Returns whether there was one to cancel, so the caller can say
+     * "Reminder removed" only when something was actually removed.
+     *
+     * FLAG_NO_CREATE is the whole trick: it asks the system for the existing
+     * PendingIntent and answers null when none matches, which is both the
+     * cancel handle and the check. Cancelling twice — the alarm AND the
+     * PendingIntent itself — because [AlarmManager.cancel] drops the scheduled
+     * fire but leaves the token behind for the next FLAG_NO_CREATE lookup to
+     * find, which would make a cancelled reminder look like a live one.
+     */
+    fun cancelReminder(
+        context: Context,
+        channelName: String,
+        program: com.agoro.tv.data.EpgProgram,
+    ): Boolean {
+        val pi = PendingIntent.getBroadcast(
+            context,
+            program.id.hashCode(),
+            reminderIntent(context, channelName, program),
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+        ) ?: return false
+        alarmManager(context).cancel(pi)
+        pi.cancel()
+        return true
     }
 
     /**

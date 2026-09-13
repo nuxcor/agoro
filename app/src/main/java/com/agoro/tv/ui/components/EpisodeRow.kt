@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,7 +54,11 @@ import com.agoro.tv.ui.theme.NuxShape
 fun EpisodeRow(
     /** "1. Did you know Seahorses are fish?" — number included. */
     title: String,
-    /** The still, 16:9. Null draws the monogram; the series poster must not stand in. */
+    /**
+     * The still, 16:9. Null draws the neutral slab below — never the series
+     * poster, which painted the same picture down thirty rows and read as a
+     * rendering fault.
+     */
     imageUrl: String?,
     /** Far right of the title line: "12 Mar 2024 · 54m". */
     meta: String? = null,
@@ -97,14 +102,41 @@ fun EpisodeRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box {
-                Artwork(
-                    imageUrl = imageUrl,
-                    title = title,
+                // A slab with a play glyph where the still would be, NOT the
+                // monogram [Artwork] draws by default. An episode's title
+                // starts with its number, so the monogram came out as the
+                // first letters of "1. Ignition!" and "2. Pleased To Meet
+                // You!" — "1I" and "2P", one per row, which reads as text
+                // rendered by mistake rather than as a missing picture. Most
+                // episodes on this provider have no still, so this is the
+                // common case, not the edge.
+                //
+                // Drawn UNDER the image rather than instead of it, so it also
+                // covers a still that 404s — [Artwork] falls back to the
+                // monogram on a failed load too, and an empty title is what
+                // silences it. The row prints the episode's name two
+                // centimetres to the right, so nothing is lost by the image
+                // itself not carrying one.
+                Box(
                     modifier = Modifier
                         .size(width = 160.dp, height = 90.dp)
-                        .clip(NuxShape.Chip),
-                    monogramStyle = MaterialTheme.typography.titleMedium,
-                )
+                        .clip(NuxShape.Chip)
+                        .background(NuxColors.SurfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = NuxColors.OnSurfaceDim,
+                        modifier = Modifier.size(28.dp),
+                    )
+                    Artwork(
+                        imageUrl = imageUrl,
+                        title = "",
+                        modifier = Modifier.matchParentSize(),
+                        background = Color.Transparent,
+                    )
+                }
                 // On the still, the way a thumbnail carries its own progress
                 // everywhere else — under the row it was a third dim line
                 // competing with the synopsis for the same strip of pixels.
@@ -142,11 +174,18 @@ fun EpisodeRow(
                         modifier = Modifier.weight(1f),
                     )
                     if (watched) {
+                        // 22dp in brand gold. At 16dp in OnSurfaceDim this
+                        // was a grey speck between a title and a runtime —
+                        // invisible from a sofa, on the one mark that tells a
+                        // viewer which episodes they have already seen. Gold
+                        // is the same colour the progress bar under the still
+                        // uses, so "watched" and "part-watched" are the same
+                        // idea in the same ink.
                         Icon(
                             Icons.Default.CheckCircle,
                             contentDescription = "Watched",
-                            tint = NuxColors.OnSurfaceDim,
-                            modifier = Modifier.size(16.dp),
+                            tint = NuxColors.Primary,
+                            modifier = Modifier.size(22.dp),
                         )
                     }
                     meta?.let {

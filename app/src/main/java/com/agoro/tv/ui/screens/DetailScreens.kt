@@ -22,9 +22,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
@@ -68,6 +66,9 @@ import com.agoro.tv.ui.components.StatusPane
 import com.agoro.tv.ui.components.ContextMenu
 import com.agoro.tv.ui.components.MenuAction
 import com.agoro.tv.ui.components.MetaChip
+import com.agoro.tv.ui.components.NuxFormat
+import com.agoro.tv.ui.components.ShelfRingRoom
+import com.agoro.tv.ui.components.shelfRingRoom
 import com.agoro.tv.ui.components.RatingStars
 import com.agoro.tv.ui.components.EpisodeRow
 import com.agoro.tv.ui.theme.NuxColors
@@ -116,29 +117,62 @@ fun MovieDetailScreen(
                 .height(330.dp)
                 .clip(NuxShape.Card),
         )
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-        ) {
+        // NOT a scrolling column. It was one, and that was the fault: the
+        // only focusable things on this page are the Play row's buttons, and
+        // a verticalScroll only ever moves for focus travel or a drag. So on
+        // a 540dp canvas everything under those buttons — the back half of a
+        // long synopsis, the credits, the whole reviews block — was drawn
+        // below the fold with no key on the remote able to bring it up. A
+        // page that scrolls for nobody is a page that hides its own content.
+        //
+        // So the page is sized to FIT instead: the synopsis stops at three
+        // lines the way the series hero's does, the credits stay (they are
+        // two lines and they are what a viewer scans a film page for), and
+        // the reviews went — quotes scraped from the provider, three deep,
+        // that nothing could ever reach.
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = movie.name,
                 style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
                 color = NuxColors.OnSurface,
+                // Two lines, as the series page's title has always been.
+                // Uncapped it was the one thing on a page that no longer
+                // scrolls that could grow without limit, and a provider's
+                // longest names ("… Extended Director's Cut Remastered") run
+                // to three and four lines at 34sp.
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(12.dp))
+            // The YEAR is the gold chip, here and on every other surface —
+            // accent by MEANING, not by position. Chip zero used to take it,
+            // which made gold say "year" on the detail pages and "Movie" on
+            // the browse grid: the same colour for two different kinds of
+            // fact.
+            //
+            // movie.quality is gone with it. It is a tier read out of the
+            // provider's stream NAME — a claim someone typed, not a
+            // measurement — and this box cannot decode HEVC, so a film
+            // billed "4K" here can be the one that will not play. The
+            // player's badge is measured off the stream that actually
+            // opened, and that is the only honest place to say it.
+            val yearChip = movie.year?.toString()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOfNotNull(
-                    movie.year?.toString(),
-                    movie.quality,
+                    yearChip,
                     movie.durationText?.let(::prettyDuration),
                     movie.genre,
-                ).forEachIndexed { i, chip -> MetaChip(chip, accent = i == 0) }
+                ).forEach { chip -> MetaChip(chip, accent = chip == yearChip) }
             }
-            movie.rating?.let { rating ->
-                Spacer(Modifier.height(10.dp))
-                RatingStars(rating = rating, voteCount = movie.voteCount)
-            }
+            // A score the app will stand behind, or no score — see
+            // [NuxFormat.ratingWorthShowing]. "★ 1.0" off five votes is not a
+            // rating, and printing it says the app cannot tell the difference.
+            movie.rating
+                ?.takeIf { NuxFormat.ratingWorthShowing(it, movie.voteCount) }
+                ?.let { rating ->
+                    Spacer(Modifier.height(10.dp))
+                    RatingStars(rating = rating)
+                }
 
             // Actions sit above the synopsis: they are why the page exists, and
             // below the fold the first D-pad press would scroll the title away.
@@ -187,6 +221,17 @@ fun MovieDetailScreen(
                     text = moviePlot,
                     style = MaterialTheme.typography.bodyLarge,
                     color = NuxColors.OnSurfaceDim,
+                    // Three lines, the same cap the series hero carries. The
+                    // page does not scroll (see above), so anything past
+                    // three would be text printed off the bottom of the
+                    // screen; and a synopsis is a hook rather than the
+                    // article.
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    // Stopped short of the trailing edge, as the series hero
+                    // is: the backdrop's scrim thins out on the far side and
+                    // a full-width line of prose finishes on top of the art.
+                    modifier = Modifier.widthIn(max = 620.dp),
                 )
             }
             if (!movie.cast.isNullOrBlank() || !movie.director.isNullOrBlank()) {
@@ -194,22 +239,10 @@ fun MovieDetailScreen(
                 movie.cast?.takeIf { it.isNotBlank() }?.let { CreditLine("Starring", it) }
                 movie.director?.takeIf { it.isNotBlank() }?.let { CreditLine("Director", it) }
             }
-            if (movie.reviews.isNotEmpty()) {
-                Spacer(Modifier.height(18.dp))
-                Text(
-                    "Reviews",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = NuxColors.OnSurface,
-                )
-                movie.reviews.forEach { review ->
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "“$review”",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NuxColors.OnSurfaceDim,
-                    )
-                }
-            }
+            // No reviews block. It sat below the credits, below the fold,
+            // on a page nothing could scroll — so it was three paragraphs of
+            // provider-scraped quotes that no viewer has ever seen. Cutting
+            // it is what lets the rest of the page fit.
             Spacer(Modifier.height(28.dp))
         }
     }
@@ -255,7 +288,7 @@ private fun CreditLine(label: String, names: String) {
 @Composable
 private fun MissingItemPane(kind: String, contentState: ContentState, onBack: () -> Unit) {
     if (contentState !is ContentState.Ready) {
-        StatusPane(title = "Loading…", loading = true)
+        StatusPane(loading = true)
         return
     }
     StatusPane(
@@ -313,7 +346,10 @@ fun SeriesDetailScreen(
     val contentState by vm.content.collectAsState()
     val base: Series? = remember(seriesId, contentState) { vm.seriesById(seriesId) }
     if (base == null) {
-        MissingItemPane("Show", contentState, onBack)
+        // "Series", not "Show": the tab, the nav and Search all say Series,
+        // and the one screen that said Show was the one a viewer reaches
+        // when something has gone wrong.
+        MissingItemPane("Series", contentState, onBack)
         return
     }
     var series by remember(seriesId) { mutableStateOf(base) }
@@ -510,7 +546,6 @@ fun SeriesDetailScreen(
                 // is that a first open can take longer, said quietly.
                 eps == null -> item(key = "loading") {
                     EpisodeStatus(
-                        title = "Loading episodes…",
                         message = if (providerPreparing) {
                             "The first open of a series can take a minute."
                         } else null,
@@ -545,7 +580,8 @@ fun SeriesDetailScreen(
                             // The EPISODE's own still, or nothing. Falling
                             // back to the series art painted the same picture
                             // down all thirty rows, which reads as a
-                            // rendering fault; the monogram at least differs.
+                            // rendering fault. Nothing is a neutral slab with
+                            // a play mark on it — see [EpisodeRow].
                             imageUrl = episode.poster,
                             // The season is the bar above; repeating it
                             // under every row said nothing. What goes here
@@ -630,8 +666,9 @@ fun SeriesDetailScreen(
  *
  * Sized to be scrolled past. Everything here is worth reading once and
  * nothing is worth 70% of the panel a second time, so the synopsis stops at
- * three lines and the poster is the size it needs to be recognised rather
- * than the size it would be if it were the subject.
+ * three lines — but the poster is the film page's, because the two detail
+ * screens are the same screen about two kinds of thing and a viewer should
+ * not be able to tell which one they are on by how big the artwork is.
  */
 @Composable
 private fun SeriesHero(
@@ -650,9 +687,15 @@ private fun SeriesHero(
         Artwork(
             imageUrl = series.poster,
             title = series.name,
+            // The film page's poster, to the pixel. Two detail pages at two
+            // scales — 220x330 for a film, 130x195 for a show — read as two
+            // different apps, and the smaller one was sized down for a hero
+            // that had to share the screen with a list. It does not any more:
+            // this hero is the list's first item and scrolls away, so it can
+            // afford the poster a film gets.
             modifier = Modifier
-                .width(130.dp)
-                .height(195.dp)
+                .width(220.dp)
+                .height(330.dp)
                 .clip(NuxShape.Card),
         )
         Column(modifier = Modifier.weight(1f)) {
@@ -664,17 +707,22 @@ private fun SeriesHero(
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(8.dp))
+            // Gold is the year — see the film page for why the accent is a
+            // meaning rather than a position.
+            val yearChip = series.year?.toString()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOfNotNull(
-                    series.year?.toString(),
+                    yearChip,
                     episodeCount?.let { "$it episodes" },
                     series.genre,
-                ).forEachIndexed { i, chip -> MetaChip(chip, accent = i == 0) }
+                ).forEach { chip -> MetaChip(chip, accent = chip == yearChip) }
             }
-            series.rating?.let { rating ->
-                Spacer(Modifier.height(6.dp))
-                RatingStars(rating = rating, voteCount = series.voteCount)
-            }
+            series.rating
+                ?.takeIf { NuxFormat.ratingWorthShowing(it, series.voteCount) }
+                ?.let { rating ->
+                    Spacer(Modifier.height(6.dp))
+                    RatingStars(rating = rating)
+                }
             // See the movie page: also applied at the parse, and repeated
             // here for the catalogues cached before it was.
             val plot = remember(series.plot) { PlotText.preferred(series.plot) }
@@ -785,7 +833,16 @@ private fun SeasonBar(
                 // The strip a viewer walks back up to must still be on the
                 // season they were reading. Every other chip strip in the app
                 // restores; this one was the exception.
-                modifier = Modifier.weight(1f).focusRestorer(),
+                //
+                // Ring room, for the reason the shelves have it: a scrollable
+                // clips its main axis, so Season 1 — the chip focus lands on
+                // walking down into the bar — had the left edge of its focus
+                // fill sliced off against the row's own bound, and lost the
+                // corner radius with it. Widen by [ShelfRingRoom] on each
+                // side and pad the content back, so the first chip rests
+                // exactly where it did.
+                modifier = Modifier.weight(1f).focusRestorer().shelfRingRoom(),
+                contentPadding = PaddingValues(horizontal = ShelfRingRoom),
             ) {
                 itemsIndexed(seasons) { _, season ->
                     CategoryItem(
@@ -807,7 +864,8 @@ private fun SeasonBar(
  */
 @Composable
 private fun EpisodeStatus(
-    title: String,
+    /** Empty while loading, which shows the mark and says nothing. */
+    title: String = "",
     message: String? = null,
     loading: Boolean = false,
     action: StatusAction? = null,

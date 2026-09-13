@@ -296,14 +296,23 @@ object XmltvParser {
                                         channelId = channelId,
                                         startMs = p.startMs,
                                         endMs = p.stopMs,
-                                        title = p.title ?: "Untitled",
+                                        // Cleaned HERE, at the one place every
+                                        // programme in the app is born, rather
+                                        // than at each of the four screens that
+                                        // draw one. The broadcaster's
+                                        // accessibility flags reached the Home
+                                        // hero verbatim — "**Visually
+                                        // Signed**The Highland Vet" — because
+                                        // the hero was never the screen anyone
+                                        // thought to clean.
+                                        title = TextNorm.cleanProgrammeTitle(p.title ?: "Untitled"),
                                         description = p.desc?.take(MAX_DESCRIPTION_LENGTH),
                                     )
                                 )
                             } else {
                                 programmes.getOrPut(channelId) { mutableListOf() } += EpgProgram(
                                     id = "${p.channel}:${p.startMs}",
-                                    title = p.title ?: "Untitled",
+                                    title = TextNorm.cleanProgrammeTitle(p.title ?: "Untitled"),
                                     description = p.desc?.take(MAX_DESCRIPTION_LENGTH),
                                     startMs = p.startMs,
                                     endMs = p.stopMs,

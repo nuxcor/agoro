@@ -40,18 +40,18 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.LiveChannel
+import com.agoro.tv.data.TextNorm
 import com.agoro.tv.ui.components.Artwork
 import com.agoro.tv.ui.components.DialogScaffold
 import com.agoro.tv.ui.components.MetaChip
+import com.agoro.tv.ui.components.NuxFormat
 import com.agoro.tv.ui.components.rememberClockFormat
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxShape
 import com.agoro.tv.ui.theme.NuxFocus
 import com.agoro.tv.ui.theme.Space
 import com.agoro.tv.ui.components.requestFocusRetrying
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 /**
  * What is on a channel, and what is on next.
@@ -95,7 +95,9 @@ fun ChannelSchedule(
         watchFocus.requestFocusRetrying()
     }
     val timeFmt = rememberClockFormat()
-    val dayFmt = remember { SimpleDateFormat("EEE d MMM", Locale.getDefault()) }
+    // The app's one date idiom — see [NuxFormat.DAY_PATTERN]. This sheet, the
+    // guide header, the ruler and the day chip each used to roll their own.
+    val dayFmt = remember { NuxFormat.dayFormat() }
 
     // The caller's nowMs is a snapshot; this sheet can sit open across a
     // programme boundary, and a schedule that goes on calling a finished
@@ -110,7 +112,16 @@ fun ChannelSchedule(
 
     // Everything still to come, plus whatever is on now — a schedule that opens
     // on programmes that already finished is a history, not a plan.
-    val upcoming = remember(programs, tick) { programs?.filter { it.endMs > tick } }
+    //
+    // The panel's filler entries are not programmes and never appear here. A
+    // channel with no schedule sends a two-hour "TV Guide unavailable" block,
+    // and listing it gave the viewer a row to press OK on that could only set
+    // a reminder for a show that does not exist — see
+    // [TextNorm.isProgrammePlaceholder]. Filtered out, such a channel reaches
+    // the empty case below, which says so in one line.
+    val upcoming = remember(programs, tick) {
+        programs?.filter { it.endMs > tick && !TextNorm.isProgrammePlaceholder(it.title) }
+    }
     val listState = rememberLazyListState()
 
     DialogScaffold(
@@ -250,7 +261,10 @@ private fun ScheduleRow(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = program.title,
+                    // Broadcaster flags are written into XMLTV titles
+                    // ("**Visually Signed**The Highland Vet") and reached the
+                    // screen verbatim — see [TextNorm.cleanProgrammeTitle].
+                    text = TextNorm.cleanProgrammeTitle(program.title),
                     style = MaterialTheme.typography.titleSmall,
                     color = NuxColors.OnSurface,
                     maxLines = 1,

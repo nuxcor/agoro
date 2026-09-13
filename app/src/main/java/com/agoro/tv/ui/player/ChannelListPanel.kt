@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
@@ -67,7 +70,6 @@ internal fun ChannelListPanel(
     currentIndex: Int,
     onSelect: (Int) -> Unit,
     onSelectChannels: (List<LiveChannel>, Int) -> Unit,
-    onExitToHome: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val nowNextMap by vm.nowNext.collectAsState()
@@ -198,10 +200,18 @@ internal fun ChannelListPanel(
                                 returnTick++
                                 true
                             }
-                            // Categories is the last panel, so LEFT completes the
-                            // walk outward and leaves the player for Home, where
-                            // Live/Movies/Series/Settings live.
-                            AndroidKeyEvent.KEYCODE_DPAD_LEFT -> { onExitToHome(); true }
+                            // The walk stops here. LEFT used to complete it by
+                            // leaving the player for Home — which means three
+                            // presses of a NAVIGATION key tore the stream down,
+                            // with no warning, no confirmation and nothing on
+                            // screen saying the third press was different in
+                            // kind from the first two. Ending playback is what
+                            // BACK does, deliberately, and it is one press away
+                            // from anywhere in the player. So LEFT at the last
+                            // column is a no-op: consumed, so it does not
+                            // escalate out of the trap and find the player's
+                            // root behind the panel.
+                            AndroidKeyEvent.KEYCODE_DPAD_LEFT -> true
                             else -> false
                         }
                     }
@@ -297,11 +307,26 @@ internal fun ChannelListPanel(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = "‹ Categories",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = NuxColors.OnSurfaceDim,
-                )
+                // An icon, not a "‹" typed into the string: a single
+                // guillemet is exactly the kind of character a TV system font
+                // ships without, and it drew a tofu box in front of the one
+                // word that tells a viewer LEFT does something here.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Icon(
+                        Icons.Default.ChevronLeft,
+                        contentDescription = null,
+                        tint = NuxColors.OnSurfaceDim,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "Categories",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = NuxColors.OnSurfaceDim,
+                    )
+                }
                 Spacer(Modifier.height(10.dp))
                 LazyColumn(
                     state = listState,
@@ -433,9 +458,16 @@ internal fun ChannelListPanel(
                                     // decide whether to stop here. "Next" belongs
                                     // in the full guide, not in a zapping list.
                                     nowNext?.now?.let { now ->
+                                        // bodyMedium, not labelSmall: what is
+                                        // on is the reason this row exists,
+                                        // and 14sp is the floor this app keeps
+                                        // for version strings and channel
+                                        // numbers. A zapping list read from a
+                                        // sofa has to answer "what is this"
+                                        // without being leaned towards.
                                         Text(
                                             text = now.title,
-                                            style = MaterialTheme.typography.labelSmall,
+                                            style = MaterialTheme.typography.bodyMedium,
                                             color = NuxColors.OnSurfaceDim,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
@@ -469,7 +501,7 @@ internal fun ChannelListPanel(
                                                     .coerceAtLeast(0)
                                             Text(
                                                 text = "${minutesLeft}m left",
-                                                style = MaterialTheme.typography.labelSmall,
+                                                style = MaterialTheme.typography.bodyMedium,
                                                 color = NuxColors.OnSurfaceDim,
                                                 maxLines = 1,
                                             )

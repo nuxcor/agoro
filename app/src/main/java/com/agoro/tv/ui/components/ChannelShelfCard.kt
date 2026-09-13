@@ -29,6 +29,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.LiveChannel
+import com.agoro.tv.data.TextNorm
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxFocus
 import com.agoro.tv.ui.theme.NuxShape
@@ -53,7 +54,18 @@ fun ChannelShelfCard(
     /** Applied to the clickable surface — the node that takes focus. */
     modifier: Modifier = Modifier,
 ) {
-    val progress = now?.let {
+    // The programme as a viewer should read it, or null when the guide is not
+    // actually saying anything. Two different faults, both of which reached
+    // the screen verbatim: the broadcaster writes its accessibility flags into
+    // the XMLTV title ("**Visually Signed**The Highland Vet"), and the panel
+    // fills the gaps with a two-hour entry called "TV Guide unavailable".
+    // A placeholder is not a programme, so it gets neither the line nor the
+    // bar — a progress bar across one measures how far through nothing the
+    // viewer is.
+    val programme = now?.title
+        ?.takeUnless { TextNorm.isProgrammePlaceholder(it) }
+        ?.let { TextNorm.cleanProgrammeTitle(it) }
+    val progress = now?.takeIf { programme != null }?.let {
         val span = it.endMs - it.startMs
         if (span <= 0) null
         else ((System.currentTimeMillis() - it.startMs).toFloat() / span).coerceIn(0f, 1f)
@@ -92,19 +104,13 @@ fun ChannelShelfCard(
                         .clip(NuxShape.Card),
                     monogramStyle = MaterialTheme.typography.headlineSmall,
                 )
-                channel.quality?.let { tier ->
-                    Text(
-                        text = tier,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = NuxColors.OnSurfaceDim,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .clip(NuxShape.Chip)
-                            .background(NuxColors.Scrim)
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                    )
-                }
+                // No quality badge. Stream tiers belong to the player's button
+                // row, where a viewer who wants to know what they are getting
+                // can ask — on a shelf it is a sticker on every card that only
+                // ever separates HD from FHD, since this app carries no SD
+                // channels at all, and it is read out of provider marketing
+                // text that has been measured wrong often enough not to be
+                // billed on the card a viewer chooses by.
                 if (progress != null && progress > 0f) {
                     Box(
                         modifier = Modifier
@@ -136,9 +142,13 @@ fun ChannelShelfCard(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 2.dp),
         )
+        // What is ON is the line a viewer picks a channel by — more often than
+        // the channel's own name, which they already know. It sat at the
+        // metadata floor, dim and a size below the name; it is content, so it
+        // reads as body copy now.
         Text(
-            text = now?.title ?: "Live",
-            style = MaterialTheme.typography.labelMedium,
+            text = programme ?: "Live",
+            style = MaterialTheme.typography.bodyMedium,
             color = NuxColors.OnSurfaceDim,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

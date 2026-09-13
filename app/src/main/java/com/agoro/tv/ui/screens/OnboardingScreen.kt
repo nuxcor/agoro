@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -132,11 +132,14 @@ fun OnboardingScreen(
     // it paints full-bleed. Painting it on this Box put it inside the overscan
     // inset, leaving the theme's page gradient visible in the margin as a
     // lighter frame around all four edges.
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 64.dp, vertical = 40.dp)
-    ) {
+    //
+    // No padding of its own. This screen is composed inside TvSafe, like every
+    // other screen in the app — 40dp horizontal, 32dp vertical — and then added
+    // 64/40 on top of that for a 104dp side margin no other screen has. The
+    // centred column below is what keeps the form from stretching across a TV;
+    // the margin was doing nothing but making the first screen a viewer sees
+    // the narrowest one in the app.
+    Box(modifier = Modifier.fillMaxSize()) {
         // The lockup sits outside the scrolling part, which is the whole point
         // of the split. Everything used to share one scroll container, and the
         // chooser asks for focus on its card as soon as it composes — focusing
@@ -179,6 +182,15 @@ fun OnboardingScreen(
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
+                    // The soft keyboard covers the bottom of the screen, and
+                    // what sits there on the Xtream form is "Show password"
+                    // and the keyboard hint — reachable by the D-pad, and
+                    // invisible while you reach them. Insetting the scroller
+                    // rather than the page keeps the lockup where it is and
+                    // gives the fields somewhere to scroll to; where the
+                    // platform resizes the window for the IME instead, the
+                    // inset reads zero and nothing changes.
+                    .imePadding()
                     // Inside the scroll, so the clip region includes it. A
                     // focused card draws 1.04x with a 3dp ring — several dp
                     // outside its own bounds — and a scroller clips its scroll
@@ -325,7 +337,11 @@ private fun ChooseStep(
                 }
                 androidx.compose.foundation.Image(
                     painter = androidx.compose.ui.res.painterResource(com.agoro.tv.R.drawable.ic_logo),
-                    contentDescription = "Agoro",
+                    // "Agorɔ", with the open o: the launcher label, the
+                    // welcome pane and the phone sign-in page all spell it
+                    // that way, and this string is the one a screen reader
+                    // says out loud.
+                    contentDescription = "Agorɔ",
                     modifier = Modifier.height(markHeight).aspectRatio(55f / 76f),
                 )
             }
@@ -524,7 +540,9 @@ private fun XtreamForm(
         // filled in on a remote, and it sat between the password and Connect.
         if (askForServer) {
             NuxTextField(
-                value = server, onValueChange = onServer, label = "Server URL  •  http://host:port",
+                value = server, onValueChange = onServer,
+                label = "Server address",
+                helper = "For example http://host:port",
                 modifier = first(),
             )
         }
@@ -544,19 +562,19 @@ private fun XtreamForm(
             onAdvance = { runCatching { connectFocus.requestFocus() } },
             dpadDownAdvances = false,
         )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedButton(onClick = { revealPassword = !revealPassword }) {
-                Text(if (revealPassword) "Hide password" else "Show password")
-            }
-            Text(
-                "Typing is easier with the Google TV app's remote keyboard",
-                style = MaterialTheme.typography.labelSmall,
-                color = NuxColors.OnSurfaceDim,
-            )
+        OutlinedButton(onClick = { revealPassword = !revealPassword }) {
+            Text(if (revealPassword) "Hide password" else "Show password")
         }
+        // Advice a viewer acts on, so it is read at body size: at the 14sp
+        // metadata floor it was the smallest thing on the screen where typing
+        // is hardest. Under the button rather than beside it — at 16sp the
+        // sentence and the button together are wider than this 560dp form, and
+        // a Row would have run the hint off the edge of it.
+        Text(
+            "Typing is easier with the Google TV app's remote keyboard",
+            style = MaterialTheme.typography.bodyMedium,
+            color = NuxColors.OnSurfaceDim,
+        )
     }
 }
 
@@ -576,13 +594,16 @@ private fun M3uForm(
         onSubmit = onSubmit, submitLabel = submitLabel, editing = editing,
         connectFocus = connectFocus) { firstFieldFocus ->
         NuxTextField(
-            value = url, onValueChange = onUrl, label = "Playlist URL  •  http://…/playlist.m3u",
+            value = url, onValueChange = onUrl,
+            label = "Playlist link",
+            helper = "For example http://example.com/playlist.m3u",
             modifier = firstFieldFocus?.let { Modifier.focusRequester(it) } ?: Modifier,
         )
         NuxTextField(
             value = epgUrl,
             onValueChange = onEpgUrl,
-            label = "TV guide URL (optional)",
+            label = "TV guide link (optional)",
+            helper = "Your provider's XMLTV address, if they gave you one",
             isLast = true,
             onAdvance = { runCatching { connectFocus.requestFocus() } },
         )
@@ -634,12 +655,13 @@ private fun FormContainer(
             ) {
                 Text(if (loading) "Connecting…" else submitLabel)
             }
+            // No spinner beside the button. Its label already reads
+            // "Connecting…" while this runs, so the ring was a second thing
+            // saying the first thing — and it was the last stock Material
+            // indicator left anywhere in the app, which is exactly the kind of
+            // toolkit default that makes a TV app look like a form.
             if (loading) {
-                CircularProgressIndicator(
-                    color = NuxColors.Primary,
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.5.dp,
-                )
+                com.agoro.tv.ui.components.SweepTrack(width = 96.dp)
             }
         }
     }
@@ -649,7 +671,19 @@ private fun FormContainer(
 private fun NuxTextField(
     value: String,
     onValueChange: (String) -> Unit,
+    /**
+     * What the field is, in the words a viewer would use — "Server address",
+     * not "Server URL  •  http://host:port".
+     *
+     * A label names a field; it is not the place for an example of what goes
+     * in one. The examples were spliced into the label with a bullet, so the
+     * floating label that rides up when the field is filled carried a URL
+     * template with it, and the one line a viewer reads to know what is being
+     * asked of them was half machine syntax.
+     */
     label: String,
+    /** The example, under the field, where a hint belongs. */
+    helper: String? = null,
     password: Boolean = false,
     isLast: Boolean = false,
     onAdvance: (() -> Unit)? = null,
@@ -662,26 +696,52 @@ private fun NuxTextField(
         onAdvance?.invoke()
             ?: focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)
     }
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { androidx.compose.material3.Text(label) },
-        singleLine = true,
-        visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-            imeAction = if (isLast) androidx.compose.ui.text.input.ImeAction.Done
-            else androidx.compose.ui.text.input.ImeAction.Next
-        ),
-        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-            onNext = { advance() },
-            // Done jumps straight to the Connect button instead of dropping focus.
-            onDone = { advance() },
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            // TV remotes navigate fields with the D-pad; the m3 TextField
-            // swallows those keys by default. Down advances the form.
-            .dpadFieldNavigation(onDown = if (dpadDownAdvances) advance else null),
-        colors = NuxFieldDefaults.colors(),
-    )
+    // The caller's modifier stays on the FIELD, never on this column: it
+    // carries the form's FocusRequester, and a requester has to land on the
+    // node that actually takes focus.
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // The label sits ABOVE the box, not inside it. Material's floating
+        // label animates up onto the outline itself and cuts a notch through
+        // it — the search bar dropped the same label for the same reason, and
+        // called it the single ugliest thing on the screen. On this form it is
+        // worse, because the label is gold while focused, so the one field the
+        // viewer is typing into is the one wearing a broken border.
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = NuxColors.OnSurfaceDim,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
+        )
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = if (isLast) androidx.compose.ui.text.input.ImeAction.Done
+                else androidx.compose.ui.text.input.ImeAction.Next
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                onNext = { advance() },
+                // Done jumps straight to the Connect button instead of dropping focus.
+                onDone = { advance() },
+            ),
+            modifier = modifier
+                .fillMaxWidth()
+                // TV remotes navigate fields with the D-pad; the m3 TextField
+                // swallows those keys by default. Down advances the form.
+                .dpadFieldNavigation(onDown = if (dpadDownAdvances) advance else null),
+            colors = NuxFieldDefaults.colors(),
+        )
+        if (helper != null) {
+            Text(
+                text = helper,
+                style = MaterialTheme.typography.bodyMedium,
+                color = NuxColors.OnSurfaceDim,
+                // Indented to the field's own text inset, so the example reads
+                // as belonging to the box above it rather than to the page.
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp),
+            )
+        }
+    }
 }

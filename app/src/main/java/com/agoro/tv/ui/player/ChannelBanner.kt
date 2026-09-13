@@ -5,7 +5,6 @@ package com.agoro.tv.ui.player
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,7 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -32,11 +34,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.agoro.tv.MainViewModel
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.PlayableItem
+import com.agoro.tv.ui.components.SweepTrack
+import com.agoro.tv.ui.components.breathe
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxShape
 import java.util.Date
@@ -149,7 +154,16 @@ internal fun ChannelBanner(
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (channel != null && channel.isFavorite(favorites)) {
-                    Text("★", style = MaterialTheme.typography.titleSmall, color = NuxColors.Primary)
+                    // An icon, not a ★ typed into a Text: TV system fonts
+                    // regularly have no glyph for it and draw a tofu box
+                    // beside the channel name. Components.kt made the same
+                    // move for the rating star.
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = null,
+                        tint = NuxColors.Primary,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
             }
             val current = nowNext?.now
@@ -195,8 +209,18 @@ internal fun ChannelBanner(
                     // The switcher that changes it lives in the options menu,
                     // and it is not a thing anyone would think to look for
                     // there, so the line that raises the question also says
-                    // where the answer is.
-                    text = "Feed $feedLabel  ·  OK → Try another feed",
+                    // where the answer is — on the key that actually opens it.
+                    // A tap of OK opens the channel list (see
+                    // playerKeyAction); it is the HOLD that reaches the
+                    // options, and a banner that teaches the wrong key sends
+                    // the viewer somewhere else every time they believe it.
+                    //
+                    // No "1080p50" after it either. What the stream turned out
+                    // to be is a badge, and the badges live in one place — the
+                    // end of the transport row, see [StreamBadges] — because a
+                    // banner is up on every zap and a resolution in the corner
+                    // of every channel is a readout nobody asked for.
+                    text = "Feed $feedLabel  ·  Hold OK to try another",
                     style = MaterialTheme.typography.labelMedium,
                     color = NuxColors.OnSurfaceDim,
                     maxLines = 1,
@@ -215,16 +239,43 @@ internal fun ChannelBanner(
             }
             if (showKeyHints) {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    // INFO while the banner is up opens the controls, so
-                    // that is what the hint says; "INFO Info" on the thing
-                    // INFO had just opened said nothing.
-                    text = "OK Options  ·  ◀ Channels  ·  ▲▼ Change channel  ·  INFO More",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NuxColors.OnSurfaceDim,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                // The map the player actually has. It used to read "OK
+                // Options · ◀ Channels", and OK has opened the CHANNEL LIST
+                // since the day the select key was given to browsing — the
+                // options are the hold, or MENU (see playerKeyAction). A hint
+                // line is the one piece of copy a viewer takes literally, so
+                // being wrong in it costs more than not having it; when it
+                // changed, KEY_HINTS_VERSION went up so the people who had
+                // already learned the wrong thing are taught the right one.
+                //
+                // The arrows are icons. ▲▼ rendered as a pair of tofu boxes
+                // on exactly the televisions this line exists for, and the
+                // left arrow was pointing at a key that is no longer the
+                // interesting one.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    KeyHint("OK Channels")
+                    KeyHintDot()
+                    KeyHint("Hold OK Options")
+                    KeyHintDot()
+                    Icon(
+                        Icons.Default.KeyboardArrowUp,
+                        contentDescription = null,
+                        tint = NuxColors.OnSurfaceDim,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = NuxColors.OnSurfaceDim,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    KeyHint("Change channel")
+                    KeyHintDot()
+                    KeyHint("INFO More")
+                }
             }
         }
 
@@ -243,6 +294,27 @@ internal fun ChannelBanner(
             maxLines = 1,
         )
     }
+}
+
+/** One phrase of the banner's key hints. */
+@Composable
+private fun KeyHint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = NuxColors.OnSurfaceDim,
+        maxLines = 1,
+    )
+}
+
+/** The separator between them, so the spacing is the Row's and not a string's. */
+@Composable
+private fun KeyHintDot() {
+    Text(
+        text = "·",
+        style = MaterialTheme.typography.labelSmall,
+        color = NuxColors.OnSurfaceDim,
+    )
 }
 
 /**
@@ -302,103 +374,83 @@ internal fun TuningBackdrop(modifier: Modifier = Modifier) {
 }
 
 /**
- * What tuning looks like: the channel's name breathing over the dimmed last
- * frame, with a light sweeping a thin line beneath it — identity plus motion,
- * no card, no logo tile, no spinner. The boxy scrim card this replaces put a
- * letterboxed logo and a stock spinner in the middle of every channel change,
- * which read as chrome interrupting the picture rather than the picture
- * changing. Shown from the moment a tune is requested until the new stream
- * renders; mid-stream stalls get only a corner chip.
+ * What tuning looks like: the channel's own logo breathing over the dimmed
+ * last frame, with a light sweeping a thin line beneath it. Identity plus
+ * motion, and not a word.
+ *
+ * The logo, not the name. A channel is a mark long before it is a string —
+ * the viewer recognises Bloomberg's block or Sky's ellipse from across a room
+ * and at an angle no 24sp line survives — so on the one screen whose whole
+ * job is to say WHICH channel is coming, the mark does that job better than
+ * its own name does. The name remains the fallback, because a provider that
+ * ships no logo would otherwise leave the screen saying nothing at all.
+ *
+ * What this is NOT is the boxy scrim card it once was: that put a letterboxed
+ * logo in a tile beside a stock spinner, which read as chrome interrupting the
+ * picture rather than the picture changing. No tile, no card, no plate — the
+ * mark floats free over the frame the zap left behind.
+ *
+ * And no note. A reconnect used to add "Reconnecting…" under the name, which
+ * told a viewer watching a logo breathe and a light sweep exactly what they
+ * could already see. Shown from the moment a tune is requested until the new
+ * stream renders; mid-stream stalls get the sweep alone.
  */
 @Composable
 internal fun TuneCard(
     channel: LiveChannel?,
     item: PlayableItem?,
     modifier: Modifier = Modifier,
-    /** Why this is taking a moment, when it is more than an ordinary tune. */
-    note: String? = null,
 ) {
-    val motion = androidx.compose.animation.core.rememberInfiniteTransition(label = "tune")
-    // One light sweeping left-to-right, restarting — a scanner bounce reads
-    // as retro, a single direction reads as progress.
-    val sweep by motion.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-            androidx.compose.animation.core.tween(
-                1_100,
-                easing = androidx.compose.animation.core.FastOutSlowInEasing,
-            ),
-            androidx.compose.animation.core.RepeatMode.Restart,
-        ),
-        label = "sweep",
-    )
-    val trackWidth = 200.dp
-    val glowWidth = 72.dp
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = channel?.displayName ?: item?.title.orEmpty(),
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                // Legibility without a scrim card: the text floats over
-                // whatever frame the zap left behind. A hard offset shadow,
-                // not a blur: the blurred one was re-rasterised on every
-                // frame of the sweep below, for the whole of every tune.
-                shadow = androidx.compose.ui.graphics.Shadow(
-                    color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.7f),
-                    offset = androidx.compose.ui.geometry.Offset(0f, 2f),
-                ),
-            ),
-            color = NuxColors.OnSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 720.dp),
-        )
-        if (note != null) {
-            Spacer(Modifier.height(8.dp))
+        val logo = channel?.logo?.takeIf { it.isNotBlank() }
+        if (logo != null) {
+            // Fit, never Crop: channel logos are arbitrary aspect ratios and
+            // Crop fills the box by slicing the sides off, which turned a wide
+            // wordmark into "CTRUM EWS" in the banner. Bounded on BOTH axes so
+            // neither a tall crest nor a long wordmark can shoulder the sweep
+            // off-centre or off-screen.
+            com.agoro.tv.ui.components.Artwork(
+                imageUrl = logo,
+                title = channel.displayName,
+                modifier = Modifier
+                    .size(width = 280.dp, height = 120.dp)
+                    .breathe(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                // Transparent, or the mark arrives on a grey slab in the middle
+                // of the picture — which is the tile this card was built to get
+                // rid of. Artwork paints SurfaceVariant by default because its
+                // usual job is a poster cell that must hold its shape while the
+                // bitmap loads; here there is no cell, only the frame the zap
+                // left behind.
+                background = androidx.compose.ui.graphics.Color.Transparent,
+            )
+        } else {
             Text(
-                text = note,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NuxColors.OnSurfaceDim,
+                text = channel?.displayName ?: item?.title.orEmpty(),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    // Legibility without a scrim card: the text floats over
+                    // whatever frame the zap left behind. A hard offset shadow,
+                    // not a blur: the blurred one was re-rasterised on every
+                    // frame of the sweep below, for the whole of every tune.
+                    shadow = androidx.compose.ui.graphics.Shadow(
+                        color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.7f),
+                        offset = androidx.compose.ui.geometry.Offset(0f, 2f),
+                    ),
+                ),
+                color = NuxColors.OnSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 720.dp),
+                modifier = Modifier
+                    .widthIn(max = 720.dp)
+                    .breathe(),
             )
         }
         Spacer(Modifier.height(14.dp))
-        Box(
-            modifier = Modifier
-                .width(trackWidth)
-                .height(3.dp)
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
-                .background(NuxColors.OnSurface.copy(alpha = 0.16f)),
-        ) {
-            Box(
-                modifier = Modifier
-                    // The glow starts fully off the left edge and exits fully
-                    // right, so the loop point is invisible. Read inside
-                    // graphicsLayer, so each frame of the sweep is a draw and
-                    // nothing more — as a Modifier.offset(x = …) parameter the
-                    // animated value was read in composition, and every frame
-                    // recomposed, re-measured and re-laid-out the card.
-                    .graphicsLayer {
-                        translationX = (trackWidth + glowWidth).toPx() * sweep - glowWidth.toPx()
-                    }
-                    .width(glowWidth)
-                    .fillMaxHeight()
-                    .background(
-                        androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            listOf(
-                                androidx.compose.ui.graphics.Color.Transparent,
-                                NuxColors.Primary,
-                                androidx.compose.ui.graphics.Color.Transparent,
-                            )
-                        )
-                    ),
-            )
-        }
+        SweepTrack()
     }
 }
+

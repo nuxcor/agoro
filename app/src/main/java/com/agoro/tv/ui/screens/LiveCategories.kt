@@ -36,6 +36,14 @@ internal fun liveCategoryList(
     channels: List<LiveChannel>,
     favorites: Set<String>,
     recents: List<String>,
+    /**
+     * Ids to keep even when [channels] holds none of theirs. Exactly one
+     * thing needs it: a parental-locked category, whose channels are filtered
+     * out of the visible list until the PIN is entered. Gated like the rest it
+     * would disappear from the strip, and the PIN prompt would lose its only
+     * door. See [lockedCategoryIds].
+     */
+    keepWhenEmpty: Set<String> = emptySet(),
 ): List<Category> = buildList {
     // No Favorites chip here. Home already opens on a Favorites shelf, and a
     // second way in cost a permanent chip on every live surface - the guide,
@@ -47,8 +55,39 @@ internal fun liveCategoryList(
     if (channels.any { ch -> recents.any { ch.answersTo(it) } }) {
         add(Category(id = CATEGORY_RECENT, name = "Recent"))
     }
-    addAll(bundle.liveCategories)
+    // A category with nothing visible left in it is never offered.
+    //
+    // The chips came from the bundle and the rows come from the VISIBLE
+    // channels, so hiding the last channel of a shelf left a chip that opened
+    // an empty grid: no rows for DOWN to land on, so focus stayed on the chip,
+    // and the header — which names the focused programme — fell back to the
+    // word "Guide". The same gate Recent above has always used, applied to the
+    // rest of the strip.
+    //
+    // One pass over the channels rather than a filter per category: this runs
+    // on every emission of the visible list, which a playlist of thousands
+    // re-emits each time a stream's real quality is learned.
+    val populated = HashSet<String>()
+    for (channel in channels) channel.categoryId?.let { populated += it }
+    val offered = bundle.liveCategories.filter { it.id in populated || it.id in keepWhenEmpty }
+    // Nothing matched at all — a playlist whose channels carry category ids
+    // its own category list doesn't name. The gate would then leave no chips
+    // and nothing for [resolveCategoryId] to fall back to, which is a worse
+    // screen than the one this fixes, so the ungated list stands in.
+    addAll(offered.ifEmpty { bundle.liveCategories })
 }
+
+/**
+ * The categories a PIN stands in front of.
+ *
+ * Shared rather than spelled out at each call site because it is half of one
+ * rule: these ids are the ones [liveCategoryList] must keep despite having no
+ * visible channels, and the ones the strip draws a lock on. Computed apart,
+ * the two halves drift and a locked category either vanishes or opens without
+ * being asked for the PIN.
+ */
+internal fun lockedCategoryIds(bundle: ContentBundle, isLocked: (String?) -> Boolean): Set<String> =
+    bundle.liveCategories.filter { isLocked(it.name) }.map { it.id }.toSet()
 
 /**
  * The channels in a category. Recent keeps its own order — most recently
