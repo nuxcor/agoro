@@ -116,7 +116,7 @@ fun SportTab(
             title = "Sports isn't set up",
             message = "This playlist carries no fixture listings.",
             icon = Icons.Default.SportsSoccer,
-            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse live TV") { onBrowse(HomeTab.Live) },
         )
         return
     }
@@ -329,7 +329,7 @@ private fun Fixtures(
                 else -> "Fixtures appear here $cue minutes before kick-off."
             },
             icon = Icons.Default.SportsSoccer,
-            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse live TV") { onBrowse(HomeTab.Live) },
         )
         return
     }

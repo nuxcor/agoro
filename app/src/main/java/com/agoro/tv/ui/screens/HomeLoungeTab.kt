@@ -430,7 +430,7 @@ internal fun HomeLoungeTab(
             title = "Welcome to Agorɔ",
             message = "Things you watch and star will gather here.",
             icon = Icons.Default.Home,
-            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse live TV") { onBrowse(HomeTab.Live) },
             secondaryAction = StatusAction("Search") { onBrowse(HomeTab.Search) },
         )
         return

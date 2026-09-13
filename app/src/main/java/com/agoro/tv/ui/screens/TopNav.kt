@@ -85,15 +85,18 @@ private val MARKER_WIDTH = 26.dp
 private val LABEL_STYLE
     @Composable get() = MaterialTheme.typography.titleMedium
 
-/** Alone in its control, so it carries the weight a word would. */
-private val ICON_ONLY_SIZE = 28.dp
-
-/** Beside a word, so it defers to it — the update control is the only one. */
+/** Beside a word, so it defers to it. Every glyph in the header is now. */
 private val ICON_WITH_LABEL_SIZE = 22.dp
 
-/** The app mark. Sized by height; the 55:76 viewport carries the aspect. */
-private val BRAND_HEIGHT = 28.dp
-private val BRAND_WIDTH = 20.dp
+/**
+ * The app mark, matched to [ICON_WITH_LABEL_SIZE] so the two leading controls
+ * carry the same optical weight — the mark used to stand alone at 28dp, and
+ * beside a 22dp magnifier it would be the one glyph in the row shouting.
+ * Sized by height; the 55:76 viewport carries the aspect, so the width is
+ * height x 0.72 and must move with it.
+ */
+private val BRAND_HEIGHT = 22.dp
+private val BRAND_WIDTH = 16.dp
 
 enum class HomeTab(val label: String, val icon: ImageVector) {
     // Enum order is header order, left to right. The ordinal is also the index
@@ -110,13 +113,26 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
     // and the top-left corner is where a TV puts that shape. What settled it
     // is that the leading edge belongs to the app before it belongs to any
     // control on it ("ALSO PUT HOME LOGO FIRST BEFORE SEARCH ICON",
-    // 2026-09-09). Search keeps the icon-not-a-word treatment either way,
-    // which is what says it is not one of the destinations beside it.
+    // 2026-09-09).
+    //
+    // Both of them carry their word now, and the reason is worth writing down
+    // because the opposite was argued here for a while. The row used to speak
+    // three visual languages in six items — a brand glyph, a UI icon, then
+    // four words — so the eye re-parsed twice before it reached anything it
+    // could read, and the two items that went unlabelled were the two most
+    // travelled. A glyph has to be DECODED where a word is simply read, and a
+    // television has no tooltip to fall back on. The mark and the magnifier
+    // both stay, leading their labels; what they stopped doing is standing in
+    // for them.
     //
     // Settings is last and gets pushed to the far right — see [TopNav].
     Home("Home", Icons.Default.Home),
     Search("Search", Icons.Default.Search),
-    Live("TV", Icons.Default.LiveTv),
+    // "Live", not "TV". The other three destinations name a kind of thing to
+    // watch, and "TV" names the medium that contains all three — the one label
+    // in the row that was not parallel with its neighbours. This enum has
+    // called it Live all along.
+    Live("Live", Icons.Default.LiveTv),
     // Beside TV because that is what it is — live, just organised by fixture
     // instead of by channel.
     //
@@ -244,13 +260,12 @@ internal fun TopNav(
             TopNavItem(
                 label = item.label,
                 selected = item == selected,
-                // Two of these are symbols rather than words. Search
-                // because it is an action and not a place; Home because the
-                // app's own mark says "the front of the app" better than the
-                // word does, and saying both was the redundancy.
+                // Every destination is a word. Two of them lead that word with
+                // a symbol — Home with the app's own mark, Search with the
+                // magnifier — because those two earn a glyph, not because they
+                // can do without the word.
                 icon = item.icon.takeIf { item == HomeTab.Search },
                 brand = item == HomeTab.Home,
-                labelled = item != HomeTab.Search && item != HomeTab.Home,
                 onClick = { commit(index) },
                 modifier = Modifier
                     .focusRequester(itemFocus[index])
@@ -290,18 +305,7 @@ private fun TopNavItem(
     accent: Boolean = false,
     icon: ImageVector? = null,
     /**
-     * False draws the icon alone, with [label] left to the screen reader.
-     *
-     * Two controls do, and they are the two at the head of the row: Home,
-     * which draws the app's mark instead (see [brand]), and Search. A row of
-     * icons would be a puzzle at ten feet — the words are what make the header
-     * readable — but the app's own symbol and the one control that is an
-     * action rather than a place both earn the shape, and every DESTINATION
-     * after them is a word.
-     */
-    labelled: Boolean = true,
-    /**
-     * Draw the app's own mark instead of an icon or a word. Home only.
+     * Draw the app's own mark ahead of the label. Home only.
      *
      * Through [Icon] rather than [Image] so it takes the row's content colour:
      * a tab dims when it is not the one you are on, and a brand mark that
@@ -353,22 +357,21 @@ private fun TopNavItem(
                 if (brand) {
                     Icon(
                         painter = painterResource(R.drawable.ic_logo),
-                        contentDescription = label,
+                        // Null, because the word is right beside it. Reading
+                        // the mark out as well would announce the tab twice.
+                        contentDescription = null,
                         modifier = Modifier.height(BRAND_HEIGHT).width(BRAND_WIDTH),
                     )
                 }
                 if (icon != null) {
                     Icon(
                         icon,
-                        // The label still has to exist for anyone not reading
-                        // the screen; it just isn't drawn.
-                        contentDescription = if (labelled) null else label,
-                        modifier = Modifier.size(
-                            if (labelled) ICON_WITH_LABEL_SIZE else ICON_ONLY_SIZE,
-                        ),
+                        // The label beside it is what gets read out.
+                        contentDescription = null,
+                        modifier = Modifier.size(ICON_WITH_LABEL_SIZE),
                     )
                 }
-                if (labelled) Text(
+                Text(
                     text = label,
                     style = LABEL_STYLE,
                     // One line, always. A header that grows a second line
