@@ -343,11 +343,32 @@ private fun Fixtures(
     // handed one at a time.
     val lines = remember(fixtures, leagueOrder) {
         buildList {
+            val claimed = HashSet<SportsEvent>()
             for (league in leagueOrder) {
                 val inLeague = fixtures.filter { it.league == league }
                 if (inLeague.isEmpty()) continue
                 add(FixtureLine.Header(league))
-                inLeague.forEach { add(FixtureLine.Fixture(league, it)) }
+                inLeague.forEach { add(FixtureLine.Fixture(league, it)); claimed.add(it) }
+            }
+            // Everything no heading claimed, rather than nothing.
+            //
+            // The loop above only ever asked the manifest's own league list,
+            // so a fixture whose competition is not in it fell through every
+            // heading and was never drawn — silently, with no count anywhere
+            // saying rows had gone. That was survivable while every league was
+            // inferred from a roster keyed by the same list, and stopped being
+            // survivable the moment a row was allowed to carry NO competition:
+            // "Antwerp vs Club Brugge" is a real match, and the fix that took
+            // the wrong Champions League badge off it would have taken the
+            // whole match off this screen instead.
+            //
+            // "Other", the same word the catalogue strip uses for titles the
+            // playlist never categorised. It says what it is — a fixture we
+            // could not name a competition for — without inventing one.
+            val rest = fixtures.filterNot { it in claimed }
+            if (rest.isNotEmpty()) {
+                add(FixtureLine.Header(OTHER_FIXTURES))
+                rest.forEach { add(FixtureLine.Fixture(OTHER_FIXTURES, it)) }
             }
         }
     }
@@ -718,6 +739,9 @@ internal fun LiveBadge() {
         )
     }
 }
+
+/** The heading for fixtures no league in the manifest claimed. */
+private const val OTHER_FIXTURES = "Other"
 
 /**
  * Null — the LIVE badge — for something already running; otherwise how long

@@ -914,7 +914,22 @@ object SportsParser {
                 hHit.first
             }
             isBareAmbiguous(hit, ambiguous) -> return null
-            hit.second.trim().contains(' ') -> hit.first
+            // One club, and only for a competition that club plays in every
+            // week. A cup entrant proves its DOMESTIC league, never the cup —
+            // see [ENTERED_COMPETITIONS].
+            //
+            // Blank rather than null, and the difference is the whole point.
+            // Null here drops the row outright when the slot names no
+            // competition of its own, and "Antwerp vs Club Brugge" IS a real
+            // match a viewer may want — it is only the Champions League badge
+            // on it that was invented. Blank keeps both club names, keeps the
+            // fixture on screen, and leaves the schedule free to fill the
+            // league in later if it can pair the tie. The roster cannot do it:
+            // it is indexed by competition, Brugge appears under "Champions
+            // League" and nowhere else, and there is no Belgian league in it
+            // to name instead.
+            hit.second.trim().contains(' ') ->
+                hit.first.let { if (inferableFromOneSide(it)) it else "" }
             else -> return null
         }
         // billedSide, not tidyCase: a side the roster did not match keeps
@@ -1622,6 +1637,47 @@ object SportsParser {
         "Europa League", "Conference League", "UEFA", "Carabao Cup", "FA Cup" -> "soccer"
         else -> null
     }
+
+    /**
+     * Competitions a club ENTERS, as against the one it plays in every week.
+     *
+     * The distinction decides what a single club is allowed to prove. A club's
+     * domestic league is a strong prior — Arsenal's next match is a Premier
+     * League match unless something says otherwise, and thirty-eight times a
+     * season that is simply true. A cup is the opposite: Club Brugge plays
+     * some thirty Belgian league matches against at most a dozen in Europe, so
+     * "this row contains a Champions League entrant" is evidence FOR the
+     * Belgian league, not for the Champions League.
+     *
+     * Read that backwards and you get what the viewer reported on 2026-09-13:
+     * "Antwerp vs Club Brugge" — a Belgian Pro League fixture — billed as the
+     * Champions League, because Brugge is one of the twenty-four clubs in the
+     * Champions League roster and Antwerp is in no roster at all. The
+     * one-sided branch in [sidesFromRoster] took the only club it recognised
+     * and handed the row that club's competition.
+     *
+     * It is the same fault the matchday guard was built for ("Ajax v PSV" as a
+     * Champions League tie on a Saturday), reached by a different door, and
+     * the guard could not catch this one: it only challenges a competition the
+     * schedule has fixtures FOR, and on a day the Champions League is not
+     * playing there are none to challenge it with. Silence is not evidence, so
+     * the row walked through.
+     */
+    private val ENTERED_COMPETITIONS = setOf(
+        "Champions League", "Europa League", "Conference League", "UEFA",
+        "Carabao Cup", "FA Cup",
+    )
+
+    /**
+     * Whether ONE club in the roster is enough to name this competition.
+     *
+     * Both sides matching a cup roster is still fine — that is two entrants
+     * meeting, which the matchday guard then dates — and a pack that writes
+     * the competition into the slot name is fine too, because that is the
+     * pack asserting it rather than the app inferring it.
+     */
+    internal fun inferableFromOneSide(league: String): Boolean =
+        league !in ENTERED_COMPETITIONS
 
     /**
      * The crest for one side of one fixture, or null for a monogram.
