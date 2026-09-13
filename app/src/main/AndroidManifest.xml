@@ -37,15 +37,6 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.NuxTV">
 
-        <!--
-            windowSoftInputMode=adjustResize is half of a two-part fix. The soft
-            keyboard covered the "Show password" button and the keyboard hint on
-            the sign-in form, leaving two controls under it with no way to reach
-            them. Compose's imePadding() on the form is the other half, and on
-            its own it does nothing: without adjustResize the window is PANNED
-            rather than resized, so the insets that padding reads stay zero.
-            Neither half works alone.
-        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -53,7 +44,6 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|density|colorMode"
             android:launchMode="singleTask"
             android:resizeableActivity="true"
-            android:windowSoftInputMode="adjustResize"
             android:supportsPictureInPicture="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

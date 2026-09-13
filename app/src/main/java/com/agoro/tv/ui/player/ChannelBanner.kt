@@ -400,6 +400,20 @@ internal fun TuneCard(
     channel: LiveChannel?,
     item: PlayableItem?,
     modifier: Modifier = Modifier,
+    /**
+     * The one thing worth saying over a tune, and only when it is true: that
+     * this is no longer a tune but a RECONNECT.
+     *
+     * An ordinary open says nothing — the mark and the sweep are the whole
+     * message, and a word under them would only name what the viewer can see.
+     * A stream that dropped and is being re-opened is a different fact, and
+     * the animation cannot tell them apart: both are a logo breathing over
+     * black. Without this, a feed that has died shows exactly what a feed
+     * that is opening shows, for as long as the reconnect ladder runs — which
+     * on a one-connection line is over a minute of a screen that looks
+     * broken and says nothing.
+     */
+    note: String? = null,
 ) {
     Column(
         modifier = modifier,
@@ -451,6 +465,16 @@ internal fun TuneCard(
         }
         Spacer(Modifier.height(14.dp))
         SweepTrack()
+        if (note != null) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = note,
+                style = MaterialTheme.typography.labelLarge,
+                color = NuxColors.OnSurfaceDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
