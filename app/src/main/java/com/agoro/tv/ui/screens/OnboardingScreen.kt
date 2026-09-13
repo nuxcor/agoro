@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -126,6 +128,32 @@ fun OnboardingScreen(
     }
     if (cancellable) {
         androidx.activity.compose.BackHandler(enabled = step == Step.Choose) { onCancel() }
+    }
+
+    // adjustResize, for THIS screen and no other.
+    //
+    // It is half of the keyboard fix — the soft keyboard covered the "Show
+    // password" button, and Compose's imePadding() below reads insets that stay
+    // zero unless the window resizes instead of panning. But it began life as
+    // an attribute on the activity in the manifest, which set it for every
+    // screen in the app INCLUDING the player, and the player's window is the
+    // one hosting the video surface and the picture-in-picture transition. No
+    // keyboard ever appears there, so the flag should have been inert; "should
+    // have been inert" is not something worth betting a working picture on,
+    // and it was the only global window change in the release that followed.
+    //
+    // Set on entry, restored to whatever the window had on the way out, so
+    // nothing outside this form can be affected by it either way.
+    val activity = LocalContext.current as? android.app.Activity
+    DisposableEffect(activity) {
+        val window = activity?.window
+        val previous = window?.attributes?.softInputMode
+        window?.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        )
+        onDispose {
+            previous?.let { window?.setSoftInputMode(it) }
+        }
     }
 
     // No background here: the glow is [NuxTheme.HeroGlow], handed to TvSafe so

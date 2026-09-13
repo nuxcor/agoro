@@ -1249,6 +1249,10 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
             TuneCard(
                 channel = channel,
                 item = item,
+                // Only while reconnecting, and still with no count on it: the
+                // retry arithmetic is the app's business, but WHETHER it is
+                // retrying is the viewer's.
+                note = if (reconnecting) "Reconnecting…" else null,
             )
         }
 
