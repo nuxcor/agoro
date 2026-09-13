@@ -2247,4 +2247,100 @@ class SportsParserTest {
         )!!
         assertEquals("Champions League", e.league)
     }
+
+    /**
+     * Reported from the box on 2026-09-13: "Man City vs Aston Villa", shown
+     * live, on a day Manchester City were playing Manchester United at half
+     * past three and Aston Villa were not playing at all. No such match
+     * existed.
+     *
+     * The schedule could not pair it — it never can, for a fixture that is not
+     * real — and the matchday guard then waved it through, because its only
+     * question was whether the Premier League was playing, and it was.
+     *
+     * A club already spoken for cannot be playing someone else.
+     */
+    @Test
+    fun `a club the schedule has playing someone else kills the row`() {
+        val now = ms(2026, 9, 13, 16, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "LIVE | Man City vs. Aston Villa | all | 13-09-2026 | 15:30 (GMT)",
+            now, mapOf("Premier League" to listOf("Man City", "Aston Villa")),
+        )!!
+        val fixtures = listOf(
+            ScheduleFixture(
+                league = "Premier League", home = "Manchester United", away = "Manchester City",
+                start = "2026-09-13T15:30Z", awayAlt = listOf("Man City"),
+            ),
+            // Villa's real next match, three days out. It is what lets the
+            // schedule NAME Aston Villa, which is the condition that separates
+            // an invented pairing from a club ESPN merely spells differently.
+            ScheduleFixture(
+                league = "Carabao Cup", home = "Coventry City", away = "Aston Villa",
+                start = "2026-09-16T19:00Z",
+            ),
+        )
+        assertTrue(
+            "the invented fixture is gone",
+            SportsParser.applySchedule(listOf(slot), fixtures, now).isEmpty(),
+        )
+    }
+
+    /**
+     * The guard has to be about the CLUB, not a word it shares. Half the
+     * English league is called something City, and one of them kicking off
+     * must not delete the others.
+     */
+    @Test
+    fun `another City playing is not this City playing`() {
+        val now = ms(2026, 9, 13, 16, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "LIVE | Norwich City vs. Ipswich | all | 13-09-2026 | 15:30 (GMT)",
+            now, mapOf("Premier League" to listOf("Norwich City", "Ipswich")),
+        )!!
+        val fixtures = listOf(ScheduleFixture(
+            league = "Premier League", home = "Coventry City", away = "Brighton",
+            start = "2026-09-13T15:30Z",
+        ))
+        assertEquals(
+            "Norwich City",
+            SportsParser.applySchedule(listOf(slot), fixtures, now).single().home,
+        )
+    }
+
+    /** And a club the schedule has never heard of is still no evidence. */
+    @Test
+    fun `a club absent from the schedule is left alone`() {
+        val now = ms(2026, 9, 13, 16, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "LIVE | Aston Villa vs. Wolves | all | 13-09-2026 | 15:30 (GMT)",
+            now, mapOf("Premier League" to listOf("Aston Villa", "Wolves")),
+        )!!
+        val fixtures = listOf(ScheduleFixture(
+            league = "Premier League", home = "Celta Vigo", away = "Malaga",
+            start = "2026-09-13T15:30Z",
+        ))
+        assertEquals(
+            "Aston Villa",
+            SportsParser.applySchedule(listOf(slot), fixtures, now).single().home,
+        )
+    }
+
+    /** A commitment three days away says nothing about today. */
+    @Test
+    fun `a fixture outside the matchday window does not contradict`() {
+        val now = ms(2026, 9, 13, 16, 0, "UTC")
+        val slot = SportsParser.parse(
+            1, "LIVE | Aston Villa vs. Wolves | all | 13-09-2026 | 15:30 (GMT)",
+            now, mapOf("Premier League" to listOf("Aston Villa", "Wolves")),
+        )!!
+        val fixtures = listOf(ScheduleFixture(
+            league = "Carabao Cup", home = "Coventry City", away = "Aston Villa",
+            start = "2026-09-16T19:00Z",
+        ))
+        assertEquals(
+            "Aston Villa",
+            SportsParser.applySchedule(listOf(slot), fixtures, now).single().home,
+        )
+    }
 }
