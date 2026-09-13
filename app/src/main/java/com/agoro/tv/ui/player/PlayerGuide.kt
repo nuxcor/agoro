@@ -262,7 +262,6 @@ internal fun PlayerGuideOverlay(
             // for nothing. Only a guide that actually failed gets the CTA.
             epgState is ContentRepository.EpgState.Idle ||
                 epgState is ContentRepository.EpgState.Loading -> StatusPane(
-                title = "Loading guide…",
                 loading = true,
             )
 

@@ -386,7 +386,7 @@ fun HomeScreen(
                         onEditPlaylist = onEditPlaylist,
                     )
                 } else when (val state = contentState) {
-                    is ContentState.Loading -> StatusPane(title = state.message, loading = true)
+                    is ContentState.Loading -> StatusPane(loading = true)
                     is ContentState.Error -> StatusPane(
                         title = "Couldn't load your playlist",
                         message = state.message,

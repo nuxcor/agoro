@@ -5,7 +5,6 @@ package com.agoro.tv.ui.player
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,6 +40,8 @@ import androidx.tv.material3.Text
 import com.agoro.tv.MainViewModel
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.PlayableItem
+import com.agoro.tv.ui.components.SweepTrack
+import com.agoro.tv.ui.components.breathe
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxShape
 import java.util.Date
@@ -373,53 +374,79 @@ internal fun TuningBackdrop(modifier: Modifier = Modifier) {
 }
 
 /**
- * What tuning looks like: the channel's name breathing over the dimmed last
- * frame, with a light sweeping a thin line beneath it — identity plus motion,
- * no card, no logo tile, no spinner. The boxy scrim card this replaces put a
- * letterboxed logo and a stock spinner in the middle of every channel change,
- * which read as chrome interrupting the picture rather than the picture
- * changing. Shown from the moment a tune is requested until the new stream
- * renders; mid-stream stalls get only a corner chip.
+ * What tuning looks like: the channel's own logo breathing over the dimmed
+ * last frame, with a light sweeping a thin line beneath it. Identity plus
+ * motion, and not a word.
+ *
+ * The logo, not the name. A channel is a mark long before it is a string —
+ * the viewer recognises Bloomberg's block or Sky's ellipse from across a room
+ * and at an angle no 24sp line survives — so on the one screen whose whole
+ * job is to say WHICH channel is coming, the mark does that job better than
+ * its own name does. The name remains the fallback, because a provider that
+ * ships no logo would otherwise leave the screen saying nothing at all.
+ *
+ * What this is NOT is the boxy scrim card it once was: that put a letterboxed
+ * logo in a tile beside a stock spinner, which read as chrome interrupting the
+ * picture rather than the picture changing. No tile, no card, no plate — the
+ * mark floats free over the frame the zap left behind.
+ *
+ * And no note. A reconnect used to add "Reconnecting…" under the name, which
+ * told a viewer watching a logo breathe and a light sweep exactly what they
+ * could already see. Shown from the moment a tune is requested until the new
+ * stream renders; mid-stream stalls get the sweep alone.
  */
 @Composable
 internal fun TuneCard(
     channel: LiveChannel?,
     item: PlayableItem?,
     modifier: Modifier = Modifier,
-    /** Why this is taking a moment, when it is more than an ordinary tune. */
-    note: String? = null,
 ) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = channel?.displayName ?: item?.title.orEmpty(),
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                // Legibility without a scrim card: the text floats over
-                // whatever frame the zap left behind. A hard offset shadow,
-                // not a blur: the blurred one was re-rasterised on every
-                // frame of the sweep below, for the whole of every tune.
-                shadow = androidx.compose.ui.graphics.Shadow(
-                    color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.7f),
-                    offset = androidx.compose.ui.geometry.Offset(0f, 2f),
-                ),
-            ),
-            color = NuxColors.OnSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 720.dp),
-        )
-        if (note != null) {
-            Spacer(Modifier.height(8.dp))
+        val logo = channel?.logo?.takeIf { it.isNotBlank() }
+        if (logo != null) {
+            // Fit, never Crop: channel logos are arbitrary aspect ratios and
+            // Crop fills the box by slicing the sides off, which turned a wide
+            // wordmark into "CTRUM EWS" in the banner. Bounded on BOTH axes so
+            // neither a tall crest nor a long wordmark can shoulder the sweep
+            // off-centre or off-screen.
+            com.agoro.tv.ui.components.Artwork(
+                imageUrl = logo,
+                title = channel.displayName,
+                modifier = Modifier
+                    .size(width = 280.dp, height = 120.dp)
+                    .breathe(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                // Transparent, or the mark arrives on a grey slab in the middle
+                // of the picture — which is the tile this card was built to get
+                // rid of. Artwork paints SurfaceVariant by default because its
+                // usual job is a poster cell that must hold its shape while the
+                // bitmap loads; here there is no cell, only the frame the zap
+                // left behind.
+                background = androidx.compose.ui.graphics.Color.Transparent,
+            )
+        } else {
             Text(
-                text = note,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NuxColors.OnSurfaceDim,
+                text = channel?.displayName ?: item?.title.orEmpty(),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    // Legibility without a scrim card: the text floats over
+                    // whatever frame the zap left behind. A hard offset shadow,
+                    // not a blur: the blurred one was re-rasterised on every
+                    // frame of the sweep below, for the whole of every tune.
+                    shadow = androidx.compose.ui.graphics.Shadow(
+                        color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.7f),
+                        offset = androidx.compose.ui.geometry.Offset(0f, 2f),
+                    ),
+                ),
+                color = NuxColors.OnSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 720.dp),
+                modifier = Modifier
+                    .widthIn(max = 720.dp)
+                    .breathe(),
             )
         }
         Spacer(Modifier.height(14.dp))
@@ -427,65 +454,3 @@ internal fun TuneCard(
     }
 }
 
-/**
- * The player's one indeterminate indicator: a light travelling a thin line,
- * left to right, restarting.
- *
- * It is the motion under the tune card's channel name, and on its own — with
- * no card, no words, nothing else at all — it is what a stall that has lasted
- * long enough to be worth answering shows in the middle of the screen. The
- * same gesture in both places on purpose: from the couch they are one event,
- * the picture is not here yet, and a player with two different waiting
- * animations is two different apps.
- *
- * A single direction, not a bounce: a scanner reads as retro, one direction
- * reads as progress. The glow starts fully off the left edge and exits fully
- * right, so the loop point is invisible.
- */
-@Composable
-internal fun SweepTrack(modifier: Modifier = Modifier) {
-    val motion = androidx.compose.animation.core.rememberInfiniteTransition(label = "sweepTrack")
-    val sweep by motion.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-            androidx.compose.animation.core.tween(
-                1_100,
-                easing = androidx.compose.animation.core.FastOutSlowInEasing,
-            ),
-            androidx.compose.animation.core.RepeatMode.Restart,
-        ),
-        label = "sweep",
-    )
-    val trackWidth = 200.dp
-    val glowWidth = 72.dp
-    Box(
-        modifier = modifier
-            .width(trackWidth)
-            .height(3.dp)
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
-            .background(NuxColors.OnSurface.copy(alpha = 0.16f)),
-    ) {
-        Box(
-            modifier = Modifier
-                // Read inside graphicsLayer, so each frame of the sweep is a
-                // draw and nothing more — as a Modifier.offset(x = …)
-                // parameter the animated value was read in composition, and
-                // every frame recomposed, re-measured and re-laid-out the card.
-                .graphicsLayer {
-                    translationX = (trackWidth + glowWidth).toPx() * sweep - glowWidth.toPx()
-                }
-                .width(glowWidth)
-                .fillMaxHeight()
-                .background(
-                    androidx.compose.ui.graphics.Brush.horizontalGradient(
-                        listOf(
-                            androidx.compose.ui.graphics.Color.Transparent,
-                            NuxColors.Primary,
-                            androidx.compose.ui.graphics.Color.Transparent,
-                        )
-                    )
-                ),
-        )
-    }
-}

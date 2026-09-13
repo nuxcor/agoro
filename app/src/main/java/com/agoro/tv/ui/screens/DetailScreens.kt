@@ -288,7 +288,7 @@ private fun CreditLine(label: String, names: String) {
 @Composable
 private fun MissingItemPane(kind: String, contentState: ContentState, onBack: () -> Unit) {
     if (contentState !is ContentState.Ready) {
-        StatusPane(title = "Loading…", loading = true)
+        StatusPane(loading = true)
         return
     }
     StatusPane(
@@ -546,7 +546,6 @@ fun SeriesDetailScreen(
                 // is that a first open can take longer, said quietly.
                 eps == null -> item(key = "loading") {
                     EpisodeStatus(
-                        title = "Loading episodes…",
                         message = if (providerPreparing) {
                             "The first open of a series can take a minute."
                         } else null,
@@ -865,7 +864,8 @@ private fun SeasonBar(
  */
 @Composable
 private fun EpisodeStatus(
-    title: String,
+    /** Empty while loading, which shows the mark and says nothing. */
+    title: String = "",
     message: String? = null,
     loading: Boolean = false,
     action: StatusAction? = null,

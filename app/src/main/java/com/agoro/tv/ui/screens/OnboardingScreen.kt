@@ -24,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -656,12 +655,13 @@ private fun FormContainer(
             ) {
                 Text(if (loading) "Connecting…" else submitLabel)
             }
+            // No spinner beside the button. Its label already reads
+            // "Connecting…" while this runs, so the ring was a second thing
+            // saying the first thing — and it was the last stock Material
+            // indicator left anywhere in the app, which is exactly the kind of
+            // toolkit default that makes a TV app look like a form.
             if (loading) {
-                CircularProgressIndicator(
-                    color = NuxColors.Primary,
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.5.dp,
-                )
+                com.agoro.tv.ui.components.SweepTrack(width = 96.dp)
             }
         }
     }

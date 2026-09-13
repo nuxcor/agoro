@@ -49,6 +49,7 @@ import com.agoro.tv.player.HdrType
 import com.agoro.tv.player.WindowColorMode
 import com.agoro.tv.player.findActivity
 import com.agoro.tv.ui.components.requestFocusRetrying
+import com.agoro.tv.ui.components.SweepTrack
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.Space
 import kotlinx.coroutines.delay
@@ -1248,15 +1249,6 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
             TuneCard(
                 channel = channel,
                 item = item,
-                // The same card, because it is the same thing from where the
-                // viewer sits — the channel they asked for, coming up — and a
-                // second card would only be another way of waiting.
-                // No "(2 of 3)". The retry budget is the app's arithmetic,
-                // not the viewer's, and a count that rises towards a number
-                // whose meaning is never stated reads as a threat. The sweep
-                // under the name is the motion that says something is still
-                // happening; the count is in the log. See PlayerSession.
-                note = if (reconnecting) "Reconnecting…" else null,
             )
         }
 

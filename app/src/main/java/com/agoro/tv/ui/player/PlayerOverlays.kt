@@ -27,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -168,7 +167,9 @@ internal fun CatchupOverlay(
             )
             Spacer(Modifier.height(18.dp))
             when {
-                programs == null -> CircularProgressIndicator(color = NuxColors.Primary)
+                // The app's waiting gesture, not the toolkit's ring: the same
+                // light on the same line the tune card and every pane use.
+                programs == null -> com.agoro.tv.ui.components.SweepTrack(width = 140.dp)
                 programs!!.isEmpty() -> Text(
                     "No archived programmes found for this channel.",
                     style = MaterialTheme.typography.bodyMedium,

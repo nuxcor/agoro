@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,7 +90,11 @@ fun ToastBadge(
  */
 @Composable
 fun StatusPane(
-    title: String,
+    /**
+     * Empty for a waiting pane, which shows the mark and says nothing. Every
+     * other pane names what happened.
+     */
+    title: String = "",
     message: String? = null,
     icon: ImageVector? = null,
     loading: Boolean = false,
@@ -125,32 +128,56 @@ fun StatusPane(
                     translationY = (1f - progress.value) * (NuxMotion.EntranceRise.toPx() / 2f)
                 },
         ) {
+            // Waiting says nothing. The mark breathing over the sweep IS the
+            // message, and it says it in the app's own gesture rather than in
+            // the toolkit's stock spinner; the words underneath only ever
+            // restated it ("Loading…" beneath a spinner, "Loading episodes…"
+            // above an empty page). A viewer who can see something happening
+            // does not need to be told that something is happening — and a
+            // line of copy that appears for a second and a half, then leaves,
+            // is a flicker rather than information.
             if (loading) {
-                CircularProgressIndicator(color = NuxColors.Primary, modifier = Modifier.size(32.dp))
-                Spacer(Modifier.height(Space.l))
-            } else if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = NuxColors.OnSurfaceDim,
-                    modifier = Modifier.size(44.dp),
-                )
-                Spacer(Modifier.height(Space.m))
-            }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                color = NuxColors.OnSurface,
-                textAlign = TextAlign.Center,
-            )
-            if (message != null) {
-                Spacer(Modifier.height(Space.s))
+                BrandLoader()
+                // A waiting pane carries no headline, but it may still carry
+                // one fact — "The first open of a series can take a minute."
+                // is the whole of what the viewer needs and the mark cannot
+                // say it. The test is whether the line tells them something
+                // the animation does not: "Loading…" never did, and is gone
+                // from every caller.
+                if (message != null) {
+                    Spacer(Modifier.height(Space.l))
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = NuxColors.OnSurfaceDim,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            } else {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = NuxColors.OnSurfaceDim,
+                        modifier = Modifier.size(44.dp),
+                    )
+                    Spacer(Modifier.height(Space.m))
+                }
                 Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = NuxColors.OnSurfaceDim,
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = NuxColors.OnSurface,
                     textAlign = TextAlign.Center,
                 )
+                if (message != null) {
+                    Spacer(Modifier.height(Space.s))
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = NuxColors.OnSurfaceDim,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
             if (!loading && extras != null) {
                 Spacer(Modifier.height(Space.m))
