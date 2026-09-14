@@ -586,6 +586,22 @@ internal inline fun <T> List<T>.foldVariants(
     quality: (T) -> String?,
     poster: (T) -> String?,
     withPoster: (T, String) -> T,
+    withYear: (T, Int) -> T,
+    /**
+     * The panel's own id for a copy, and what the survivor is handed for
+     * every copy folded away behind it.
+     *
+     * A folded copy is not a duplicate of the survivor's CONTENT, only of its
+     * name. Measured against a live panel: of eighteen duplicated series,
+     * six disagreed about how many episodes they carried, and the highest
+     * rung held the most in only two of those six. "Scrubs" is nine episodes
+     * under one prefix and a hundred and eighty-two under another. Folding on
+     * the rung alone and discarding the rest would therefore HIDE episodes a
+     * viewer could previously have found by opening the other copy — so the
+     * ids come with, and [ContentRepository.episodesFor] reads them all.
+     */
+    xtreamId: (T) -> Int?,
+    withSiblings: (T, List<Int>) -> T,
 ): List<T> {
     if (size < 2) return this
     // Key -> where its survivor sits in [out], so a better rung can replace
@@ -599,9 +615,15 @@ internal inline fun <T> List<T>.foldVariants(
     // Parallel to [out]: which group each survivor belongs to, so the artwork
     // pass below can find its group without re-deriving the key.
     val keyOf = ArrayList<String>(size)
+    // Parallel too: the name alone, for the second pass, which groups across
+    // years rather than within one.
+    val nameOf = ArrayList<String>(size)
+    // Parallel too: every panel id folded away behind each survivor.
+    val sibs = ArrayList<MutableList<Int>>(size)
     for (item in this) {
         val releaseYear = year(item)
-        val key = name(item).trim().lowercase(java.util.Locale.ROOT) + "|" + (releaseYear ?: 0)
+        val bare = name(item).trim().lowercase(java.util.Locale.ROOT)
+        val key = bare + "|" + (releaseYear ?: 0)
         poster(item)?.takeIf { it.isNotBlank() && !ArtworkUrl.isDoctored(it) }
             ?.let { clean.putIfAbsent(key, it) }
         val held = at[key]
@@ -609,15 +631,22 @@ internal inline fun <T> List<T>.foldVariants(
             at[key] = out.size
             out.add(item)
             keyOf.add(key)
+            nameOf.add(bare)
+            sibs.add(ArrayList())
             continue
         }
         val challenger = QualityTag.rank(quality(item))
         val standing = QualityTag.rank(quality(out[held]))
         when {
-            challenger > standing -> out[held] = item
-            challenger < standing -> Unit // folded away; the better rung stands
+            // The displaced copy is still a copy: its id joins the survivor's
+            // siblings rather than leaving with it.
+            challenger > standing -> {
+                xtreamId(out[held])?.let { sibs[held].add(it) }
+                out[held] = item
+            }
+            challenger < standing -> xtreamId(item)?.let { sibs[held].add(it) }
             // Same name, same year, same rung: a duplicate listing.
-            releaseYear != null -> Unit
+            releaseYear != null -> xtreamId(item)?.let { sibs[held].add(it) }
             // Same name, same rung, and NO year on either — there is nothing
             // here that says these are one title. The provider strips region
             // tags into the cleaned name, so "The Office (US)" and "The
@@ -628,9 +657,73 @@ internal inline fun <T> List<T>.foldVariants(
             else -> {
                 out.add(item)
                 keyOf.add(key)
+                nameOf.add(bare)
+                sibs.add(ArrayList())
             }
         }
     }
+    // The YEAR pass, before the artwork one, because it decides which items
+    // are still in [out] to be repainted.
+    //
+    // The pass above keys on name AND year, so it can only fold copies that
+    // agree about the year — and this provider's copies routinely do not.
+    // "Trash Truck" arrives four times as `NF - Trash Truck`,
+    // `NF - Trash Truck (US)` twice and `EN - Trash Truck (2020) (US)`: one
+    // show, but three of them carry no year, so they key apart from the fourth
+    // and survive it. Measured over the panel's own 8,598 series, 879 titles
+    // were still duplicated after the first pass, covering 1,785 entries.
+    //
+    // A copy with NO year is not a different show, it is the same show with
+    // less metadata — but only when there is exactly one show it could be.
+    // "Dynasty" is the case that proves it: the panel carries 2017, 1981 and a
+    // yearless copy, and the first two are genuinely different programmes. Two
+    // candidates means the yearless one cannot be placed, so it is left where
+    // it is rather than guessed onto one of them.
+    //
+    // And a name with no year-bearing copy at all is untouched, which is what
+    // keeps "The Office (US)" and "The Office (UK)" — both yearless, both
+    // stripped of the tag that told them apart — as two shows.
+    run {
+        val byName = HashMap<String, MutableList<Int>>()
+        for (i in out.indices) byName.getOrPut(nameOf[i]) { ArrayList() }.add(i)
+        val drop = HashSet<Int>()
+        for ((_, idx) in byName) {
+            if (idx.size < 2) continue
+            val yeared = idx.filter { year(out[it]) != null }
+            if (yeared.size != 1) continue
+            val anchor = yeared.single()
+            val anchorYear = year(out[anchor]) ?: continue
+            // The best rung in the whole group still wins, exactly as it does
+            // above — the fold decides which STREAM a viewer gets, and that
+            // was never the year's business. Ties keep the dated copy, which
+            // is the one with something to say.
+            var keep = anchor
+            for (i in idx) {
+                if (QualityTag.rank(quality(out[i])) > QualityTag.rank(quality(out[keep]))) keep = i
+            }
+            if (year(out[keep]) == null) out[keep] = withYear(out[keep], anchorYear)
+            for (i in idx) if (i != keep) {
+                // The whole discarded copy comes with its own siblings: a
+                // three-pack show folded in two steps must not lose the copy
+                // that was folded in the first.
+                xtreamId(out[i])?.let { sibs[keep].add(it) }
+                sibs[keep].addAll(sibs[i])
+                drop.add(i)
+            }
+        }
+        if (drop.isNotEmpty()) {
+            val kept = ArrayList<T>(out.size - drop.size)
+            val keptKeys = ArrayList<String>(out.size - drop.size)
+            val keptSibs = ArrayList<MutableList<Int>>(out.size - drop.size)
+            for (i in out.indices) if (i !in drop) {
+                kept.add(out[i]); keptKeys.add(keyOf[i]); keptSibs.add(sibs[i])
+            }
+            out.clear(); out.addAll(kept)
+            keyOf.clear(); keyOf.addAll(keptKeys)
+            sibs.clear(); sibs.addAll(keptSibs)
+        }
+    }
+
     // The artwork pass. Separate, and after: which variant survives is not
     // known until the whole list has been walked, and a poster handed to a
     // survivor that is then replaced by a better rung would be lost with it.
@@ -643,18 +736,34 @@ internal inline fun <T> List<T>.foldVariants(
             repainted = true
         }
     }
-    return if (out.size == size && !repainted) this else out
+    // The siblings pass, last, because every earlier one can still change
+    // which item is standing in a slot.
+    var adopted = false
+    for (i in out.indices) {
+        val ids = sibs[i]
+        if (ids.isEmpty()) continue
+        val mine = xtreamId(out[i])
+        val distinct = ids.distinct().filter { it != mine }
+        if (distinct.isEmpty()) continue
+        out[i] = withSiblings(out[i], distinct)
+        adopted = true
+    }
+    return if (out.size == size && !repainted && !adopted) this else out
 }
 
 /** [foldVariants] over films; see there for the rule. */
 internal fun List<Movie>.foldMovieVariants(): List<Movie> =
     foldVariants({ it.name }, { it.year }, { it.quality }, { it.poster },
-        { m, art -> m.copy(poster = art) })
+        { m, art -> m.copy(poster = art) }, { m, y -> m.copy(year = y) },
+        // A film is one stream, so there is nothing behind it to keep.
+        { null }, { m, _ -> m })
 
 /** [foldVariants] over box sets; see there for the rule. */
 internal fun List<Series>.foldSeriesVariants(): List<Series> =
     foldVariants({ it.name }, { it.year }, { it.quality }, { it.poster },
-        { s, art -> s.copy(poster = art) })
+        { s, art -> s.copy(poster = art) }, { s, y -> s.copy(year = y) },
+        { it.xtreamId ?: it.id.removePrefix("series:").toIntOrNull() },
+        { s, ids -> s.copy(siblingIds = ids) })
 
 internal fun buildCatalogIndex(
     bundle: ContentBundle,
