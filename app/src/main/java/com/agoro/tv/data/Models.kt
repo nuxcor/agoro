@@ -136,7 +136,7 @@ data class Movie(
     val xtreamId: Int? = null,
     /** Advertised quality parsed from the raw name (4K/FHD/HD/SD). */
     val quality: String? = null,
-    /** Review excerpts ("author — text"), populated from TMDB when a key is set. */
+    /** How many votes the rating rests on; see [NuxFormat.ratingWorthShowing]. */
     val voteCount: Int? = null,
     /** 16:9 art for hero and detail backdrops. */
     val backdrop: String? = null,
@@ -211,6 +211,23 @@ data class Series(
     val episodes: List<Episode>? = null,
     val xtreamId: Int? = null,
     /**
+     * The panel ids of every other copy of this show, folded away behind it.
+     *
+     * The provider lists one series once per pack — `EN -`, `NF -`, `4K-NF -`,
+     * `NF-DO -` — and those copies are NOT the same content. Measured against a
+     * live panel: of eighteen duplicated series, six disagreed about how many
+     * episodes they carried, and the highest rung held the most in only two.
+     * "Scrubs" is nine episodes under one prefix and a hundred and eighty-two
+     * under another; "Leanne" has two seasons in the 4K copy and one in the
+     * plain one.
+     *
+     * So the fold picks one card and keeps the rest of the ids, and
+     * [ContentRepository.episodesFor] reads them all and takes the union. A
+     * fold that dropped them would have answered "why do I see duplicates" by
+     * hiding episodes instead, which is the complaint it was meant to fix.
+     */
+    val siblingIds: List<Int> = emptyList(),
+    /**
      * Advertised quality parsed from the raw name (4K/FHD/HD/SD), the same
      * field [Movie] carries and for the same reason: providers list one show
      * several times at different rungs, [name] is the cleaned title so the
@@ -218,7 +235,7 @@ data class Series(
      * one worth keeping. See `foldVariants`.
      */
     val quality: String? = null,
-    /** Review excerpts ("author — text"), populated from TMDB when a key is set. */
+    /** How many votes the rating rests on; see [NuxFormat.ratingWorthShowing]. */
     val voteCount: Int? = null,
     /** 16:9 art for hero and detail backdrops. */
     val backdrop: String? = null,

@@ -3,6 +3,8 @@ package com.agoro.tv.data
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -1620,8 +1622,47 @@ class ContentRepository(context: Context) {
             ?: series.id.removePrefix("series:").toIntOrNull()
             ?: return emptyList()
         return try {
-            xtreamClient(source).seriesEpisodes(id)
-                .cleanTitles(episodeNameCleaner(), series.name)
+            val client = xtreamClient(source)
+            // Every copy of this show, not just the one whose card was folded
+            // to the front. The provider lists a series once per pack and the
+            // packs are NOT the same content: measured on a live panel,
+            // "Scrubs" is nine episodes under one prefix and a hundred and
+            // eighty-two under another, and the highest rung is the fullest
+            // copy only about a third of the time. Reading one copy is how a
+            // viewer ends up on a show that is missing everything after
+            // season one.
+            //
+            // These are player_api calls, not stream opens, so they are not
+            // counted against a one-connection line — the same reason
+            // [currentLiveNames] fetches its categories together. They run in
+            // parallel and only for a show someone actually opened.
+            val ids = (listOf(id) + series.siblingIds).distinct()
+            val lists = if (ids.size == 1) {
+                listOf(client.seriesEpisodes(id))
+            } else {
+                coroutineScope {
+                    ids.map { each ->
+                        async {
+                            // One copy failing must not lose the others: a
+                            // pack the panel has forgotten about answers 404
+                            // or garbage, and the show is still watchable from
+                            // the copies that answered.
+                            try {
+                                client.seriesEpisodes(each)
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                android.util.Log.i(
+                                    "Agoro",
+                                    "Copy $each of ${series.name} did not answer: ${e.message}",
+                                )
+                                emptyList()
+                            }
+                        }
+                    }.awaitAll()
+                }
+            }
+            mergeEpisodeCopies(lists).cleanTitles(episodeNameCleaner(), series.name)
         } catch (e: kotlinx.coroutines.CancellationException) {
             // runCatching here used to swallow cancellation too, which latched
             // an empty list into the detail screen with no way to retry.
@@ -1787,3 +1828,30 @@ class ContentRepository(context: Context) {
         )
         }
 }
+
+/**
+ * The union of what every copy of a show carries, one entry per episode.
+ *
+ * Keyed on season and number rather than on the panel's stream id, because
+ * the whole point is that two copies describe the SAME episode with two
+ * different ids — keying on the id would hand back every duplicate and
+ * turn a two-season show listed three times into six seasons of nonsense.
+ *
+ * First answer wins per slot, and the order the copies arrive in is the
+ * order [Series.siblingIds] was built in, which puts the folded survivor
+ * first: so where two copies both carry an episode, the viewer gets it
+ * from the copy whose card they are looking at, and the others only ever
+ * ADD what that one was missing.
+ *
+ * Sorted at the end because a union assembled out of several partial
+ * lists has no order of its own, and the UI lists seasons in order.
+ */
+internal fun mergeEpisodeCopies(lists: List<List<Episode>>): List<Episode> {
+    if (lists.size == 1) return lists[0]
+    val bySlot = LinkedHashMap<Pair<Int, Int>, Episode>()
+    for (list in lists) {
+        for (e in list) bySlot.putIfAbsent(e.season to e.episodeNum, e)
+    }
+    return bySlot.values.sortedWith(compareBy({ it.season }, { it.episodeNum }))
+}
+
