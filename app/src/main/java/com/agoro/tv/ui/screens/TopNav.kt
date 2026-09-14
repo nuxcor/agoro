@@ -5,7 +5,6 @@
 
 package com.agoro.tv.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +43,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ClickableSurfaceDefaults
@@ -52,14 +50,13 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import com.agoro.tv.R
 import com.agoro.tv.ui.theme.NuxColors
 import com.agoro.tv.ui.theme.NuxFocus
 import com.agoro.tv.ui.theme.NuxShape
 import com.agoro.tv.ui.theme.Space
 
 /**
- * How tall the whole header band is, brand mark and marker included.
+ * How tall the whole header band is, marker included.
  *
  * Every dp of it comes off the content below, which is why it is as small as
  * a 10-foot label allows: the guide reads its rows out of what is left, and
@@ -85,47 +82,38 @@ private val MARKER_WIDTH = 26.dp
 private val LABEL_STYLE
     @Composable get() = MaterialTheme.typography.titleMedium
 
-/** Beside a word, so it defers to it. Every glyph in the header is now. */
+/** Beside a word, so it defers to it. */
 private val ICON_WITH_LABEL_SIZE = 22.dp
 
-/**
- * The app mark, matched to [ICON_WITH_LABEL_SIZE] so the two leading controls
- * carry the same optical weight — the mark used to stand alone at 28dp, and
- * beside a 22dp magnifier it would be the one glyph in the row shouting.
- * Sized by height; the 55:76 viewport carries the aspect, so the width is
- * height x 0.72 and must move with it.
- */
-private val BRAND_HEIGHT = 22.dp
-private val BRAND_WIDTH = 16.dp
+/** Alone in its control, so it carries the weight a word would: Settings. */
+private val ICON_ONLY_SIZE = 28.dp
 
 enum class HomeTab(val label: String, val icon: ImageVector) {
     // Enum order is header order, left to right. The ordinal is also the index
     // of a control's FocusRequester, so this order is the LEFT/RIGHT order and
     // the order BACK aims at — see [TopNav].
     //
-    // The mark leads. It is the app's own symbol on the app's own destination,
-    // sitting in the corner a logo sits in, and it is what the app lands on —
-    // so the first thing on the header is where you already are.
+    // Home leads, as a word. It carried the app's mark for a while — the logo
+    // WAS the Home tab, on the argument that the app's own symbol names the
+    // app's own destination — and the mark is gone from the header now by the
+    // owner's call (2026-09-13). What it was really doing was asking the eye
+    // to decode a glyph in the one position where a word would have been read
+    // outright, and the leading edge is the position that can least afford it.
+    // The mark still opens the app on the splash and sits on the sign-in form,
+    // which is where a brand belongs.
     //
-    // Search follows it, and the argument for Search leading is worth keeping
-    // because it is a real one: it is an ACTION rather than a place — you go
-    // to Home, to Movies, to Live TV, but you don't go to Search, you use it —
-    // and the top-left corner is where a TV puts that shape. What settled it
-    // is that the leading edge belongs to the app before it belongs to any
-    // control on it ("ALSO PUT HOME LOGO FIRST BEFORE SEARCH ICON",
-    // 2026-09-09).
+    // Search follows, keeping its magnifier AHEAD of its word rather than
+    // instead of it. The argument for Search leading is a real one: it is an
+    // ACTION rather than a place — you go to Home, to Movies, to Live, but you
+    // don't go to Search, you use it — and the top-left is where a television
+    // puts that shape.
     //
-    // Both of them carry their word now, and the reason is worth writing down
-    // because the opposite was argued here for a while. The row used to speak
-    // three visual languages in six items — a brand glyph, a UI icon, then
-    // four words — so the eye re-parsed twice before it reached anything it
-    // could read, and the two items that went unlabelled were the two most
-    // travelled. A glyph has to be DECODED where a word is simply read, and a
-    // television has no tooltip to fall back on. The mark and the magnifier
-    // both stay, leading their labels; what they stopped doing is standing in
-    // for them.
+    // So the six destinations on the left are six words, which is the whole
+    // point of the row: a glyph has to be DECODED where a word is simply read,
+    // and a television has no tooltip to fall back on.
     //
-    // Settings is last and gets pushed to the far right — see [TopNav].
+    // Settings is last, pushed to the far right, and is the one control with
+    // no word — see [TopNavItem.labelled] for why its position earns that.
     Home("Home", Icons.Default.Home),
     Search("Search", Icons.Default.Search),
     // "Live", not "TV". The other three destinations name a kind of thing to
@@ -245,13 +233,9 @@ internal fun TopNav(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.xs),
     ) {
-        // No standalone brand mark. It sat beside Home saying the same thing
-        // twice — a logo that does nothing next to a tab that goes home — and
-        // spent the leading edge of the header on decoration. Home IS the mark
-        // now: it is the app's own destination, so the app's own symbol is the
-        // right label for it, and one control does what two were doing. It
-        // leads the header, so the leading edge carries the app's mark and
-        // costs nothing, which is what a standalone one could not do.
+        // No brand mark anywhere in this row — not standing alone, which was
+        // decoration on the most valuable pixels in the app, and not standing
+        // in for the word "Home" either. See [HomeTab].
         items.forEachIndexed { index, item ->
             // Everything above the catalogue on the left, the app itself on
             // the right. The drawer said this with a divider; a header says it
@@ -264,8 +248,10 @@ internal fun TopNav(
                 // a symbol — Home with the app's own mark, Search with the
                 // magnifier — because those two earn a glyph, not because they
                 // can do without the word.
-                icon = item.icon.takeIf { item == HomeTab.Search },
-                brand = item == HomeTab.Home,
+                icon = item.icon.takeIf {
+                    item == HomeTab.Search || item == HomeTab.Settings
+                },
+                labelled = item != HomeTab.Settings,
                 onClick = { commit(index) },
                 modifier = Modifier
                     .focusRequester(itemFocus[index])
@@ -305,16 +291,15 @@ private fun TopNavItem(
     accent: Boolean = false,
     icon: ImageVector? = null,
     /**
-     * Draw the app's own mark ahead of the label. Home only.
+     * False draws the icon alone, with [label] left to the screen reader.
      *
-     * Through [Icon] rather than [Image] so it takes the row's content colour:
-     * a tab dims when it is not the one you are on, and a brand mark that
-     * stayed gold through that would be the only control on the header not
-     * saying where you are. ic_logo, not ic_splash — the splash copy is padded
-     * into a square for its circular mask and draws at about 59% of the size
-     * asked for. Sized by height; the 55:76 viewport carries the aspect.
+     * Settings is the only one, and its position is what earns it: it sits
+     * beyond the gap, on the far side of the header, where the app itself
+     * lives rather than the catalogue. A gear there is read as the app's
+     * settings by anyone who has used a television, and the six DESTINATIONS
+     * on the left are all words — which is the distinction the row is making.
      */
-    brand: Boolean = false,
+    labelled: Boolean = true,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         Surface(
@@ -354,24 +339,18 @@ private fun TopNavItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Space.s),
             ) {
-                if (brand) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_logo),
-                        // Null, because the word is right beside it. Reading
-                        // the mark out as well would announce the tab twice.
-                        contentDescription = null,
-                        modifier = Modifier.height(BRAND_HEIGHT).width(BRAND_WIDTH),
-                    )
-                }
                 if (icon != null) {
                     Icon(
                         icon,
-                        // The label beside it is what gets read out.
-                        contentDescription = null,
-                        modifier = Modifier.size(ICON_WITH_LABEL_SIZE),
+                        // The word beside it is what gets read out; alone, the
+                        // icon has to carry the name itself.
+                        contentDescription = if (labelled) null else label,
+                        modifier = Modifier.size(
+                            if (labelled) ICON_WITH_LABEL_SIZE else ICON_ONLY_SIZE,
+                        ),
                     )
                 }
-                Text(
+                if (labelled) Text(
                     text = label,
                     style = LABEL_STYLE,
                     // One line, always. A header that grows a second line
