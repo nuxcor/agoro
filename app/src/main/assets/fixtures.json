@@ -1,14 +1,14 @@
 {
- "generated": "2026-09-14T21:47:43Z",
+ "generated": "2026-09-15T04:51:33Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
-  "NFL": 17,
+  "NFL": 16,
   "NBA": 0,
-  "MLS": 15,
-  "Premier League": 11,
-  "La Liga": 20,
-  "Serie A": 13,
+  "MLS": 16,
+  "Premier League": 10,
+  "La Liga": 19,
+  "Serie A": 10,
   "Bundesliga": 9,
   "Ligue 1": 9,
   "Champions League": 0,
@@ -18,78 +18,6 @@
   "FA Cup": 0
  },
  "fixtures": [
-  {
-   "league": "Serie A",
-   "home": "Como",
-   "away": "Parma",
-   "start": "2026-09-14T16:30Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/115.png",
-   "state": "post"
-  },
-  {
-   "league": "Serie A",
-   "home": "Torino",
-   "away": "AS Roma",
-   "start": "2026-09-14T16:30Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/239.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
-   "state": "post"
-  },
-  {
-   "league": "Serie A",
-   "home": "Internazionale",
-   "away": "Udinese",
-   "start": "2026-09-14T18:45Z",
-   "homeAlt": [
-    "Inter Milan"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/110.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/118.png",
-   "state": "post"
-  },
-  {
-   "league": "La Liga",
-   "home": "Villarreal",
-   "away": "Real Betis",
-   "start": "2026-09-14T19:00Z",
-   "awayAlt": [
-    "Betis"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/102.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/244.png",
-   "state": "post"
-  },
-  {
-   "league": "Premier League",
-   "home": "Leeds United",
-   "away": "Newcastle United",
-   "start": "2026-09-14T19:00Z",
-   "homeAlt": [
-    "Leeds"
-   ],
-   "awayAlt": [
-    "Newcastle"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/357.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/361.png",
-   "state": "post"
-  },
-  {
-   "league": "NFL",
-   "home": "Kansas City Chiefs",
-   "away": "Denver Broncos",
-   "start": "2026-09-15T00:15Z",
-   "homeAlt": [
-    "Chiefs"
-   ],
-   "awayAlt": [
-    "Broncos"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/kc.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/den.png",
-   "state": "pre"
-  },
   {
    "league": "La Liga",
    "home": "Rayo Vallecano",
@@ -1507,6 +1435,21 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lar.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/nyg.png",
+   "state": "pre"
+  },
+  {
+   "league": "MLS",
+   "home": "Seattle Sounders FC",
+   "away": "Real Salt Lake",
+   "start": "2026-09-24T01:30Z",
+   "homeAlt": [
+    "Seattle"
+   ],
+   "awayAlt": [
+    "Salt Lake"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/9726.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/4771.png",
    "state": "pre"
   }
  ]
