@@ -18,7 +18,7 @@ kick-off and the competition from here.
 Eight days ahead, which covers the app's cue window many times over and keeps
 the file small (a few hundred fixtures).
 """
-import json, os, sys, time, urllib.request
+import json, os, sys, time, urllib.error, urllib.request
 from datetime import datetime, timedelta, timezone
 
 # Manifest league name -> ESPN's path. The names on the left are the ones the
@@ -44,19 +44,50 @@ DAYS = 8
 UA = {"User-Agent": "agoro-fixtures/1.0 (+https://github.com/nuxcor/agoro)"}
 
 
-def fetch(league, path, start, end):
-    """One request per league for the whole window; ESPN takes a date range."""
-    url = f"{BASE}/{path}/scoreboard?dates={start}-{end}&limit=200"
+def fetch(league, path, day):
+    """One day of one league.
+
+    It used to be one request per league for the whole window — ESPN took
+    dates=START-END — until 2026-09-15, when every range began answering 400
+    while a single day still answers 200. Nine small requests a league is the
+    shape ESPN's own pages ask in, and the one least likely to be withdrawn next.
+    """
+    url = f"{BASE}/{path}/scoreboard?dates={day}&limit=200"
     for attempt in range(3):
         try:
             req = urllib.request.Request(url, headers=UA)
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return json.load(resp)
         except Exception as exc:
-            if attempt == 2:
-                print(f"  {league}: FAILED ({exc})", file=sys.stderr)
+            # A 4xx is ESPN refusing the question, not a blip; asking twice more
+            # only spends the retries' sleeps on every remaining day. 429 is the
+            # exception, and the one a pause can help.
+            refused = (isinstance(exc, urllib.error.HTTPError)
+                       and 400 <= exc.code < 500 and exc.code != 429)
+            if refused or attempt == 2:
+                print(f"  {league}: FAILED on {day} ({exc})", file=sys.stderr)
                 return None
             time.sleep(1.5 * (attempt + 1))
+
+
+def fetch_window(league, path, today):
+    """Every event in the window, once each, or None if any day failed.
+
+    A league missing one day would publish a hole that looks exactly like a
+    rest day, so a single failed day fails the league — which is what the
+    publish guard below counts.
+    """
+    events = {}
+    for offset in range(DAYS + 1):  # inclusive, as the old range was
+        day = (today + timedelta(days=offset)).strftime("%Y%m%d")
+        data = fetch(league, path, day)
+        if data is None:
+            return None
+        for event in data.get("events") or []:
+            # A match can straddle ESPN's day boundary and turn up twice.
+            events.setdefault(event.get("id") or id(event), event)
+        time.sleep(0.2)
+    return list(events.values())
 
 
 # The spellings worth publishing beside the display name.
@@ -101,8 +132,6 @@ def sides(event):
 
 def main():
     today = datetime.now(timezone.utc).date()
-    start = today.strftime("%Y%m%d")
-    end = (today + timedelta(days=DAYS)).strftime("%Y%m%d")
     dest = os.path.normpath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "..", "..", "app", "src", "main", "assets", "fixtures.json"))
@@ -114,15 +143,15 @@ def main():
             prev = {}
     out, counts, failed = [], {}, []
     for league, path in LEAGUES.items():
-        data = fetch(league, path, start, end)
-        if data is None:
+        events = fetch_window(league, path, today)
+        if events is None:
             # A request that FAILED, which is not the same as a league with no
             # fixtures this week. Counted, because a run where most of them
             # fail must not publish over a good file.
             failed.append(league)
             continue
         n = 0
-        for event in data.get("events") or []:
+        for event in events:
             home, away = sides(event)
             date = event.get("date")
             if not (home and away and date):
