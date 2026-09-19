@@ -15,7 +15,7 @@ kick-off and the competition from here.
 
     python3 fetch_fixtures.py            # -> ../../app/src/main/assets/fixtures.json
 
-Yesterday to eight days ahead, which covers the app's cue window many times
+Two days back to eight ahead, which covers the app's cue window many times
 over and keeps the file small (a few hundred fixtures).
 """
 import json, os, sys, time, urllib.error, urllib.request
@@ -42,6 +42,11 @@ LEAGUES = {
 
 BASE = "https://site.api.espn.com/apis/site/v2/sports"
 DAYS = 8
+# Finished matches kept, marked "post". The app drops a slot whose two clubs
+# the schedule shows have already played, which is how a pack's name left up
+# after full time comes off the screen; it can only do that for a match the
+# file still remembers.
+DAYS_BACK = 2
 UA = {"User-Agent": "agoro-fixtures/1.0 (+https://github.com/nuxcor/agoro)"}
 
 
@@ -109,18 +114,18 @@ def espn_today():
 
 
 def fetch_window(league, path, today):
-    """Every event from yesterday to DAYS ahead, once each; None if a day failed.
+    """Every event from DAYS_BACK ago to DAYS ahead, once each; None if a day failed.
 
-    Yesterday because a late kick-off out west is still being played after
-    midnight Eastern, and because a finished match is worth keeping in the
-    file marked finished for a day rather than forgetting it at midnight.
+    Back past today because a late kick-off out west is still being played
+    after midnight Eastern, and because a finished match is worth keeping in
+    the file marked finished; see DAYS_BACK.
 
     A league missing one day would publish a hole that looks exactly like a
     rest day, so a single failed day fails the league; see main() for what
     happens to it then.
     """
     events = {}
-    for n, offset in enumerate(range(-1, DAYS + 1)):
+    for n, offset in enumerate(range(-DAYS_BACK, DAYS + 1)):
         if n:
             time.sleep(0.2)
         day = (today + timedelta(days=offset)).strftime("%Y%m%d")
@@ -178,7 +183,7 @@ def main():
     today = espn_today()
     # The window's first instant, Zulu, in the file's own format so the
     # carried fixtures below can be cut on a string comparison.
-    floor = (datetime.combine(today - timedelta(days=1), datetime.min.time(),
+    floor = (datetime.combine(today - timedelta(days=DAYS_BACK), datetime.min.time(),
                               ZoneInfo("America/New_York"))
              .astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
     dest = os.path.normpath(os.path.join(
@@ -203,7 +208,7 @@ def main():
             # fail must not publish over a good file.
             #
             # And carried rather than dropped when the run does publish. A
-            # day at a time is ten chances a league to hit one timeout, and
+            # day at a time is eleven chances a league to hit one timeout, and
             # publishing the league absent took every one of its rows back to
             # reading kick-offs out of slot names for six hours — then back
             # again, one more commit and cache bust later. Last time's copy of

@@ -2343,4 +2343,108 @@ class SportsParserTest {
             SportsParser.applySchedule(listOf(slot), fixtures, now).single().home,
         )
     }
+
+
+    /**
+     * Reported from the box on 2026-09-18: "saw mancity vs norwich and
+     * others", the day after the Carabao Cup tie was played.
+     *
+     * The 8K EXCLUSIVE pack bills a match in play as "Live | Home vs. Away |
+     * all | …" with no clock (this one is shaped on its own slot for Norwich v
+     * Birmingham), so nothing can age the row but the schedule. The schedule
+     * paired the two clubs and knew the match was over, but its pairing sat
+     * more than [SportsParser.SCHEDULE_MAX_SHIFT_MS] from a clockless slot's
+     * anchor, which is now. The row fell through to the matchday guard,
+     * billed Premier League off Manchester City's roster, and the Premier
+     * League was playing the next morning. So it stood LIVE on both screens
+     * until the pack renamed the pipe.
+     */
+    private val leftoverRoster = mapOf(
+        "Premier League" to listOf("Manchester City", "Man City", "Aston Villa", "Sunderland"),
+    )
+    private val leftoverSlot =
+        "Live | Manchester City vs. Norwich City | all | 8K EXCLUSIVE | UK: SOCCER PPV 12"
+    private fun cityNorwich(start: String, state: String) = ScheduleFixture(
+        league = "Carabao Cup", home = "Manchester City", away = "Norwich City",
+        start = start, state = state,
+        homeAlt = listOf("Man City"), awayAlt = listOf("Norwich"),
+    )
+    private val weekend = listOf(
+        ScheduleFixture(league = "Premier League", home = "Aston Villa",
+            away = "Tottenham Hotspur", start = "2026-09-19T11:30Z", state = "pre"),
+        ScheduleFixture(league = "Premier League", home = "Manchester City",
+            away = "Sunderland", start = "2026-09-20T13:00Z", state = "pre"),
+    )
+
+    private fun onScreen(fixtures: List<ScheduleFixture>, now: Long): List<SportsEvent> {
+        val parsed = SportsParser.parseAll(listOf(1 to leftoverSlot), now, leftoverRoster)
+        return SportsParser.upcoming(SportsParser.applySchedule(parsed, fixtures, now), now, 60)
+    }
+
+    @Test
+    fun `a LIVE slot left up after full time is gone the next day`() {
+        val fixtures = weekend + cityNorwich("2026-09-17T18:30Z", "post")
+        for ((h, mi) in listOf(9 to 0, 13 to 0, 16 to 44)) {
+            val now = ms(2026, 9, 18, h, mi, "America/Chicago")
+            assertEquals("nothing on screen at $h:$mi the next day", 0, onScreen(fixtures, now).size)
+        }
+    }
+
+    @Test
+    fun `the same slot is on screen while the match is played`() {
+        val now = ms(2026, 9, 17, 15, 0, "America/Chicago")
+        val rows = onScreen(weekend + cityNorwich("2026-09-17T18:30Z", "in"), now)
+        assertEquals(1, rows.size)
+        assertTrue("and on now", rows.single().isOnNow(now))
+        assertEquals(ms(2026, 9, 17, 18, 30, "UTC"), rows.single().startMs)
+    }
+
+    /**
+     * Over means the schedule says so, or the clock does. A file six hours
+     * stale can still say "pre" for a match that ended last night, and a
+     * kick-off a day gone is over whatever the state was when it was written.
+     */
+    @Test
+    fun `a stale pre state does not keep yesterday's match alive`() {
+        val now = ms(2026, 9, 18, 9, 0, "America/Chicago")
+        assertEquals(0, onScreen(weekend + cityNorwich("2026-09-17T18:30Z", "pre"), now).size)
+    }
+
+    /**
+     * What this must not do: two clubs who met yesterday and meet again today.
+     * The nearest pairing is today's, the slot takes that one, and yesterday's
+     * result has no say.
+     */
+    @Test
+    fun `clubs who met yesterday and meet again today keep today's match`() {
+        val now = ms(2026, 9, 18, 19, 45, "UTC")
+        val fixtures = weekend + cityNorwich("2026-09-17T18:30Z", "post") +
+            cityNorwich("2026-09-18T19:00Z", "in")
+        val rows = onScreen(fixtures, now)
+        assertEquals(1, rows.size)
+        assertEquals(ms(2026, 9, 18, 19, 0, "UTC"), rows.single().startMs)
+    }
+
+    /**
+     * And a pairing being played is not over, however far a slot's clock is
+     * from it. "in" is ESPN's word against any arithmetic.
+     */
+    @Test
+    fun `a pairing in play is never called over`() {
+        val now = ms(2026, 9, 17, 19, 30, "UTC")
+        // Thirteen and a half hours out: a pack's bad clock, past the shift cap.
+        val slot = SportsParser.parse(
+            1, "Next | Manchester City vs. Norwich City | all | 18-09-2026 | 08:00 (GMT) | " +
+                "8K EXCLUSIVE | UK: SOCCER PPV 12",
+            now, leftoverRoster,
+        )!!
+        val fixtures = listOf(
+            cityNorwich("2026-09-17T18:30Z", "in"),
+            // The Premier League on that morning, so the matchday guard the
+            // row falls through to keeps it, as it did before.
+            ScheduleFixture(league = "Premier League", home = "Aston Villa",
+                away = "Sunderland", start = "2026-09-18T11:00Z", state = "pre"),
+        )
+        assertEquals(1, SportsParser.applySchedule(listOf(slot), fixtures, now).size)
+    }
 }

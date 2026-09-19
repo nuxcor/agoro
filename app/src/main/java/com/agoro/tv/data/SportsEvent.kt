@@ -2167,6 +2167,19 @@ object SportsParser {
             // screen: a match being played that shows nowhere. [parseIndexed]
             // guards its own clocks the same way, with SANE_WINDOW_MS.
             if (kotlin.math.abs(best.start - anchor) > SCHEDULE_MAX_SHIFT_MS) {
+                // Unless the meeting the schedule found has already been
+                // PLAYED. Then the slot is not a bad clock on a real fixture,
+                // it is a name the pack never took down: "Live | Manchester
+                // City vs. Norwich City | all | 8K EXCLUSIVE" stood LIVE on
+                // both screens the day after the tie. It has no clock of its
+                // own, so its anchor is now; the tie sat past this cap, the
+                // row fell to the matchday guard billed as Man City's league,
+                // and the Premier League was playing the next morning.
+                //
+                // The nearest pairing is the one that decides, so two clubs
+                // who meet again today still take today's match, and one being
+                // played is never over whatever a slot's clock says.
+                if (isOver(best, nowMs)) return@mapNotNull null
                 return@mapNotNull onMatchday(paired, playingDays, nowMs)
             }
             // Which way round the schedule lists them, because the packs do
@@ -2256,6 +2269,18 @@ object SportsParser {
      * — is measured in days, not hours.
      */
     private const val MATCHDAY_WINDOW_MS = 24 * 60 * 60 * 1000L
+
+    /**
+     * Whether a scheduled meeting has been played. ESPN's word where it has
+     * one; otherwise the clock, because a file hours stale can still say "pre"
+     * for a match that ended last night, and a kick-off more than a match's
+     * length gone is over whatever state it was written with.
+     */
+    private fun isOver(f: Indexed, nowMs: Long): Boolean = when (f.fixture.state) {
+        "post" -> true
+        "in" -> false
+        else -> f.start + FIXTURE_LENGTH_MS < nowMs
+    }
 
     private class Indexed(
         /** Every spelling of the home side, each reduced to its words. */
