@@ -19,6 +19,10 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    # A run is a hundred-odd requests now, one ESPN day at a time. Healthy it
+    # takes about a minute; this is the ceiling on a slow ESPN, so a stuck run
+    # cannot hold the concurrency group while the next six-hourly one queues.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - name: Fetch the fixture list

@@ -15,11 +15,12 @@ kick-off and the competition from here.
 
     python3 fetch_fixtures.py            # -> ../../app/src/main/assets/fixtures.json
 
-Eight days ahead, which covers the app's cue window many times over and keeps
-the file small (a few hundred fixtures).
+Yesterday to eight days ahead, which covers the app's cue window many times
+over and keeps the file small (a few hundred fixtures).
 """
 import json, os, sys, time, urllib.error, urllib.request
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 # Manifest league name -> ESPN's path. The names on the left are the ones the
 # manifest's sport.leagues uses, because that is what the app bills a row as.
@@ -44,49 +45,92 @@ DAYS = 8
 UA = {"User-Agent": "agoro-fixtures/1.0 (+https://github.com/nuxcor/agoro)"}
 
 
+# More failed leagues than this and the run publishes nothing.
+MAX_FAILED = 2
+
+# ESPN refusing the question itself, which asking again will not change. Not
+# every 4xx: a 408, or the momentary 403 a CDN hands out, is a blip that the
+# retries exist for.
+REFUSED = (400, 404)
+
+
 def fetch(league, path, day):
-    """One day of one league.
+    """One day of one league, or None.
 
     It used to be one request per league for the whole window — ESPN took
     dates=START-END — until 2026-09-15, when every range began answering 400
-    while a single day still answers 200. Nine small requests a league is the
-    shape ESPN's own pages ask in, and the one least likely to be withdrawn next.
+    while a single day still answers 200. A day at a time is the shape ESPN's
+    own pages ask in, and the one least likely to be withdrawn next.
     """
     url = f"{BASE}/{path}/scoreboard?dates={day}&limit=200"
     for attempt in range(3):
+        wait = 1.5 * (attempt + 1)
         try:
             req = urllib.request.Request(url, headers=UA)
             with urllib.request.urlopen(req, timeout=30) as resp:
-                return json.load(resp)
+                data = json.load(resp)
+            # A 200 that is not a scoreboard — an error document, a reshaped
+            # payload — would otherwise read as a day with no games, which is
+            # the one hole a failed day must never leave.
+            if not isinstance(data, dict) or not isinstance(data.get("events"), list):
+                raise ValueError("no events list in the response")
+            return data
         except Exception as exc:
-            # A 4xx is ESPN refusing the question, not a blip; asking twice more
-            # only spends the retries' sleeps on every remaining day. 429 is the
-            # exception, and the one a pause can help.
-            refused = (isinstance(exc, urllib.error.HTTPError)
-                       and 400 <= exc.code < 500 and exc.code != 429)
+            refused = False
+            if isinstance(exc, urllib.error.HTTPError):
+                refused = exc.code in REFUSED
+                if exc.code == 429:
+                    # Throttled, and a run is now a hundred-odd requests: take
+                    # ESPN's Retry-After where it names one in seconds, and never
+                    # less than a pause long enough to matter.
+                    try:
+                        wait = max(wait * 4, float(exc.headers.get("Retry-After") or 0))
+                    except ValueError:
+                        wait *= 4
+                    wait = min(wait, 60)
+                exc.close()
             if refused or attempt == 2:
                 print(f"  {league}: FAILED on {day} ({exc})", file=sys.stderr)
                 return None
-            time.sleep(1.5 * (attempt + 1))
+            time.sleep(wait)
+
+
+def espn_today():
+    """Today as ESPN files it, which is the US Eastern date.
+
+    A single-day query returns the fixtures ESPN files under that day, and it
+    files them by New York's clock: Thursday Night Football at 00:15Z on the
+    18th comes back under the 17th. Counted from the UTC date — as the range
+    query was too — the 00:17Z run asked for tomorrow in New York while
+    tonight was being played, and TNF, MNF and a Saturday night's MLS were
+    missing from the file for the six hours they were on.
+    """
+    return datetime.now(ZoneInfo("America/New_York")).date()
 
 
 def fetch_window(league, path, today):
-    """Every event in the window, once each, or None if any day failed.
+    """Every event from yesterday to DAYS ahead, once each; None if a day failed.
+
+    Yesterday because a late kick-off out west is still being played after
+    midnight Eastern, and because a finished match is worth keeping in the
+    file marked finished for a day rather than forgetting it at midnight.
 
     A league missing one day would publish a hole that looks exactly like a
-    rest day, so a single failed day fails the league — which is what the
-    publish guard below counts.
+    rest day, so a single failed day fails the league; see main() for what
+    happens to it then.
     """
     events = {}
-    for offset in range(DAYS + 1):  # inclusive, as the old range was
+    for n, offset in enumerate(range(-1, DAYS + 1)):
+        if n:
+            time.sleep(0.2)
         day = (today + timedelta(days=offset)).strftime("%Y%m%d")
         data = fetch(league, path, day)
         if data is None:
             return None
-        for event in data.get("events") or []:
-            # A match can straddle ESPN's day boundary and turn up twice.
-            events.setdefault(event.get("id") or id(event), event)
-        time.sleep(0.2)
+        for event in data["events"]:
+            # A match can turn up under two days. The later day's copy wins:
+            # if the two differ, it is the one that has moved on.
+            events[event.get("id") or id(event)] = event
     return list(events.values())
 
 
@@ -131,7 +175,12 @@ def sides(event):
 
 
 def main():
-    today = datetime.now(timezone.utc).date()
+    today = espn_today()
+    # The window's first instant, Zulu, in the file's own format so the
+    # carried fixtures below can be cut on a string comparison.
+    floor = (datetime.combine(today - timedelta(days=1), datetime.min.time(),
+                              ZoneInfo("America/New_York"))
+             .astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
     dest = os.path.normpath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "..", "..", "app", "src", "main", "assets", "fixtures.json"))
@@ -143,11 +192,27 @@ def main():
             prev = {}
     out, counts, failed = [], {}, []
     for league, path in LEAGUES.items():
+        if len(failed) > MAX_FAILED:
+            # The run can only end in the refusal below now; every further
+            # league would just spend its retries finding that out again.
+            break
         events = fetch_window(league, path, today)
         if events is None:
             # A request that FAILED, which is not the same as a league with no
             # fixtures this week. Counted, because a run where most of them
             # fail must not publish over a good file.
+            #
+            # And carried rather than dropped when the run does publish. A
+            # day at a time is ten chances a league to hit one timeout, and
+            # publishing the league absent took every one of its rows back to
+            # reading kick-offs out of slot names for six hours — then back
+            # again, one more commit and cache bust later. Last time's copy of
+            # its fixtures is older, not wrong.
+            kept = [f for f in prev.get("fixtures") or []
+                    if f.get("league") == league and f.get("start", "") >= floor]
+            out.extend(kept)
+            counts[league] = len(kept)
+            print(f"  {league:<18} {len(kept):>3} fixtures, carried from the last good file")
             failed.append(league)
             continue
         n = 0
@@ -207,9 +272,9 @@ def main():
     # the guard exists to prevent. A league with no fixtures is ordinary (a
     # winter break, an international window); a league whose REQUEST failed is
     # not, and neither is a collapse in the total.
-    if len(failed) > 2:
+    if len(failed) > MAX_FAILED:
         raise SystemExit(f"{len(failed)} leagues failed to answer ({', '.join(failed)}) "
-                         "— refusing to publish over the last good file.")
+                         "— stopped there, refusing to publish over the last good file.")
     was = len(prev.get("fixtures") or [])
     if was >= 20 and len(out) < was * 0.4:
         raise SystemExit(f"{len(out)} fixtures against {was} last time — that is an "
