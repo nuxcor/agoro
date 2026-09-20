@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-20T04:52:10Z",
+ "generated": "2026-09-20T11:19:51Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -547,7 +547,7 @@
    "start": "2026-09-20T10:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/109.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/114.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "La Liga",
