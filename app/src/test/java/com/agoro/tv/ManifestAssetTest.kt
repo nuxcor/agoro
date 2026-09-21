@@ -142,10 +142,20 @@ class ManifestAssetTest {
      * unmeasured one from taking the measured one's words back.
      */
     @Test
-    fun `no movie shelf claims a rating the panel cannot back`() {
-        val offenders = manifest.sections.movies
-            .filter { Regex("(?i)\\btop[ _-]?rated\\b").containsMatchIn(it.label) }
+    fun `no shelf claims a rating the panel cannot back`() {
+        // Both axes, not just movies. The first version of this filtered
+        // sections.movies alone, which would have let the same unbacked claim
+        // reappear on a live shelf and said nothing.
+        val claim = Regex("(?i)\\btop[ _-]?rated\\b")
+        val offenders = (manifest.sections.movies + manifest.sections.live)
             .map { it.label }
-        assertTrue("movie shelves claiming a rating: $offenders", offenders.isEmpty())
+            .filter { claim.containsMatchIn(it) }
+        assertTrue(
+            "shelves claiming a rating the membership rule never applies: $offenders. " +
+                "Series keeps 'Top rated' because it is a measured cut " +
+                "(rating_5based >= 4.5, in build_manifest.py) and is labelled in " +
+                "Kotlin, not here; a manifest section is not.",
+            offenders.isEmpty(),
+        )
     }
 }

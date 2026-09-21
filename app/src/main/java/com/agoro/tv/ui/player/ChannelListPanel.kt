@@ -55,7 +55,6 @@ import com.agoro.tv.MainViewModel
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.ui.components.focusTrap
 import com.agoro.tv.ui.components.requestFocusRetrying
-import com.agoro.tv.ui.screens.categoryLabel
 import com.agoro.tv.ui.screens.channelsInCategory
 import com.agoro.tv.ui.screens.liveCategoryList
 import com.agoro.tv.ui.theme.NuxColors
@@ -100,11 +99,10 @@ internal fun ChannelListPanel(
     // Third view of the same channels, and it built its own copy of this too.
     // Shared with Live TV and the guide — see LiveCategories.kt — so Recent
     // shows up here as well without being added a third time.
-    val categories = remember(bundle, allChannels, favorites, recents) {
+    val categories = remember(bundle, allChannels, recents) {
         liveCategoryList(
             bundle ?: com.agoro.tv.data.ContentBundle(),
             allChannels,
-            favorites,
             recents,
         )
     }
@@ -267,9 +265,8 @@ internal fun ChannelListPanel(
                                 ),
                             ) {
                                 Text(
-                                    // Through [categoryLabel], like every
-                                    // other surface that names a shelf.
-                                    text = categoryLabel(category.name),
+                                    // Already cased by liveCategoryList.
+                                    text = category.name,
                                     style = MaterialTheme.typography.titleSmall,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,

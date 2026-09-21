@@ -70,7 +70,12 @@ internal fun ChannelManager(vm: MainViewModel, bundle: ContentBundle, onClose: (
         // channels have to be listed here or there is no way to unhide one.
         var selectedCategory by rememberSaveable { mutableStateOf(CATEGORY_ALL) }
         val categories = remember(bundle) {
-            listOf(Category(id = CATEGORY_ALL, name = "All channels")) + bundle.liveCategories
+            // Cased here because this screen does NOT go through
+            // liveCategoryList — it works on bundle.channels so a hidden
+            // channel stays listable, and so it builds its own list. Same
+            // rule, applied at the one place that has to know it.
+            listOf(Category(id = CATEGORY_ALL, name = "All channels")) +
+                bundle.liveCategories.map { it.copy(name = categoryLabel(it.name)) }
         }
         val activeCategory = resolveCategoryId(selectedCategory, categories)
         // No dwell-select. This was the last one left in the app: Live TV, the

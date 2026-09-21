@@ -50,7 +50,6 @@ import com.agoro.tv.ui.components.rememberProgramDescription
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.ui.components.StatusPane
 import com.agoro.tv.ui.components.rememberClockFormat
-import com.agoro.tv.ui.screens.categoryLabel
 import com.agoro.tv.ui.screens.defaultCategoryId
 import com.agoro.tv.ui.screens.CHANNEL_COLUMN_GAP
 import com.agoro.tv.ui.screens.CHANNEL_COLUMN_WIDTH
@@ -109,8 +108,8 @@ internal fun PlayerGuideOverlay(
     val bundle = (contentState as? ContentState.Ready)?.bundle ?: ContentBundle()
 
     // Same category vocabulary as Live TV and the mini-guide — LiveCategories.kt.
-    val categories = remember(bundle, allChannels, favorites, recents) {
-        liveCategoryList(bundle, allChannels, favorites, recents)
+    val categories = remember(bundle, allChannels, recents) {
+        liveCategoryList(bundle, allChannels, recents)
     }
     // The first shelf on offer rather than the current zap playlist: the
     // playlist may be a single category, and the guide is where you look beyond
@@ -249,10 +248,8 @@ internal fun PlayerGuideOverlay(
         ) {
             items(categories, key = { it.id }) { category ->
                 CategoryItem(
-                    // Through [categoryLabel], like every other strip — this
-                    // is the same shelf list the browse guide draws, and it
-                    // read in two cases depending on which one you opened.
-                    name = categoryLabel(category.name),
+                    // Already cased by liveCategoryList, which built this list.
+                    name = category.name,
                     selected = category.id == categoryId,
                     onClick = { categoryId = category.id },
                     modifier = Modifier,

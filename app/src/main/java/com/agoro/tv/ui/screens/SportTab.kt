@@ -309,12 +309,28 @@ internal fun fixtureLines(
     fixtures: List<SportsEvent>,
     leagueOrder: List<String>,
 ): List<FixtureLine> = buildList {
-    val claimed = HashSet<SportsEvent>()
-    for (league in leagueOrder) {
-        val inLeague = fixtures.filter { it.league == league }
+    // One pass, grouped, rather than a filter of the whole list per league.
+    // It was fourteen manifest leagues x every fixture on every rebuild, and
+    // upcoming() hands back a fresh list each minute.
+    val byLeague = fixtures.groupBy { it.league }
+    // Claimed by STREAM ID, never by the event itself. SportsEvent is a data
+    // class carrying league, home, away, startMs, live, tierRank, sourceRank
+    // and alternates, so a HashSet of them hashes and compares every field —
+    // and the fold rebuilds those records each minute, which is exactly the
+    // value-equality trap this codebase writes down for LiveChannel ("by id,
+    // never by value"). An id is the identity; the rest is description.
+    val claimed = HashSet<Int>()
+    // Never OTHER_FIXTURES, whatever the manifest calls its leagues. If a
+    // league were named "Other" and any fixture also fell outside every
+    // league, the catch-all below would emit a SECOND Header("Other") — and
+    // the list keys headers on "h:${league}", so two items would measure under
+    // one slot id. That is the IllegalArgumentException out of subcompose that
+    // took Live TV to the launcher when the category strip did it.
+    for (league in leagueOrder.filterNot { it == OTHER_FIXTURES }) {
+        val inLeague = byLeague[league].orEmpty()
         if (inLeague.isEmpty()) continue
         add(FixtureLine.Header(league))
-        inLeague.forEach { add(FixtureLine.Fixture(league, it)); claimed.add(it) }
+        inLeague.forEach { add(FixtureLine.Fixture(league, it)); claimed.add(it.streamId) }
     }
     // Everything no heading claimed, rather than nothing.
     //
@@ -330,7 +346,7 @@ internal fun fixtureLines(
     // "Other", the same word the catalogue strip uses for titles the playlist
     // never categorised. It says what it is — a fixture we could not name a
     // competition for — without inventing one.
-    val rest = fixtures.filterNot { it in claimed }
+    val rest = fixtures.filterNot { it.streamId in claimed }
     if (rest.isNotEmpty()) {
         add(FixtureLine.Header(OTHER_FIXTURES))
         rest.forEach { add(FixtureLine.Fixture(OTHER_FIXTURES, it)) }

@@ -27,6 +27,29 @@ const val CATEGORY_FAVORITES = "__fav__"
 const val CATEGORY_RECENT = "__recent__"
 
 /**
+ * Nothing chosen yet. Not a category — the absence of one.
+ *
+ * It has to be an id no category can ever have, and that is the whole job.
+ * [resolveCategoryId] falls through to the first shelf on offer for any id it
+ * does not recognise, so a surface holding this one keeps TRACKING the list as
+ * it fills, and stops the moment the viewer picks something real.
+ *
+ * That matters because the list arrives in two stages. displayChannels is a
+ * stateIn with an empty initial value, so the first composition sees no
+ * channels at all, [liveCategoryList] gates every shelf on having some, and
+ * its ifEmpty fallback hands back the ungated bundle list with no Recent chip
+ * in it. Seconds later the real list lands and Recent appears at the front.
+ *
+ * So a surface that RESOLVES the default once — `mutableStateOf(
+ * defaultCategoryId(categories))` inside a rememberSaveable — freezes
+ * whatever that first, channel-less composition happened to produce, and
+ * because that id is a real one resolveCategoryId then keeps it for good.
+ * Live opened on News instead of on the channel you were last watching. This
+ * sentinel is how the default stays a default until it is displaced.
+ */
+const val CATEGORY_NONE = ""
+
+/**
  * The categories to offer, given what the playlist has and what the viewer has
  * done. Favorites and Recent appear only once they hold something: an empty
  * shortcut is a dead end that still costs a D-pad press to skip.
@@ -34,7 +57,11 @@ const val CATEGORY_RECENT = "__recent__"
 internal fun liveCategoryList(
     bundle: ContentBundle,
     channels: List<LiveChannel>,
-    favorites: Set<String>,
+    // No `favorites`. There is no Favorites chip (see below), so this list has
+    // never depended on which channels are starred — but the parameter stayed,
+    // and all three call sites keyed their remember on it. Starring one
+    // channel re-ran the whole scan over every visible channel, three times,
+    // on the main thread, for a list that could not change.
     recents: List<String>,
     /**
      * Ids to keep even when [channels] holds none of theirs. Exactly one
@@ -74,7 +101,18 @@ internal fun liveCategoryList(
     // its own category list doesn't name. The gate would then leave no chips
     // and nothing for [resolveCategoryId] to fall back to, which is a worse
     // screen than the one this fixes, so the ungated list stands in.
-    addAll(offered.ifEmpty { bundle.liveCategories })
+    //
+    // Cased HERE, once, and this is the only place any live surface should do
+    // it. Moving [categoryLabel] into this file was not enough on its own: the
+    // rule still had to be REMEMBERED by every display site, which is the
+    // exact mechanism that produced the drift, and four of them promptly
+    // forgot — the guide's own header printed "Streaming Networks" in the
+    // corner while the chip six lines below it read "Streaming networks", on
+    // one screen at once. Six surfaces read this list (the guide's chips and
+    // header, the player's guide chips and header, the player's channel list
+    // and its heading); casing the Category as it is BUILT makes all six right
+    // without any of them knowing the rule exists.
+    addAll(offered.ifEmpty { bundle.liveCategories }.map { it.copy(name = categoryLabel(it.name)) })
 }
 
 /**
@@ -225,8 +263,20 @@ internal fun defaultCategoryId(categories: List<Category>): String =
  * rule that cannot tell a name from a shout would turn "PPV & Events" into
  * "Ppv & events".
  */
+/**
+ * Any run of whitespace, and the non-breaking space with it.
+ *
+ * Splitting on the ASCII space alone was a silent no-op on the names that
+ * most need this: scraped Xtream category names routinely carry U+00A0, which
+ * is not matched by \s and is not removed by trim(). "Top\u00A0Rated" came
+ * through as a single 'word', failed the all-letters test, and kept the
+ * provider's casing — indistinguishable on screen from the rule simply not
+ * running.
+ */
+private val WHITESPACE = Regex("[\\s\\u00A0]+")
+
 internal fun categoryLabel(name: String): String {
-    val words = name.trim().split(' ').filter { it.isNotEmpty() }
+    val words = name.trim().split(WHITESPACE).filter { it.isNotEmpty() }
     if (words.isEmpty()) return name
     return words.mapIndexed { index, word ->
         when {

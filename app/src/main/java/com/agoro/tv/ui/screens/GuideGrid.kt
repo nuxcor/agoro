@@ -144,6 +144,14 @@ internal val CHANNEL_COLUMN_GAP = 8.dp
 // instead, which are spacing and not information. See [ProgramCell].
 internal val ROW_HEIGHT = 52.dp
 
+/**
+ * Between one channel row and the next. Part of the guide's vertical budget —
+ * four rows cost 4 x [ROW_HEIGHT] plus three of these — so it is named rather
+ * than written into the layout as a bare literal, and [GuideBudgetTest]
+ * imports it instead of copying the number.
+ */
+internal val ROW_GAP = 6.dp
+
 /** The narrowest cell that still shows a title and a focus ring — 61dp on a
  *  960dp panel, more on a wider one since the scale grows with it. */
 internal const val MIN_CELL_MINUTES = 16f
@@ -930,7 +938,7 @@ internal fun GuideGrid(
     ) {
         LazyColumn(
             state = listState,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(ROW_GAP),
             contentPadding = PaddingValues(bottom = 28.dp),
             // No edge glow: nothing on a TV flings this list, and the effect
             // is a RenderNode and an EdgeEffect pair allocated for nothing.

@@ -3,7 +3,9 @@ package com.agoro.tv
 import androidx.compose.ui.unit.dp
 import com.agoro.tv.ui.screens.HEADER_HEIGHT
 import com.agoro.tv.ui.screens.NOTICE_BAR_COST
+import com.agoro.tv.ui.screens.ROW_GAP
 import com.agoro.tv.ui.screens.ROW_HEIGHT
+import com.agoro.tv.ui.screens.STRIP_GAP
 import com.agoro.tv.ui.theme.HEADER_BAND_HEIGHT
 import com.agoro.tv.ui.theme.Space
 import org.junit.Assert.assertTrue
@@ -23,15 +25,29 @@ class GuideBudgetTest {
     /** The 960x540dp canvas the whole app is laid out against. */
     private val canvas = 540.dp
 
-    /** Laid out above the grid alongside the header — see GuideTab's KDoc. */
-    private val strip = 54.dp
+    /**
+     * Laid out above the grid alongside the header.
+     *
+     * WHAT THIS TEST DOES NOT HOLD, stated because the first version of it
+     * implied otherwise. The chip strip's 54dp and the ruler's 36dp are not
+     * constants anywhere: the strip is CategoryItem's vertical padding plus
+     * its type plus [STRIP_GAP], and the ruler is its label line plus a
+     * spacer. Both are composed at layout time and neither can be imported,
+     * so they are written here as the numbers GuideTab's KDoc asserts — which
+     * means raising the chip padding still clips the fourth channel with
+     * every assertion below green.
+     *
+     * What IS held is every term that is a named constant: the band, the
+     * bottom gutter, the header, the notice cost, the row height and both
+     * gaps. Those are the ones a change would actually move.
+     */
+    private val strip = 48.dp + STRIP_GAP
     private val ruler = 36.dp
-    private val headerGap = 6.dp
 
     private val lane = canvas - HEADER_BAND_HEIGHT - Space.gutterVertical
-    private val rowsAvailable = lane - strip - headerGap - ruler - HEADER_HEIGHT
+    private val rowsAvailable = lane - strip - STRIP_GAP - ruler - HEADER_HEIGHT
 
-    private fun rows(n: Int) = ROW_HEIGHT * n + 6.dp * (n - 1)
+    private fun rows(n: Int) = ROW_HEIGHT * n + ROW_GAP * (n - 1)
 
     /**
      * Four channels or it is not a guide. The line GuideTab states, enforced.
@@ -71,7 +87,7 @@ class GuideBudgetTest {
      */
     @Test
     fun `the header cannot grow into the fourth channel`() {
-        val ceiling = lane - strip - headerGap - ruler - rows(4)
+        val ceiling = lane - strip - STRIP_GAP - ruler - rows(4)
         assertTrue(
             "header is ${HEADER_HEIGHT.value}dp, ceiling is ${ceiling.value}dp",
             HEADER_HEIGHT <= ceiling,
@@ -85,7 +101,7 @@ class GuideBudgetTest {
      */
     @Test
     fun `a fifth row does not fit in this lane`() {
-        val headerForFive = lane - strip - headerGap - ruler - rows(5)
+        val headerForFive = lane - strip - STRIP_GAP - ruler - rows(5)
         assertTrue(
             "five rows would need a ${headerForFive.value}dp header, " +
                 "which is under the ${NOTICE_BAR_COST.value}dp notice floor",

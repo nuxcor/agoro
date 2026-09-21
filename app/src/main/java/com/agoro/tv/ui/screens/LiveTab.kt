@@ -206,8 +206,8 @@ internal fun LiveTab(
     // would take the PIN prompt's only door with them.
     //
     // This is the only place it is built. The guide takes it as a parameter.
-    val categories = remember(bundle, favorites, recents, allVisible, lockedIds) {
-        liveCategoryList(bundle, allVisible, favorites, recents, keepWhenEmpty = lockedIds)
+    val categories = remember(bundle, recents, allVisible, lockedIds) {
+        liveCategoryList(bundle, allVisible, recents, keepWhenEmpty = lockedIds)
     }
     // Keyed on the PLAYLIST, which is the identity the old key was groping
     // for. It was the channel count, and a count is not an identity:
@@ -223,18 +223,18 @@ internal fun LiveTab(
     // never chose. The source id separates the two cases: a refresh keeps your
     // place, a different playlist starts fresh.
     val activeSource by vm.activeSource.collectAsState()
-    // The first shelf on offer, said out loud, the way the player's guide
-    // already says it (PlayerGuide, defaultCategoryId).
+    // Nothing chosen yet — see [CATEGORY_NONE]. resolveCategoryId below turns
+    // that into the first shelf on offer, and keeps doing so until the viewer
+    // picks one.
     //
-    // This read CATEGORY_ALL, which is a shelf this app deliberately does not
-    // offer — so resolveCategoryId fell through to categories.first() and Live
-    // opened on whatever happened to be leading: Recent, or News on an install
-    // with no history. The resolved category is the same either way; what was
-    // wrong is that nothing in the code chose it. The initialiser was left
-    // over from the browse tabs, which DO lead with an All chip and open on
-    // it — one idiom written twice, diverging once.
+    // This read CATEGORY_ALL, which worked only by accident: All is a shelf
+    // this app deliberately does not offer, so it was never in the list and
+    // the fallback ran every time. Saying "the first shelf" outright is the
+    // point; resolving it once and storing THAT is not, and is a different
+    // thing entirely — the first composition has no channels yet, so it would
+    // freeze a list that does not have Recent in it.
     var selectedCategory by rememberSaveable(activeSource?.id) {
-        mutableStateOf(defaultCategoryId(categories))
+        mutableStateOf(CATEGORY_NONE)
     }
     // Recent and Favorites come and go as the viewer watches and stars things,
     // so the selection can outlive the category it names.
@@ -342,7 +342,12 @@ internal fun LiveTab(
     GuideTab(
         entryFocusTick = entryFocusTick,
         vm = vm,
-        bundle = bundle,
+        // No bundle: it was the key of the two derivations that moved up here,
+        // and nothing in the guide read it afterwards. ContentBundle is
+        // unstable (it holds Lists), so passing one it does not use made the
+        // whole tab non-skippable — every republish, on every ON_RESUME and
+        // every hourly refresh, recomposed the entire guide for a value it
+        // ignored.
         onPlay = onPlay,
         categoryId = activeCategory,
         onCategoryId = { selectedCategory = it },
@@ -351,6 +356,7 @@ internal fun LiveTab(
         categories = categories,
         channels = channels,
         lockedIds = lockedIds,
+        hasAnyChannels = allVisible.isNotEmpty(),
         onChannelLongPress = { menuChannel = it },
         onOpenSettings = onOpenSettings,
         gridHandle = gridHandle,

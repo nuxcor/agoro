@@ -122,6 +122,42 @@ class FixtureLinesTest {
         assertTrue("the list ends on a heading", lines.lastOrNull() is FixtureLine.Fixture)
     }
 
+    /**
+     * A league the manifest happens to call "Other" must not collide with the
+     * catch-all. Two Header("Other") items measure under one LazyColumn slot
+     * id, which throws out of subcompose — the crash the category strip's key
+     * scheme was rewritten to avoid.
+     */
+    @Test
+    fun `a league named Other cannot collide with the catch-all`() {
+        val claimed = event(OTHER_FIXTURES)
+        val stray = event("")
+        val lines = fixtureLines(listOf(claimed, stray), listOf(OTHER_FIXTURES))
+        val keys = lines.map { line ->
+            when (line) {
+                is FixtureLine.Header -> "h:${line.league}"
+                is FixtureLine.Fixture -> "f:${line.league}:${line.event.streamId}"
+            }
+        }
+        assertEquals("duplicate keys: $keys", keys.size, keys.toSet().size)
+        assertEquals(1, headings(lines).count { it == OTHER_FIXTURES })
+        // And neither fixture is lost to the guard.
+        assertEquals(setOf(claimed, stray), fixtures(lines).toSet())
+    }
+
+    /**
+     * Two fixtures identical in every field but the stream id are two
+     * fixtures. Claiming by value would fold them into one and silently drop a
+     * row — the trap the codebase records for LiveChannel.
+     */
+    @Test
+    fun `fixtures equal in every field but the id are both drawn`() {
+        val a = SportsEvent(1, "Premier League", "Home", "Away", null, false)
+        val b = SportsEvent(2, "Premier League", "Home", "Away", null, false)
+        val lines = fixtureLines(listOf(a, b), listOf("Premier League"))
+        assertEquals(2, fixtures(lines).size)
+    }
+
     @Test
     fun `no fixtures at all produces no lines`() {
         assertTrue(fixtureLines(emptyList(), listOf("Premier League")).isEmpty())

@@ -80,6 +80,25 @@ class CategoryLabelTest {
         assertEquals("Live sport", categoryLabel("live sport"))
     }
 
+    /**
+     * A non-breaking space is a space. Scraped Xtream names carry U+00A0 all
+     * the time, and it is matched by neither `\s` nor `trim()` — so splitting
+     * on the ASCII space alone made the whole rule a silent no-op on exactly
+     * the names it exists for, indistinguishable on screen from not running.
+     */
+    @Test
+    fun `a non-breaking space still separates words`() {
+        assertEquals("Top rated", categoryLabel("Top\u00A0Rated"))
+        assertEquals("Streaming networks", categoryLabel("Streaming\u00A0Networks"))
+    }
+
+    /** Runs of whitespace collapse rather than surviving into the label. */
+    @Test
+    fun `a run of whitespace is one separator`() {
+        assertEquals("Top rated", categoryLabel("Top   Rated"))
+        assertEquals("Top rated", categoryLabel("Top\tRated"))
+    }
+
     /** Nothing to case. The guard exists so the first-word branch can't throw. */
     @Test
     fun `empty and blank names come back untouched`() {

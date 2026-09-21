@@ -47,7 +47,6 @@ import androidx.tv.material3.Text
 import com.agoro.tv.MainViewModel
 import com.agoro.tv.ui.components.LocalArrivalFocusAllowed
 import com.agoro.tv.data.Category
-import com.agoro.tv.data.ContentBundle
 import com.agoro.tv.data.ContentRepository
 import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.TextNorm
@@ -132,6 +131,14 @@ internal val HEADER_HEIGHT = 104.dp
 internal val NOTICE_BAR_COST = 54.dp
 
 /**
+ * Under the category strip, above the header. 6dp, not 10: the gaps above the
+ * grid are channels — this one, the header's and the ruler's together pay for
+ * the four dp per row the guide's raised type costs, so the fourth channel is
+ * still whole at the bottom of the pane. Named so the budget test can hold it.
+ */
+internal val STRIP_GAP = 6.dp
+
+/**
  * The grid view of Live TV. Not a destination of its own: it is one of two ways
  * to look at the same channels, so [categoryId] is owned by the caller and the
  * two views share one filter. They each kept their own before, which meant
@@ -147,7 +154,6 @@ internal val NOTICE_BAR_COST = 54.dp
 fun GuideTab(
     entryFocusTick: Int,
     vm: MainViewModel,
-    bundle: ContentBundle,
     onPlay: () -> Unit,
     categoryId: String,
     onCategoryId: (String) -> Unit,
@@ -171,6 +177,12 @@ fun GuideTab(
     channels: List<LiveChannel>,
     /** The categories a PIN stands in front of — [lockedCategoryIds]. */
     lockedIds: Set<String>,
+    /**
+     * Whether the playlist has any visible live channel at all, as opposed to
+     * none in the SELECTED shelf. The host holds the list; this tab must not
+     * subscribe to it a second time just to ask.
+     */
+    hasAnyChannels: Boolean,
     /** Long-press on a channel cell — the host hangs its context menu here. */
     onChannelLongPress: (LiveChannel) -> Unit = {},
     /** Escape hatch offered when the playlist has no live channels at all. */
@@ -221,7 +233,6 @@ fun GuideTab(
     }
 
 
-    val allChannels by vm.displayChannels.collectAsState()
     val recents by vm.recentChannels.collectAsState()
     // Parental locks, same vocabulary as everywhere else: locked categories
     // show a lock on their chip and ask for the PIN. Their channels are
@@ -257,7 +268,15 @@ fun GuideTab(
     // panel is opened on purpose, closes on the choice, and a list you scroll
     // to find something must not act on every name you pass over on the way.
     // OK selects, and nothing else does.
-    if (allChannels.isEmpty()) {
+    // The HOST's count, not a second subscription to displayChannels.
+    //
+    // Moving the two list builds up to the host was only half of it: this tab
+    // went on collecting the same flow for an isEmpty() check, so every
+    // emission — including the ones that land mid-playback each time a
+    // stream's real quality is learned — still invalidated the whole guide
+    // body and every lambda in it, which is precisely what the parameter KDoc
+    // above claims was moved away. The host already has the list.
+    if (!hasAnyChannels) {
         // The same pane the tab shows when the playlist carries no live
         // streams at all — see [NoLiveChannelsPane]. Two panes twenty lines
         // apart, with two sentences and two button labels, for conditions a
@@ -508,11 +527,7 @@ fun GuideTab(
             // a tab, and a stop at a time control is a press spent on a
             // question they did not ask. See [GuideGrid]'s upFromTopRow.
             modifier = Modifier
-                // 6dp, not 10. The gaps above the grid are channels — this
-                // one, the header's and the ruler's together pay for the four
-                // dp per row the guide's raised type costs, so the fourth
-                // channel is still whole at the bottom of the pane.
-                .padding(bottom = 6.dp)
+                .padding(bottom = STRIP_GAP)
                 // The requester lives on the ROW, not on a chip.
                 //
                 // It used to be attached to the first chip, on the reasoning
@@ -565,10 +580,9 @@ fun GuideTab(
                 val category = (entry as StripEntry.Chip).category
                 val locked = category.id in lockedIds
                 CategoryItem(
-                    // Through [categoryLabel], like every other strip. This
-                    // one was not, so the same shelf read "Streaming Networks"
-                    // here and "Streaming networks" in Movies.
-                    name = categoryLabel(entry.label),
+                    // Already cased — liveCategoryList does it once, for every
+                    // surface that reads the list. See [liveCategoryList].
+                    name = entry.label,
                     selected = category.id == categoryId,
                     onClick = {
                         if (locked) {
