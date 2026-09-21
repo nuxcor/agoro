@@ -172,7 +172,7 @@ SECTIONS_LIVE = [
 LIVE_DESTINATION = {k: ("always_on" if k in ALWAYS_ON else "live") for k,_,_ in SECTIONS_LIVE}
 SECTIONS_VOD = [
     ("NEW_RELEASES","New Releases",False),("BY_GENRE","By Genre",False),
-    ("TOP_RATED","Top Rated",False),("STUDIO","Studio & Streaming",False),
+    ("TOP_RATED","Top picks",False),("STUDIO","Studio & Streaming",False),
     ("COLLECTIONS","Collections",False),("AFRICAN_CINEMA","African Cinema",False),
     ("INTERNATIONAL","International",False),("MUSIC_CONCERTS","Concerts",False),
     ("SPORTS_EVENTS","Sports & Events",False),("FITNESS","Fitness",False),
@@ -252,7 +252,7 @@ VOD_SECTION_MERGE = {
 }
 VOD_SECTIONS_FINAL = [
     ("NEW_RELEASES",   "New Releases",    False),
-    ("TOP_RATED",      "Top Rated",       False),
+    ("TOP_RATED",      "Top picks",       False),
     ("COLLECTIONS",    "Collections",     False),
     ("AFRICAN_CINEMA", "African Cinema",  False),
     ("ALL_MOVIES",     "All Movies",      False),

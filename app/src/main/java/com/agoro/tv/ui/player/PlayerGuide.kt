@@ -50,6 +50,7 @@ import com.agoro.tv.ui.components.rememberProgramDescription
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.ui.components.StatusPane
 import com.agoro.tv.ui.components.rememberClockFormat
+import com.agoro.tv.ui.screens.categoryLabel
 import com.agoro.tv.ui.screens.defaultCategoryId
 import com.agoro.tv.ui.screens.CHANNEL_COLUMN_GAP
 import com.agoro.tv.ui.screens.CHANNEL_COLUMN_WIDTH
@@ -248,7 +249,10 @@ internal fun PlayerGuideOverlay(
         ) {
             items(categories, key = { it.id }) { category ->
                 CategoryItem(
-                    name = category.name,
+                    // Through [categoryLabel], like every other strip — this
+                    // is the same shelf list the browse guide draws, and it
+                    // read in two cases depending on which one you opened.
+                    name = categoryLabel(category.name),
                     selected = category.id == categoryId,
                     onClick = { categoryId = category.id },
                     modifier = Modifier,

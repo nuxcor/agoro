@@ -80,9 +80,16 @@ internal fun ChannelManager(vm: MainViewModel, bundle: ContentBundle, onClose: (
         // inconsistency that reads as a bug. It bit hardest here, where the
         // whole job is travelling a few hundred categories to find one channel,
         // so every name passed over re-filtered the list beside it.
+        // Through the shared filter, not a second copy of it. This screen
+        // wrote its own two-line version — the same two rules [channelsInCategory]
+        // already states — and it was the last caller of the All branch, so
+        // once the live surfaces stopped asking for All that branch had only
+        // tests looking at it. No index and no merged list is passed, which is
+        // deliberate: this screen works on bundle.channels because a hidden
+        // channel has to be listed here or there is no way to unhide one, and
+        // both defaults then resolve to exactly the filter this replaced.
         val channels = remember(bundle, activeCategory) {
-            if (activeCategory == CATEGORY_ALL) bundle.channels
-            else bundle.channels.filter { it.categoryId == activeCategory }
+            channelsInCategory(activeCategory, bundle.channels, emptySet(), emptyList())
         }
         val jump = rememberChannelJump(channels)
         // The Settings list this replaces held focus; without an arrival

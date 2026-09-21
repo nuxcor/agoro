@@ -8,6 +8,7 @@ import com.agoro.tv.ui.screens.CATEGORY_FAVORITES
 import com.agoro.tv.ui.screens.CATEGORY_RECENT
 import com.agoro.tv.ui.screens.LiveCategoryIndex
 import com.agoro.tv.ui.screens.channelsInCategory
+import com.agoro.tv.ui.screens.defaultCategoryId
 import com.agoro.tv.ui.screens.liveCategoryList
 import com.agoro.tv.ui.screens.resolveCategoryId
 import org.junit.Assert.assertEquals
@@ -189,5 +190,78 @@ class LiveCategoriesTest {
                 channelsInCategory(category.id, channels, setOf("http://x/1"), listOf("http://x/2")).isNotEmpty(),
             )
         }
+    }
+
+    /**
+     * Live opens on the first shelf on offer, and says so.
+     *
+     * The browse tab initialised its selection to CATEGORY_ALL — a shelf this
+     * app deliberately does not offer — so resolveCategoryId fell through to
+     * categories.first() and the opening category was whatever happened to be
+     * leading. Same result, chosen by nobody. These pin that the explicit
+     * route and the accidental one agree, so the change is provably a
+     * clarification and not a behaviour change.
+     */
+    @Test
+    fun `the stated default is the one the old fallback produced`() {
+        val offered = liveCategoryList(bundle, channels, emptySet(), emptyList())
+        assertEquals(resolveCategoryId(CATEGORY_ALL, offered), defaultCategoryId(offered))
+        // With history, Recent leads — and both routes still agree.
+        val withRecent = liveCategoryList(bundle, channels, emptySet(), listOf("http://x/2"))
+        assertEquals(CATEGORY_RECENT, defaultCategoryId(withRecent))
+        assertEquals(resolveCategoryId(CATEGORY_ALL, withRecent), defaultCategoryId(withRecent))
+    }
+
+    /** No categories at all: neither route may throw, and neither may invent one. */
+    @Test
+    fun `an empty category list has no default`() {
+        assertEquals("", defaultCategoryId(emptyList()))
+        assertEquals("", resolveCategoryId(CATEGORY_ALL, emptyList()))
+    }
+
+    /**
+     * The browse-everything shelf is never offered. This is the invariant the
+     * default rests on: if All ever came back as a chip, defaultCategoryId
+     * would start returning it and Live would silently open on the whole
+     * catalogue again.
+     */
+    @Test
+    fun `all channels is never offered as a shelf`() {
+        for (recents in listOf(emptyList(), listOf("http://x/2"))) {
+            val offered = liveCategoryList(bundle, channels, setOf("http://x/1"), recents)
+            assertFalse(
+                "All came back as a chip",
+                offered.any { it.id == CATEGORY_ALL },
+            )
+        }
+        // Including the ungated fallback, where the bundle's own list stands in
+        // because nothing matched.
+        val orphan = ContentBundle(
+            liveCategories = listOf(sport, news),
+            channels = listOf(channel("9", "nothing-matches-this")),
+        )
+        assertFalse(
+            "All came back through the ifEmpty fallback",
+            liveCategoryList(orphan, orphan.channels, emptySet(), emptyList())
+                .any { it.id == CATEGORY_ALL },
+        )
+    }
+
+    /**
+     * Manage channels is the one screen that still asks for All, and it now
+     * asks through the shared function rather than its own copy of the filter.
+     * It passes no merged list and no index, so both branches must come back
+     * byte-identical to the two lines it used to run.
+     */
+    @Test
+    fun `the manager's filter and the shared one are the same filter`() {
+        assertEquals(
+            channels,
+            channelsInCategory(CATEGORY_ALL, channels, emptySet(), emptyList()),
+        )
+        assertEquals(
+            channels.filter { it.categoryId == "news" },
+            channelsInCategory("news", channels, emptySet(), emptyList()),
+        )
     }
 }

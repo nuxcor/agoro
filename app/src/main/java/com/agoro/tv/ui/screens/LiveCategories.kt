@@ -124,11 +124,20 @@ internal fun channelsInCategory(
 ): List<LiveChannel> = when (categoryId) {
     // ifEmpty, and not as a formality: allChannelsView is a flowOn hop
     // DOWNSTREAM of displayChannels, so on a cold start there is a window
-    // where the catalogue has arrived but its merge has not. All is the
-    // default selection on all four screens, and the "No live channels" pane
-    // can't cover the gap because it tests displayChannels — which is full.
-    // The unmerged list for one frame beats an empty grid that the entry
-    // focus tick then fires against.
+    // where the catalogue has arrived but its merge has not. The "No live
+    // channels" pane can't cover the gap because it tests displayChannels —
+    // which is full. The unmerged list for one frame beats an empty grid that
+    // the entry focus tick then fires against.
+    //
+    // This used to say All was "the default selection on all four screens",
+    // which stopped being true when the browse-everything shelf came off the
+    // strip. No live surface opens here now — each one opens on the first
+    // shelf on offer (see [defaultCategoryId]).
+    //
+    // [ChannelManager] is the one screen that still asks for All, and asking
+    // is all it does: it passes no merged list, so this branch hands back the
+    // channels it was given. The ifEmpty above is for the callers that DO
+    // pass one.
     CATEGORY_ALL -> allChannels.ifEmpty { channels }
     // Matched on the fallbacks too, not the url alone. [channels] arrives
     // MERGED, so the variant a viewer starred is frequently not in it - it
@@ -194,3 +203,47 @@ internal fun resolveCategoryId(selected: String, categories: List<Category>): St
 /** The first category to show when nothing has been chosen yet. */
 internal fun defaultCategoryId(categories: List<Category>): String =
     categories.firstOrNull()?.id.orEmpty()
+
+/**
+ * A category chip's label, in the app's own sentence case.
+ *
+ * Two strips disagreed with each other on the same shelf: the films said
+ * "Top Rated" and the shows said "Top rated", because the two labels are
+ * written in two places that have never been read side by side. Casing is
+ * decided HERE so they cannot drift again.
+ *
+ * It lived beside the browse strip while those two were the only callers, and
+ * that is exactly how the drift came back: Live's strip and the player's were
+ * never routed through it, so the same shelf read "Streaming Networks" in the
+ * guide and "Streaming networks" in Movies. It belongs in this file for the
+ * reason the rest of this file exists — the category vocabulary is shared, and
+ * a rule kept next to one of its callers is a rule the next caller will miss.
+ *
+ * Only a plain Title-Case word is lowered. Anything carrying a digit
+ * ("24/7"), a short all-caps code ("PPV", "UK", "4K") or a spelling of its
+ * own ("Sci-Fi") is left exactly as it arrived — those are names, and a
+ * rule that cannot tell a name from a shout would turn "PPV & Events" into
+ * "Ppv & events".
+ */
+internal fun categoryLabel(name: String): String {
+    val words = name.trim().split(' ').filter { it.isNotEmpty() }
+    if (words.isEmpty()) return name
+    return words.mapIndexed { index, word ->
+        when {
+            // The first word carries the sentence's capital — given one only
+            // when the whole word is lowercase, so a brand that spells itself
+            // ("iPlayer") is not rewritten into something it is not.
+            index == 0 -> if (word.none { it.isUpperCase() }) {
+                word.replaceFirstChar { it.uppercase() }
+            } else word
+            isPlainTitleCase(word) -> word.lowercase()
+            else -> word
+        }
+    }.joinToString(" ")
+}
+
+private fun isPlainTitleCase(word: String): Boolean =
+    word.length >= 3 &&
+        word[0].isUpperCase() &&
+        word.all { it.isLetter() } &&
+        word.drop(1).none { it.isUpperCase() }

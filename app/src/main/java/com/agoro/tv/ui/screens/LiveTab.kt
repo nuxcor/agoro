@@ -196,6 +196,16 @@ internal fun LiveTab(
     val lockedIds = remember(bundle, pin, unlocked) {
         lockedCategoryIds(bundle) { vm.isLockedCategory(it) }
     }
+    // Built from the list that is GATED on having channels, not from the
+    // bundle's categories: a shelf whose every channel has been hidden used to
+    // keep its chip, and OK on it swapped in an empty grid with no copy in it,
+    // a header that fell back to the word "Guide", and nothing below for DOWN
+    // to land on — so focus stayed on the chip and the press looked like the
+    // app ignoring the remote. Locked categories are the exception the gate
+    // takes: their channels are filtered out until the PIN, and dropping them
+    // would take the PIN prompt's only door with them.
+    //
+    // This is the only place it is built. The guide takes it as a parameter.
     val categories = remember(bundle, favorites, recents, allVisible, lockedIds) {
         liveCategoryList(bundle, allVisible, favorites, recents, keepWhenEmpty = lockedIds)
     }
@@ -213,8 +223,18 @@ internal fun LiveTab(
     // never chose. The source id separates the two cases: a refresh keeps your
     // place, a different playlist starts fresh.
     val activeSource by vm.activeSource.collectAsState()
+    // The first shelf on offer, said out loud, the way the player's guide
+    // already says it (PlayerGuide, defaultCategoryId).
+    //
+    // This read CATEGORY_ALL, which is a shelf this app deliberately does not
+    // offer — so resolveCategoryId fell through to categories.first() and Live
+    // opened on whatever happened to be leading: Recent, or News on an install
+    // with no history. The resolved category is the same either way; what was
+    // wrong is that nothing in the code chose it. The initialiser was left
+    // over from the browse tabs, which DO lead with an All chip and open on
+    // it — one idiom written twice, diverging once.
     var selectedCategory by rememberSaveable(activeSource?.id) {
-        mutableStateOf(CATEGORY_ALL)
+        mutableStateOf(defaultCategoryId(categories))
     }
     // Recent and Favorites come and go as the viewer watches and stars things,
     // so the selection can outlive the category it names.
@@ -326,6 +346,11 @@ internal fun LiveTab(
         onPlay = onPlay,
         categoryId = activeCategory,
         onCategoryId = { selectedCategory = it },
+        // Derived once, here, and handed down. The guide used to build both
+        // of these again from the same inputs — see GuideTab's KDoc.
+        categories = categories,
+        channels = channels,
+        lockedIds = lockedIds,
         onChannelLongPress = { menuChannel = it },
         onOpenSettings = onOpenSettings,
         gridHandle = gridHandle,
@@ -480,13 +505,6 @@ fun CategoryItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth(),
     locked: Boolean = false,
-    /**
-     * Drawn before the name. The strip is a row of filters, so anything in
-     * it that is an ACTION rather than a filter has to say so at a glance —
-     * the browse tabs' "Search" chip is the one that does. Null for a real
-     * category, which is every other call site.
-     */
-    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     // No onBlur. It existed for dwell-select owners to cancel a pending
     // select, and there are none left in the app — the last of them was
     // Manage channels' category column.
@@ -528,13 +546,6 @@ fun CategoryItem(
             // Wider than it is tall, which is what makes a pill read as one.
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
         ) {
-            if (leadingIcon != null) {
-                Icon(
-                    leadingIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
             Text(
                 text = name,
                 style = MaterialTheme.typography.titleSmall,

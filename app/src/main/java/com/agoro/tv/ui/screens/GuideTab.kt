@@ -122,6 +122,26 @@ fun GuideTab(
     onPlay: () -> Unit,
     categoryId: String,
     onCategoryId: (String) -> Unit,
+    /**
+     * The shelves on offer and the channels the selected one holds, both
+     * derived by the host.
+     *
+     * Derived there rather than here because this tab and its host used to
+     * build them SEPARATELY, from identical inputs: two passes of
+     * [liveCategoryList] and two of [channelsInCategory] over a catalogue of
+     * eighteen thousand channels, on every emission of displayChannels — and
+     * that list re-emits each time a stream's real quality is learned, which
+     * happens mid-playback. The host needs its copy anyway (the schedule
+     * sheet and the context menu play from it), so the host is where it is
+     * built and this is where it arrives.
+     *
+     * It is also the rule this file already states about [categoryId]: the
+     * caller owns the filter, and the two views share one.
+     */
+    categories: List<Category>,
+    channels: List<LiveChannel>,
+    /** The categories a PIN stands in front of — [lockedCategoryIds]. */
+    lockedIds: Set<String>,
     /** Long-press on a channel cell — the host hangs its context menu here. */
     onChannelLongPress: (LiveChannel) -> Unit = {},
     /** Escape hatch offered when the playlist has no live channels at all. */
@@ -173,45 +193,17 @@ fun GuideTab(
 
 
     val allChannels by vm.displayChannels.collectAsState()
-    val favorites by vm.favorites.collectAsState()
     val recents by vm.recentChannels.collectAsState()
-    // Parental locks, same vocabulary as everywhere else: locked
-    // categories show a lock on their chip and ask for the PIN. Their
-    // channels are already filtered out of displayChannels, so without
-    // this the chip just opened an empty grid with no explanation.
-    val pin by vm.parentalPin.collectAsState()
-    val unlocked by vm.parentalUnlocked.collectAsState()
+    // Parental locks, same vocabulary as everywhere else: locked categories
+    // show a lock on their chip and ask for the PIN. Their channels are
+    // already filtered out of displayChannels, so without [lockedIds] — which
+    // the host derives and passes in — the chip just opened an empty grid
+    // with no explanation.
     var pinPromptOpen by remember { mutableStateOf(false) }
     // The category the PIN was asked for. Unlocking used to close the prompt
     // and leave the viewer on the category they came from — a typed PIN
     // that opened nothing.
     var pinPendingCategory by remember { mutableStateOf<String?>(null) }
-    val lockedIds = remember(bundle, pin, unlocked) {
-        lockedCategoryIds(bundle) { vm.isLockedCategory(it) }
-    }
-    // Same list and same filtering as the channel view — see
-    // LiveCategories.kt. The caller owns which one is selected.
-    //
-    // The strip is built from the list that is GATED on having channels, not
-    // from the bundle's categories: a shelf whose every channel has been hidden
-    // used to keep its chip, and OK on it swapped in an empty grid with no copy
-    // in it, a header that fell back to the word "Guide", and nothing below for
-    // DOWN to land on — so focus stayed on the chip and the press looked like
-    // the app ignoring the remote. Locked categories are the exception the
-    // gate takes: their channels are filtered out until the PIN, and dropping
-    // them would take the PIN prompt's only door with them.
-    val categories = remember(bundle, favorites, recents, allChannels, lockedIds) {
-        liveCategoryList(bundle, allChannels, favorites, recents, keepWhenEmpty = lockedIds)
-    }
-    val allView by vm.allChannelsView.collectAsState()
-    // A lookup, not a filter over every channel — see LiveCategoryIndex.
-    val byCategory by vm.channelsByCategory.collectAsState()
-    val channels = remember(allChannels, categoryId, favorites, recents, allView, byCategory) {
-        channelsInCategory(
-            categoryId, allChannels, favorites, recents,
-            allChannels = allView, byCategory = byCategory,
-        )
-    }
     // The channel last watched, resolved against THIS list — the one the grid
     // renders. Resolving it upstream from displayChannels was wrong: the All
     // category renders allChannelsView, where duplicate variants are merged
@@ -544,7 +536,10 @@ fun GuideTab(
                 val category = (entry as StripEntry.Chip).category
                 val locked = category.id in lockedIds
                 CategoryItem(
-                    name = entry.label,
+                    // Through [categoryLabel], like every other strip. This
+                    // one was not, so the same shelf read "Streaming Networks"
+                    // here and "Streaming networks" in Movies.
+                    name = categoryLabel(entry.label),
                     selected = category.id == categoryId,
                     onClick = {
                         if (locked) {
@@ -1246,6 +1241,15 @@ internal sealed interface StripEntry {
  * is detected on the id — stable — while what the viewer reads comes from the
  * name. Entries with no territory (All channels, Recent, Favorites) pass
  * through untouched and start no group.
+ *
+ * DORMANT ON THE MANIFEST THAT SHIPS, and that is a configuration, not a
+ * reason to delete this. [StripEntry.Group] needs an id carrying the '|' that
+ * [ManifestCuration] writes for a region which is neither merged nor solo. The
+ * shipped manifest keeps three regions and covers all three — US is merged
+ * (bare section id), UK and AFR are solo (bare region id) — so no id has a '|'
+ * and no heading renders. Keep a fourth region without adding it to either
+ * list and every heading here wakes up. [GuideStripKeyTest] pins both halves
+ * of that, so a later reader does not find this unreachable and take it out.
  */
 internal fun groupByRegion(categories: List<Category>): List<StripEntry> = buildList {
     var lastRegion: String? = null
