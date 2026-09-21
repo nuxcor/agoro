@@ -108,8 +108,8 @@ internal fun PlayerGuideOverlay(
     val bundle = (contentState as? ContentState.Ready)?.bundle ?: ContentBundle()
 
     // Same category vocabulary as Live TV and the mini-guide — LiveCategories.kt.
-    val categories = remember(bundle, allChannels, favorites, recents) {
-        liveCategoryList(bundle, allChannels, favorites, recents)
+    val categories = remember(bundle, allChannels, recents) {
+        liveCategoryList(bundle, allChannels, recents)
     }
     // The first shelf on offer rather than the current zap playlist: the
     // playlist may be a single category, and the guide is where you look beyond
@@ -248,6 +248,7 @@ internal fun PlayerGuideOverlay(
         ) {
             items(categories, key = { it.id }) { category ->
                 CategoryItem(
+                    // Already cased by liveCategoryList, which built this list.
                     name = category.name,
                     selected = category.id == categoryId,
                     onClick = { categoryId = category.id },

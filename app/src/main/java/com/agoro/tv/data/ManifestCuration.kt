@@ -282,6 +282,24 @@ object ManifestCuration {
         )
     }
 
+    /**
+     * Shows keep "Top rated" and films say "Top picks", and the two words are
+     * deliberate rather than drift.
+     *
+     * The series shelf is a MEASURED cut — build_manifest.py files a show
+     * under TOP on `rating_5based >= 4.5`, a threshold picked because 4.0 put
+     * a third of the catalogue in it. It can back the claim.
+     *
+     * The films shelf could not. Its membership was a name match, and three
+     * of the four provider categories it caught are encodes — "TOP MOVIES
+     * BLURAY", "TOP MOVIES 4K DOLBY AUDIO", "TOP KIDS BLURAY" — against one
+     * real chart in "EN - IMDB TOP 250", sorted by nothing. So it is "Top
+     * picks" now: a claim about selection, which is what it is.
+     *
+     * Home makes the same distinction in the other direction and writes it
+     * down — "Highly rated films", a 7.4-8.7 band, NOT "Top films", because
+     * the panel ships a rating with no vote count beside it.
+     */
     private val SERIES_LABELS = mapOf("NEW" to "Recently added", "TOP" to "Top rated", "ALL" to "All series")
     private val SERIES_ORDER = listOf("NEW", "TOP", "ALL")
 

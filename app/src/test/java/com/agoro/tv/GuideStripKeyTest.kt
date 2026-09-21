@@ -84,4 +84,49 @@ class GuideStripKeyTest {
         val entries = groupByRegion(listOf(Category(id = "recent", name = "Recent")))
         assertEquals(0, entries.count { it is com.agoro.tv.ui.screens.StripEntry.Group })
     }
+
+    /**
+     * The shipped manifest draws NO headings, and that is configuration.
+     *
+     * Its three kept regions are covered either way — US is merged, so
+     * ManifestCuration gives its shelves a bare section id; UK and AFR are
+     * solo, so theirs is a bare region id. Neither shape carries the '|' this
+     * function splits on, so every heading is dormant. Pinned because code
+     * that never runs on the shipping build reads as dead, and the next
+     * reader is entitled to know it is not.
+     */
+    @Test
+    fun `the shipped manifest's own shelf ids draw no headings`() {
+        val entries = groupByRegion(
+            listOf(
+                // US, merged: section id, no region half.
+                Category(id = "NEWS", name = "News"),
+                Category(id = "ENTERTAINMENT", name = "Entertainment"),
+                Category(id = "SPORTS", name = "Sports"),
+                // UK and AFR, solo: the territory IS the shelf.
+                Category(id = "UK", name = "UK"),
+                Category(id = "AFR", name = "Africa"),
+            )
+        )
+        assertEquals(0, entries.count { it is com.agoro.tv.ui.screens.StripEntry.Group })
+        assertEquals(5, entries.size)
+    }
+
+    /**
+     * And the condition that wakes them: one kept region in neither the merged
+     * nor the solo list gets "REGION|SECTION" ids, and its heading appears.
+     * Keep this passing and the dormant half above stays honest.
+     */
+    @Test
+    fun `a region that is neither merged nor solo wakes its heading`() {
+        val entries = groupByRegion(
+            listOf(
+                Category(id = "NEWS", name = "News"),
+                Category(id = "CA|NEWS", name = "News · Canada"),
+                Category(id = "CA|SPORTS", name = "Sports · Canada"),
+            )
+        )
+        assertEquals(1, entries.count { it is com.agoro.tv.ui.screens.StripEntry.Group })
+        assertEquals(listOf("News", "CA", "News", "Sports"), entries.map { it.label })
+    }
 }

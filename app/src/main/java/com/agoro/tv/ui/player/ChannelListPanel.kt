@@ -99,11 +99,10 @@ internal fun ChannelListPanel(
     // Third view of the same channels, and it built its own copy of this too.
     // Shared with Live TV and the guide — see LiveCategories.kt — so Recent
     // shows up here as well without being added a third time.
-    val categories = remember(bundle, allChannels, favorites, recents) {
+    val categories = remember(bundle, allChannels, recents) {
         liveCategoryList(
             bundle ?: com.agoro.tv.data.ContentBundle(),
             allChannels,
-            favorites,
             recents,
         )
     }
@@ -266,6 +265,7 @@ internal fun ChannelListPanel(
                                 ),
                             ) {
                                 Text(
+                                    // Already cased by liveCategoryList.
                                     text = category.name,
                                     style = MaterialTheme.typography.titleSmall,
                                     maxLines = 1,

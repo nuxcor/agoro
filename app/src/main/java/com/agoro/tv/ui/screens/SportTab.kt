@@ -287,9 +287,70 @@ internal fun SkeletonBar(
 }
 
 /** One line of the fixture list: a league heading or a fixture under it. */
-private sealed interface FixtureLine {
+internal sealed interface FixtureLine {
     data class Header(val league: String) : FixtureLine
     data class Fixture(val league: String, val event: SportsEvent) : FixtureLine
+}
+
+/**
+ * The fixture list, grouped by league and flattened to one line per row.
+ *
+ * Lifted out of [Fixtures] so the two properties that matter can be held by a
+ * test rather than by reading a composable: leagues come back in the
+ * MANIFEST's order, not the fixture list's, and every fixture appears exactly
+ * once. The second is the one that has bitten — see [OTHER_FIXTURES] below.
+ *
+ * FLATTENED, and that is not a detail. Each league used to be a single item
+ * holding every one of its rows in a Column, so a PPV league carrying 150
+ * fixtures composed 150 Surfaces the moment it scrolled into view. A lazy list
+ * can only be lazy about what it is handed one at a time.
+ */
+internal fun fixtureLines(
+    fixtures: List<SportsEvent>,
+    leagueOrder: List<String>,
+): List<FixtureLine> = buildList {
+    // One pass, grouped, rather than a filter of the whole list per league.
+    // It was fourteen manifest leagues x every fixture on every rebuild, and
+    // upcoming() hands back a fresh list each minute.
+    val byLeague = fixtures.groupBy { it.league }
+    // Claimed by STREAM ID, never by the event itself. SportsEvent is a data
+    // class carrying league, home, away, startMs, live, tierRank, sourceRank
+    // and alternates, so a HashSet of them hashes and compares every field —
+    // and the fold rebuilds those records each minute, which is exactly the
+    // value-equality trap this codebase writes down for LiveChannel ("by id,
+    // never by value"). An id is the identity; the rest is description.
+    val claimed = HashSet<Int>()
+    // Never OTHER_FIXTURES, whatever the manifest calls its leagues. If a
+    // league were named "Other" and any fixture also fell outside every
+    // league, the catch-all below would emit a SECOND Header("Other") — and
+    // the list keys headers on "h:${league}", so two items would measure under
+    // one slot id. That is the IllegalArgumentException out of subcompose that
+    // took Live TV to the launcher when the category strip did it.
+    for (league in leagueOrder.filterNot { it == OTHER_FIXTURES }) {
+        val inLeague = byLeague[league].orEmpty()
+        if (inLeague.isEmpty()) continue
+        add(FixtureLine.Header(league))
+        inLeague.forEach { add(FixtureLine.Fixture(league, it)); claimed.add(it.streamId) }
+    }
+    // Everything no heading claimed, rather than nothing.
+    //
+    // The loop above only ever asked the manifest's own league list, so a
+    // fixture whose competition is not in it fell through every heading and
+    // was never drawn — silently, with no count anywhere saying rows had gone.
+    // That was survivable while every league was inferred from a roster keyed
+    // by the same list, and stopped being survivable the moment a row was
+    // allowed to carry NO competition: "Antwerp vs Club Brugge" is a real
+    // match, and the fix that took the wrong Champions League badge off it
+    // would have taken the whole match off this screen instead.
+    //
+    // "Other", the same word the catalogue strip uses for titles the playlist
+    // never categorised. It says what it is — a fixture we could not name a
+    // competition for — without inventing one.
+    val rest = fixtures.filterNot { it.streamId in claimed }
+    if (rest.isNotEmpty()) {
+        add(FixtureLine.Header(OTHER_FIXTURES))
+        rest.forEach { add(FixtureLine.Fixture(OTHER_FIXTURES, it)) }
+    }
 }
 
 @Composable
@@ -334,44 +395,11 @@ private fun Fixtures(
         return
     }
 
-    // Grouped by league, in the manifest's own order, so the sports a viewer
+    // Grouped by league in the manifest's own order, so the sports a viewer
     // follows sit where they were last time rather than moving with the
-    // fixture list — and FLATTENED, one lazy item per line. Each league used
-    // to be a single item holding every one of its rows in a Column, so a
-    // PPV league carrying 150 fixtures composed 150 Surfaces the moment it
-    // scrolled into view. A lazy list can only be lazy about what it is
-    // handed one at a time.
-    val lines = remember(fixtures, leagueOrder) {
-        buildList {
-            val claimed = HashSet<SportsEvent>()
-            for (league in leagueOrder) {
-                val inLeague = fixtures.filter { it.league == league }
-                if (inLeague.isEmpty()) continue
-                add(FixtureLine.Header(league))
-                inLeague.forEach { add(FixtureLine.Fixture(league, it)); claimed.add(it) }
-            }
-            // Everything no heading claimed, rather than nothing.
-            //
-            // The loop above only ever asked the manifest's own league list,
-            // so a fixture whose competition is not in it fell through every
-            // heading and was never drawn — silently, with no count anywhere
-            // saying rows had gone. That was survivable while every league was
-            // inferred from a roster keyed by the same list, and stopped being
-            // survivable the moment a row was allowed to carry NO competition:
-            // "Antwerp vs Club Brugge" is a real match, and the fix that took
-            // the wrong Champions League badge off it would have taken the
-            // whole match off this screen instead.
-            //
-            // "Other", the same word the catalogue strip uses for titles the
-            // playlist never categorised. It says what it is — a fixture we
-            // could not name a competition for — without inventing one.
-            val rest = fixtures.filterNot { it in claimed }
-            if (rest.isNotEmpty()) {
-                add(FixtureLine.Header(OTHER_FIXTURES))
-                rest.forEach { add(FixtureLine.Fixture(OTHER_FIXTURES, it)) }
-            }
-        }
-    }
+    // fixture list. The grouping itself is [fixtureLines], which is where its
+    // reasoning and its tests live.
+    val lines = remember(fixtures, leagueOrder) { fixtureLines(fixtures, leagueOrder) }
 
     // The list lands seconds after the tab opens — the parse runs behind the
     // catalogue — which is after the shell has given up trying to park focus
@@ -748,7 +776,7 @@ internal fun LiveBadge() {
 }
 
 /** The heading for fixtures no league in the manifest claimed. */
-private const val OTHER_FIXTURES = "Other"
+internal const val OTHER_FIXTURES = "Other"
 
 /**
  * Null — the LIVE badge — for something already running; otherwise how long

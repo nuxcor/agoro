@@ -124,4 +124,38 @@ class ManifestAssetTest {
         val missing = manifest.keptRegions.filterNot { manifest.regionLabels.containsKey(it) }
         assertTrue("territories with no label: $missing", missing.isEmpty())
     }
+
+    /**
+     * No movie shelf claims a rating the panel cannot back.
+     *
+     * TOP_RATED held four provider categories and three of them are ENCODES,
+     * not charts: "TOP MOVIES 4K DOLBY AUDIO", "TOP MOVIES BLURAY" and "TOP
+     * KIDS BLURAY", against one real chart in "EN - IMDB TOP 250". The
+     * membership rule is a name match (build_manifest.py: 'IMDB TOP' in u or
+     * u.startswith('TOP MOVIES') or 'TOP KIDS' in u) and it sorts by nothing,
+     * so the shelf was labelled for a measurement it never made.
+     *
+     * Home makes the opposite call about the same films and writes its reason
+     * down — "Highly rated films", a 7.4-8.7 band, NOT "Top films", because
+     * the panel ships a rating with no vote count beside it. The two shelves
+     * are different rules, so they must not wear one claim; this keeps the
+     * unmeasured one from taking the measured one's words back.
+     */
+    @Test
+    fun `no shelf claims a rating the panel cannot back`() {
+        // Both axes, not just movies. The first version of this filtered
+        // sections.movies alone, which would have let the same unbacked claim
+        // reappear on a live shelf and said nothing.
+        val claim = Regex("(?i)\\btop[ _-]?rated\\b")
+        val offenders = (manifest.sections.movies + manifest.sections.live)
+            .map { it.label }
+            .filter { claim.containsMatchIn(it) }
+        assertTrue(
+            "shelves claiming a rating the membership rule never applies: $offenders. " +
+                "Series keeps 'Top rated' because it is a measured cut " +
+                "(rating_5based >= 4.5, in build_manifest.py) and is labelled in " +
+                "Kotlin, not here; a manifest section is not.",
+            offenders.isEmpty(),
+        )
+    }
 }

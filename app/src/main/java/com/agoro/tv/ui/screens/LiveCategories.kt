@@ -27,6 +27,29 @@ const val CATEGORY_FAVORITES = "__fav__"
 const val CATEGORY_RECENT = "__recent__"
 
 /**
+ * Nothing chosen yet. Not a category — the absence of one.
+ *
+ * It has to be an id no category can ever have, and that is the whole job.
+ * [resolveCategoryId] falls through to the first shelf on offer for any id it
+ * does not recognise, so a surface holding this one keeps TRACKING the list as
+ * it fills, and stops the moment the viewer picks something real.
+ *
+ * That matters because the list arrives in two stages. displayChannels is a
+ * stateIn with an empty initial value, so the first composition sees no
+ * channels at all, [liveCategoryList] gates every shelf on having some, and
+ * its ifEmpty fallback hands back the ungated bundle list with no Recent chip
+ * in it. Seconds later the real list lands and Recent appears at the front.
+ *
+ * So a surface that RESOLVES the default once — `mutableStateOf(
+ * defaultCategoryId(categories))` inside a rememberSaveable — freezes
+ * whatever that first, channel-less composition happened to produce, and
+ * because that id is a real one resolveCategoryId then keeps it for good.
+ * Live opened on News instead of on the channel you were last watching. This
+ * sentinel is how the default stays a default until it is displaced.
+ */
+const val CATEGORY_NONE = ""
+
+/**
  * The categories to offer, given what the playlist has and what the viewer has
  * done. Favorites and Recent appear only once they hold something: an empty
  * shortcut is a dead end that still costs a D-pad press to skip.
@@ -34,7 +57,11 @@ const val CATEGORY_RECENT = "__recent__"
 internal fun liveCategoryList(
     bundle: ContentBundle,
     channels: List<LiveChannel>,
-    favorites: Set<String>,
+    // No `favorites`. There is no Favorites chip (see below), so this list has
+    // never depended on which channels are starred — but the parameter stayed,
+    // and all three call sites keyed their remember on it. Starring one
+    // channel re-ran the whole scan over every visible channel, three times,
+    // on the main thread, for a list that could not change.
     recents: List<String>,
     /**
      * Ids to keep even when [channels] holds none of theirs. Exactly one
@@ -74,7 +101,18 @@ internal fun liveCategoryList(
     // its own category list doesn't name. The gate would then leave no chips
     // and nothing for [resolveCategoryId] to fall back to, which is a worse
     // screen than the one this fixes, so the ungated list stands in.
-    addAll(offered.ifEmpty { bundle.liveCategories })
+    //
+    // Cased HERE, once, and this is the only place any live surface should do
+    // it. Moving [categoryLabel] into this file was not enough on its own: the
+    // rule still had to be REMEMBERED by every display site, which is the
+    // exact mechanism that produced the drift, and four of them promptly
+    // forgot — the guide's own header printed "Streaming Networks" in the
+    // corner while the chip six lines below it read "Streaming networks", on
+    // one screen at once. Six surfaces read this list (the guide's chips and
+    // header, the player's guide chips and header, the player's channel list
+    // and its heading); casing the Category as it is BUILT makes all six right
+    // without any of them knowing the rule exists.
+    addAll(offered.ifEmpty { bundle.liveCategories }.map { it.copy(name = categoryLabel(it.name)) })
 }
 
 /**
@@ -124,11 +162,20 @@ internal fun channelsInCategory(
 ): List<LiveChannel> = when (categoryId) {
     // ifEmpty, and not as a formality: allChannelsView is a flowOn hop
     // DOWNSTREAM of displayChannels, so on a cold start there is a window
-    // where the catalogue has arrived but its merge has not. All is the
-    // default selection on all four screens, and the "No live channels" pane
-    // can't cover the gap because it tests displayChannels — which is full.
-    // The unmerged list for one frame beats an empty grid that the entry
-    // focus tick then fires against.
+    // where the catalogue has arrived but its merge has not. The "No live
+    // channels" pane can't cover the gap because it tests displayChannels —
+    // which is full. The unmerged list for one frame beats an empty grid that
+    // the entry focus tick then fires against.
+    //
+    // This used to say All was "the default selection on all four screens",
+    // which stopped being true when the browse-everything shelf came off the
+    // strip. No live surface opens here now — each one opens on the first
+    // shelf on offer (see [defaultCategoryId]).
+    //
+    // [ChannelManager] is the one screen that still asks for All, and asking
+    // is all it does: it passes no merged list, so this branch hands back the
+    // channels it was given. The ifEmpty above is for the callers that DO
+    // pass one.
     CATEGORY_ALL -> allChannels.ifEmpty { channels }
     // Matched on the fallbacks too, not the url alone. [channels] arrives
     // MERGED, so the variant a viewer starred is frequently not in it - it
@@ -194,3 +241,59 @@ internal fun resolveCategoryId(selected: String, categories: List<Category>): St
 /** The first category to show when nothing has been chosen yet. */
 internal fun defaultCategoryId(categories: List<Category>): String =
     categories.firstOrNull()?.id.orEmpty()
+
+/**
+ * A category chip's label, in the app's own sentence case.
+ *
+ * Two strips disagreed with each other on the same shelf: the films said
+ * "Top Rated" and the shows said "Top rated", because the two labels are
+ * written in two places that have never been read side by side. Casing is
+ * decided HERE so they cannot drift again.
+ *
+ * It lived beside the browse strip while those two were the only callers, and
+ * that is exactly how the drift came back: Live's strip and the player's were
+ * never routed through it, so the same shelf read "Streaming Networks" in the
+ * guide and "Streaming networks" in Movies. It belongs in this file for the
+ * reason the rest of this file exists — the category vocabulary is shared, and
+ * a rule kept next to one of its callers is a rule the next caller will miss.
+ *
+ * Only a plain Title-Case word is lowered. Anything carrying a digit
+ * ("24/7"), a short all-caps code ("PPV", "UK", "4K") or a spelling of its
+ * own ("Sci-Fi") is left exactly as it arrived — those are names, and a
+ * rule that cannot tell a name from a shout would turn "PPV & Events" into
+ * "Ppv & events".
+ */
+/**
+ * Any run of whitespace, and the non-breaking space with it.
+ *
+ * Splitting on the ASCII space alone was a silent no-op on the names that
+ * most need this: scraped Xtream category names routinely carry U+00A0, which
+ * is not matched by \s and is not removed by trim(). "Top\u00A0Rated" came
+ * through as a single 'word', failed the all-letters test, and kept the
+ * provider's casing — indistinguishable on screen from the rule simply not
+ * running.
+ */
+private val WHITESPACE = Regex("[\\s\\u00A0]+")
+
+internal fun categoryLabel(name: String): String {
+    val words = name.trim().split(WHITESPACE).filter { it.isNotEmpty() }
+    if (words.isEmpty()) return name
+    return words.mapIndexed { index, word ->
+        when {
+            // The first word carries the sentence's capital — given one only
+            // when the whole word is lowercase, so a brand that spells itself
+            // ("iPlayer") is not rewritten into something it is not.
+            index == 0 -> if (word.none { it.isUpperCase() }) {
+                word.replaceFirstChar { it.uppercase() }
+            } else word
+            isPlainTitleCase(word) -> word.lowercase()
+            else -> word
+        }
+    }.joinToString(" ")
+}
+
+private fun isPlainTitleCase(word: String): Boolean =
+    word.length >= 3 &&
+        word[0].isUpperCase() &&
+        word.all { it.isLetter() } &&
+        word.drop(1).none { it.isUpperCase() }

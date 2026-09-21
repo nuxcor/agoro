@@ -196,8 +196,18 @@ internal fun LiveTab(
     val lockedIds = remember(bundle, pin, unlocked) {
         lockedCategoryIds(bundle) { vm.isLockedCategory(it) }
     }
-    val categories = remember(bundle, favorites, recents, allVisible, lockedIds) {
-        liveCategoryList(bundle, allVisible, favorites, recents, keepWhenEmpty = lockedIds)
+    // Built from the list that is GATED on having channels, not from the
+    // bundle's categories: a shelf whose every channel has been hidden used to
+    // keep its chip, and OK on it swapped in an empty grid with no copy in it,
+    // a header that fell back to the word "Guide", and nothing below for DOWN
+    // to land on — so focus stayed on the chip and the press looked like the
+    // app ignoring the remote. Locked categories are the exception the gate
+    // takes: their channels are filtered out until the PIN, and dropping them
+    // would take the PIN prompt's only door with them.
+    //
+    // This is the only place it is built. The guide takes it as a parameter.
+    val categories = remember(bundle, recents, allVisible, lockedIds) {
+        liveCategoryList(bundle, allVisible, recents, keepWhenEmpty = lockedIds)
     }
     // Keyed on the PLAYLIST, which is the identity the old key was groping
     // for. It was the channel count, and a count is not an identity:
@@ -213,8 +223,18 @@ internal fun LiveTab(
     // never chose. The source id separates the two cases: a refresh keeps your
     // place, a different playlist starts fresh.
     val activeSource by vm.activeSource.collectAsState()
+    // Nothing chosen yet — see [CATEGORY_NONE]. resolveCategoryId below turns
+    // that into the first shelf on offer, and keeps doing so until the viewer
+    // picks one.
+    //
+    // This read CATEGORY_ALL, which worked only by accident: All is a shelf
+    // this app deliberately does not offer, so it was never in the list and
+    // the fallback ran every time. Saying "the first shelf" outright is the
+    // point; resolving it once and storing THAT is not, and is a different
+    // thing entirely — the first composition has no channels yet, so it would
+    // freeze a list that does not have Recent in it.
     var selectedCategory by rememberSaveable(activeSource?.id) {
-        mutableStateOf(CATEGORY_ALL)
+        mutableStateOf(CATEGORY_NONE)
     }
     // Recent and Favorites come and go as the viewer watches and stars things,
     // so the selection can outlive the category it names.
@@ -322,10 +342,21 @@ internal fun LiveTab(
     GuideTab(
         entryFocusTick = entryFocusTick,
         vm = vm,
-        bundle = bundle,
+        // No bundle: it was the key of the two derivations that moved up here,
+        // and nothing in the guide read it afterwards. ContentBundle is
+        // unstable (it holds Lists), so passing one it does not use made the
+        // whole tab non-skippable — every republish, on every ON_RESUME and
+        // every hourly refresh, recomposed the entire guide for a value it
+        // ignored.
         onPlay = onPlay,
         categoryId = activeCategory,
         onCategoryId = { selectedCategory = it },
+        // Derived once, here, and handed down. The guide used to build both
+        // of these again from the same inputs — see GuideTab's KDoc.
+        categories = categories,
+        channels = channels,
+        lockedIds = lockedIds,
+        hasAnyChannels = allVisible.isNotEmpty(),
         onChannelLongPress = { menuChannel = it },
         onOpenSettings = onOpenSettings,
         gridHandle = gridHandle,
@@ -480,13 +511,6 @@ fun CategoryItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth(),
     locked: Boolean = false,
-    /**
-     * Drawn before the name. The strip is a row of filters, so anything in
-     * it that is an ACTION rather than a filter has to say so at a glance —
-     * the browse tabs' "Search" chip is the one that does. Null for a real
-     * category, which is every other call site.
-     */
-    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     // No onBlur. It existed for dwell-select owners to cancel a pending
     // select, and there are none left in the app — the last of them was
     // Manage channels' category column.
@@ -528,13 +552,6 @@ fun CategoryItem(
             // Wider than it is tall, which is what makes a pill read as one.
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
         ) {
-            if (leadingIcon != null) {
-                Icon(
-                    leadingIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
             Text(
                 text = name,
                 style = MaterialTheme.typography.titleSmall,

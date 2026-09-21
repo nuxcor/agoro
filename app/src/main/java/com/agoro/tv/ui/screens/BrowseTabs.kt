@@ -178,43 +178,6 @@ private val ALL_TITLES_SHELF =
 private fun List<Category>.withoutAllShelf(): List<Category> =
     filterNot { ALL_TITLES_SHELF.matches(it.name.trim()) }
 
-/**
- * A category chip's label, in the app's own sentence case.
- *
- * The two strips disagreed with each other on the same shelf: the films said
- * "Top Rated" and the shows said "Top rated", because the two labels are
- * written in two places that have never been read side by side. Casing is
- * decided HERE, where both strips are drawn, so they cannot drift again.
- *
- * Only a plain Title-Case word is lowered. Anything carrying a digit
- * ("24/7"), a short all-caps code ("PPV", "UK", "4K") or a spelling of its
- * own ("Sci-Fi") is left exactly as it arrived — those are names, and a
- * rule that cannot tell a name from a shout would turn "PPV & Events" into
- * "Ppv & events".
- */
-internal fun categoryLabel(name: String): String {
-    val words = name.trim().split(' ').filter { it.isNotEmpty() }
-    if (words.isEmpty()) return name
-    return words.mapIndexed { index, word ->
-        when {
-            // The first word carries the sentence's capital — given one only
-            // when the whole word is lowercase, so a brand that spells itself
-            // ("iPlayer") is not rewritten into something it is not.
-            index == 0 -> if (word.none { it.isUpperCase() }) {
-                word.replaceFirstChar { it.uppercase() }
-            } else word
-            isPlainTitleCase(word) -> word.lowercase()
-            else -> word
-        }
-    }.joinToString(" ")
-}
-
-private fun isPlainTitleCase(word: String): Boolean =
-    word.length >= 3 &&
-        word[0].isUpperCase() &&
-        word.all { it.isLetter() } &&
-        word.drop(1).none { it.isUpperCase() }
-
 /** One spelling for the shortcut, so the duplicate check can't drift from it. */
 private const val VOD_NEW_LABEL = "Recently added"
 

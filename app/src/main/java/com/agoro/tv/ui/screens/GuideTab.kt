@@ -47,7 +47,6 @@ import androidx.tv.material3.Text
 import com.agoro.tv.MainViewModel
 import com.agoro.tv.ui.components.LocalArrivalFocusAllowed
 import com.agoro.tv.data.Category
-import com.agoro.tv.data.ContentBundle
 import com.agoro.tv.data.ContentRepository
 import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.TextNorm
@@ -92,15 +91,52 @@ import com.agoro.tv.data.answersTo
  * A guide showing fewer than four channels stops being a guide, which is why
  * the rows win this trade and why nothing above the grid may grow without
  * something else above it shrinking.
+ *
+ * WHAT A FIFTH ROW WOULD COST, written down because it gets asked:
+ *
+ *     rows available = 430 - 54 (strip) - 6 (gap) - 36 (ruler) - header
+ *                    = 334 - header
+ *     four rows  4x52 + 3x6 = 226  ->  header <= 108   (this is 104)
+ *     five rows  5x52 + 4x6 = 284  ->  header <=  50
+ *
+ * So a fifth channel costs 54dp, and there are only three places to find it.
+ *
+ * Dropping the synopsis for a 50dp header DOES NOT WORK, and the arithmetic
+ * says so twice. 50 does not even hold the title and the time line (32 + 2 +
+ * 20 = 54), so the title would have to come down a step in the one place a
+ * programme's full name is legible at all — the grid cell can only truncate
+ * it. And [NOTICE_BAR_COST] is 54: the notice path is `HEADER_HEIGHT -
+ * NOTICE_BAR_COST`, which at a 50dp header is MINUS four, on the routine case
+ * of a playlist whose XMLTV 404s. [GuideBudgetTest] holds that floor.
+ *
+ * Shrinking the rows does not work either — GuideGrid's ROW_HEIGHT is spent
+ * exactly, and 46dp clips the time line.
+ *
+ * The only route that does not pay for the row out of the header's words is
+ * to spend the vertical gutter the way this tab already spends the horizontal
+ * one (see the spendGutter call below): a 462dp lane gives five rows at an
+ * 82dp header, which still holds a full title, the time and one line of
+ * synopsis. Its cost is that the bottom row sits in the TV-safe margin, and
+ * Space.gutter's own note records a Sony Bravia clipping at 48dp — so the row
+ * this would add is exactly the row a cropping panel eats. It needs hardware
+ * before it is worth anything, which is why four still stands.
  */
-private val HEADER_HEIGHT = 104.dp
+internal val HEADER_HEIGHT = 104.dp
 
 /**
  * What [GuideNoticeBar] costs the header when it is up: its own 44dp plus the
  * 10dp spacer under it. Charged to the header rather than to the grid, so the
  * guide keeps four channels on the screen where the notice matters most.
  */
-private val NOTICE_BAR_COST = 54.dp
+internal val NOTICE_BAR_COST = 54.dp
+
+/**
+ * Under the category strip, above the header. 6dp, not 10: the gaps above the
+ * grid are channels — this one, the header's and the ruler's together pay for
+ * the four dp per row the guide's raised type costs, so the fourth channel is
+ * still whole at the bottom of the pane. Named so the budget test can hold it.
+ */
+internal val STRIP_GAP = 6.dp
 
 /**
  * The grid view of Live TV. Not a destination of its own: it is one of two ways
@@ -118,10 +154,35 @@ private val NOTICE_BAR_COST = 54.dp
 fun GuideTab(
     entryFocusTick: Int,
     vm: MainViewModel,
-    bundle: ContentBundle,
     onPlay: () -> Unit,
     categoryId: String,
     onCategoryId: (String) -> Unit,
+    /**
+     * The shelves on offer and the channels the selected one holds, both
+     * derived by the host.
+     *
+     * Derived there rather than here because this tab and its host used to
+     * build them SEPARATELY, from identical inputs: two passes of
+     * [liveCategoryList] and two of [channelsInCategory] over a catalogue of
+     * eighteen thousand channels, on every emission of displayChannels — and
+     * that list re-emits each time a stream's real quality is learned, which
+     * happens mid-playback. The host needs its copy anyway (the schedule
+     * sheet and the context menu play from it), so the host is where it is
+     * built and this is where it arrives.
+     *
+     * It is also the rule this file already states about [categoryId]: the
+     * caller owns the filter, and the two views share one.
+     */
+    categories: List<Category>,
+    channels: List<LiveChannel>,
+    /** The categories a PIN stands in front of — [lockedCategoryIds]. */
+    lockedIds: Set<String>,
+    /**
+     * Whether the playlist has any visible live channel at all, as opposed to
+     * none in the SELECTED shelf. The host holds the list; this tab must not
+     * subscribe to it a second time just to ask.
+     */
+    hasAnyChannels: Boolean,
     /** Long-press on a channel cell — the host hangs its context menu here. */
     onChannelLongPress: (LiveChannel) -> Unit = {},
     /** Escape hatch offered when the playlist has no live channels at all. */
@@ -172,46 +233,17 @@ fun GuideTab(
     }
 
 
-    val allChannels by vm.displayChannels.collectAsState()
-    val favorites by vm.favorites.collectAsState()
     val recents by vm.recentChannels.collectAsState()
-    // Parental locks, same vocabulary as everywhere else: locked
-    // categories show a lock on their chip and ask for the PIN. Their
-    // channels are already filtered out of displayChannels, so without
-    // this the chip just opened an empty grid with no explanation.
-    val pin by vm.parentalPin.collectAsState()
-    val unlocked by vm.parentalUnlocked.collectAsState()
+    // Parental locks, same vocabulary as everywhere else: locked categories
+    // show a lock on their chip and ask for the PIN. Their channels are
+    // already filtered out of displayChannels, so without [lockedIds] — which
+    // the host derives and passes in — the chip just opened an empty grid
+    // with no explanation.
     var pinPromptOpen by remember { mutableStateOf(false) }
     // The category the PIN was asked for. Unlocking used to close the prompt
     // and leave the viewer on the category they came from — a typed PIN
     // that opened nothing.
     var pinPendingCategory by remember { mutableStateOf<String?>(null) }
-    val lockedIds = remember(bundle, pin, unlocked) {
-        lockedCategoryIds(bundle) { vm.isLockedCategory(it) }
-    }
-    // Same list and same filtering as the channel view — see
-    // LiveCategories.kt. The caller owns which one is selected.
-    //
-    // The strip is built from the list that is GATED on having channels, not
-    // from the bundle's categories: a shelf whose every channel has been hidden
-    // used to keep its chip, and OK on it swapped in an empty grid with no copy
-    // in it, a header that fell back to the word "Guide", and nothing below for
-    // DOWN to land on — so focus stayed on the chip and the press looked like
-    // the app ignoring the remote. Locked categories are the exception the
-    // gate takes: their channels are filtered out until the PIN, and dropping
-    // them would take the PIN prompt's only door with them.
-    val categories = remember(bundle, favorites, recents, allChannels, lockedIds) {
-        liveCategoryList(bundle, allChannels, favorites, recents, keepWhenEmpty = lockedIds)
-    }
-    val allView by vm.allChannelsView.collectAsState()
-    // A lookup, not a filter over every channel — see LiveCategoryIndex.
-    val byCategory by vm.channelsByCategory.collectAsState()
-    val channels = remember(allChannels, categoryId, favorites, recents, allView, byCategory) {
-        channelsInCategory(
-            categoryId, allChannels, favorites, recents,
-            allChannels = allView, byCategory = byCategory,
-        )
-    }
     // The channel last watched, resolved against THIS list — the one the grid
     // renders. Resolving it upstream from displayChannels was wrong: the All
     // category renders allChannelsView, where duplicate variants are merged
@@ -236,7 +268,15 @@ fun GuideTab(
     // panel is opened on purpose, closes on the choice, and a list you scroll
     // to find something must not act on every name you pass over on the way.
     // OK selects, and nothing else does.
-    if (allChannels.isEmpty()) {
+    // The HOST's count, not a second subscription to displayChannels.
+    //
+    // Moving the two list builds up to the host was only half of it: this tab
+    // went on collecting the same flow for an isEmpty() check, so every
+    // emission — including the ones that land mid-playback each time a
+    // stream's real quality is learned — still invalidated the whole guide
+    // body and every lambda in it, which is precisely what the parameter KDoc
+    // above claims was moved away. The host already has the list.
+    if (!hasAnyChannels) {
         // The same pane the tab shows when the playlist carries no live
         // streams at all — see [NoLiveChannelsPane]. Two panes twenty lines
         // apart, with two sentences and two button labels, for conditions a
@@ -487,11 +527,7 @@ fun GuideTab(
             // a tab, and a stop at a time control is a press spent on a
             // question they did not ask. See [GuideGrid]'s upFromTopRow.
             modifier = Modifier
-                // 6dp, not 10. The gaps above the grid are channels — this
-                // one, the header's and the ruler's together pay for the four
-                // dp per row the guide's raised type costs, so the fourth
-                // channel is still whole at the bottom of the pane.
-                .padding(bottom = 6.dp)
+                .padding(bottom = STRIP_GAP)
                 // The requester lives on the ROW, not on a chip.
                 //
                 // It used to be attached to the first chip, on the reasoning
@@ -544,6 +580,8 @@ fun GuideTab(
                 val category = (entry as StripEntry.Chip).category
                 val locked = category.id in lockedIds
                 CategoryItem(
+                    // Already cased — liveCategoryList does it once, for every
+                    // surface that reads the list. See [liveCategoryList].
                     name = entry.label,
                     selected = category.id == categoryId,
                     onClick = {
@@ -1246,6 +1284,15 @@ internal sealed interface StripEntry {
  * is detected on the id — stable — while what the viewer reads comes from the
  * name. Entries with no territory (All channels, Recent, Favorites) pass
  * through untouched and start no group.
+ *
+ * DORMANT ON THE MANIFEST THAT SHIPS, and that is a configuration, not a
+ * reason to delete this. [StripEntry.Group] needs an id carrying the '|' that
+ * [ManifestCuration] writes for a region which is neither merged nor solo. The
+ * shipped manifest keeps three regions and covers all three — US is merged
+ * (bare section id), UK and AFR are solo (bare region id) — so no id has a '|'
+ * and no heading renders. Keep a fourth region without adding it to either
+ * list and every heading here wakes up. [GuideStripKeyTest] pins both halves
+ * of that, so a later reader does not find this unreachable and take it out.
  */
 internal fun groupByRegion(categories: List<Category>): List<StripEntry> = buildList {
     var lastRegion: String? = null
