@@ -534,6 +534,38 @@ internal fun SettingsTab(
                         color = NuxColors.OnSurfaceDim,
                     )
                 }
+                // Whether the catalogue on screen was curated at all.
+                //
+                // ManifestCuration is gated on the shipped manifest naming the
+                // provider this build dials, and when that gate says no it says
+                // it in complete silence: no error, no toast, no log. The
+                // catalogue simply arrives raw — the provider's 18,780 channels
+                // under the provider's own shelf names, re-streams and separator
+                // rows and all — and the only symptom is a viewer saying there
+                // is a lot of junk. That has happened, and it took reading the
+                // manifest against the build to find it.
+                //
+                // Present ONLY when curation did not run, for the same reason
+                // the line above is absent after a clean shutdown: this is a
+                // fault report, and a pane that reports "working normally" on
+                // every launch teaches a viewer to stop reading it.
+                //
+                // manifestStamp is the bundle's own record of the manifest that
+                // curated it — null means nothing did. See ContentBundle.
+                // shownBundle, not bundle: the live one goes null for a
+                // frame during a refresh, and a fault line that blinks out
+                // and back reads as the fault coming and going.
+                if (shownBundle != null && shownBundle.manifestStamp == null) {
+                    Spacer(Modifier.height(Space.xs))
+                    Text(
+                        text = "Catalogue not curated — showing the provider's " +
+                            "own channel list. Shelves, hidden channels and " +
+                            "artwork are all off.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        softWrap = true,
+                        color = NuxColors.OnSurfaceDim,
+                    )
+                }
                 // Wraps rather than clipping: an update line carries a version
                 // and a size, an error line carries a whole sentence, and on a
                 // narrow pane either can outrun the width. Nothing below this

@@ -637,12 +637,14 @@ class ContentRepository(context: Context) {
     suspend fun schedule(): Schedule? = schedules.load()
 
     private fun manifestApplies(source: PlaylistSource, manifest: CatalogueManifest): Boolean {
-        val host = manifest.provider.host.takeIf { it.isNotBlank() } ?: return false
         val sourceHost = when (source) {
             is PlaylistSource.Xtream -> source.serverUrl
             is PlaylistSource.M3u -> source.url
         }
-        return sourceHost.contains(host, ignoreCase = true)
+        // The rule itself is in ProviderMove.kt, beside followProviderHost —
+        // the two halves of "which provider is this build for" belong
+        // together, and the comparison needs to be reachable from a test.
+        return curationApplies(sourceHost, manifest.provider.host)
     }
 
     private suspend fun fetchRaw(source: PlaylistSource): ContentBundle = when (source) {
