@@ -77,9 +77,9 @@ fun HomeScreen(
      *
      * Search used to be reachable only from Home's pill, so "Back goes Home"
      * and "Back goes where you came from" were the same sentence. They are
-     * not any more — the browse strips have a Search chip and the remote's
-     * search key opens it from anywhere — and sending a viewer who searched
-     * from Shows back to Home loses them the shelf they were standing in.
+     * not any more — Search is a tab in the top bar and the remote's search
+     * key opens it from anywhere — and sending a viewer who searched from
+     * Shows back to Home loses them the shelf they were standing in.
      */
     var searchOrigin by rememberSaveable { mutableStateOf(HomeTab.Home) }
     val openSearch = {

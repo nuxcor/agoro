@@ -768,4 +768,41 @@ class HomeRowsTest {
         assertEquals("★ 0.0", ratingChip(0.0))
         assertEquals("★ 6.8", ratingChip(6.84))
     }
+
+
+    /**
+     * Hiding a title pulls the next one up rather than leaving a hole.
+     *
+     * The shelf cuts to twenty, and the hidden-title filter used to run after
+     * that cut — so "Not interested" on a Recently added card shrank the row
+     * to 19 beside shelves of 24, with the 21st-newest title sitting right
+     * behind it. The existing test for this used four titles, well under the
+     * limit, which is exactly why it never saw it.
+     */
+    @Test
+    fun `hiding a recently added title is backfilled from the catalogue`() {
+        val movies = (1..30).map {
+            Movie(
+                id = "$it", name = "Film $it", poster = null,
+                url = "http://x/movie/$it", categoryId = null,
+                addedMs = 1_000_000L + it,
+            )
+        }
+        val full = com.agoro.tv.ui.screens.buildRecentlyAdded(movies, emptyList())
+        assertEquals(20, full.size)
+        val hiddenKey = (full.first() as com.agoro.tv.ui.screens.CatalogCard.MovieCard)
+            .let { com.agoro.tv.ui.screens.movieHomeKey(it.movie) }
+
+        val after = com.agoro.tv.ui.screens.buildRecentlyAdded(
+            movies, emptyList(), hidden = setOf(hiddenKey),
+        )
+        assertEquals("the row stays full", 20, after.size)
+        assertTrue(
+            "the hidden title is gone",
+            after.none {
+                it is com.agoro.tv.ui.screens.CatalogCard.MovieCard &&
+                    com.agoro.tv.ui.screens.movieHomeKey(it.movie) == hiddenKey
+            },
+        )
+    }
 }

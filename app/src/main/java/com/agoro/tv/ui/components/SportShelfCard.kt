@@ -141,20 +141,7 @@ fun SportShelfCard(
                     Crest(event.awayCrest, event.away)
                 }
                 if (progress != null && progress > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .background(Color.White.copy(alpha = 0.25f)),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(progress)
-                                .background(NuxColors.Primary),
-                        )
-                    }
+                    ProgressTrack(progress, Modifier.align(Alignment.BottomStart))
                 }
             }
         }

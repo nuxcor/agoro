@@ -448,20 +448,7 @@ fun PosterCard(
                         .aspectRatio(2f / 3f),
                 )
                 if (progress != null && progress > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .background(Color.White.copy(alpha = 0.25f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(progress.coerceIn(0f, 1f))
-                                .background(NuxColors.Primary)
-                        )
-                    }
+                    ProgressTrack(progress, Modifier.align(Alignment.BottomStart))
                 }
             }
             // The ROW is unconditional once there is a year; only the digits
@@ -680,20 +667,7 @@ fun WideItem(
                 }
                 if (progress != null && progress > 0f) {
                     Spacer(Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(NuxShape.Track)
-                            .background(Color.White.copy(alpha = 0.2f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(progress.coerceIn(0f, 1f))
-                                .background(NuxColors.Primary)
-                        )
-                    }
+                    ProgressTrack(progress, height = 3.dp)
                 }
             }
             if (badge != null) {
@@ -803,13 +777,12 @@ fun PinPrompt(
                 singleLine = true,
                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                 textStyle = MaterialTheme.typography.titleMedium,
-                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = NuxColors.OnSurface,
-                    unfocusedTextColor = NuxColors.OnSurface,
-                    focusedBorderColor = NuxColors.Primary,
-                    unfocusedBorderColor = NuxColors.Stroke,
-                    cursorColor = NuxColors.Primary,
-                ),
+                // The one set of field colours, like every other field in the
+                // app. Hand-rolled here it omitted the container fill, so the
+                // PIN box was the only text field in the app floating as a
+                // bare outline on the scrim — which is the drift
+                // NuxFieldDefaults was written to end.
+                colors = NuxFieldDefaults.colors(),
                 modifier = Modifier
                     .width(200.dp)
                     .focusRequester(fieldFocus)
@@ -958,6 +931,32 @@ fun PlaylistOptionsDialog(
                 onDismiss = { confirmingRemove = false },
             )
         }
+    }
+}
+
+/**
+ * The resume bar, in one ink and one height, for every card that draws one.
+ *
+ * Five callers drew this by hand in four different colours and two heights.
+ * It is the same fact each time — how far through this thing the viewer is —
+ * so it is one component, gold on [NuxColors.TrackDim], clipped to
+ * [NuxShape.Track].
+ */
+@Composable
+fun ProgressTrack(progress: Float, modifier: Modifier = Modifier, height: Dp = 4.dp) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(height)
+            .clip(NuxShape.Track)
+            .background(NuxColors.TrackDim)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .background(NuxColors.Primary)
+        )
     }
 }
 

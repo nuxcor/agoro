@@ -20,7 +20,14 @@ package com.agoro.tv.ui.screens
 internal fun todayIso(nowMs: Long = System.currentTimeMillis()): String {
     val cal = java.util.Calendar.getInstance()
     cal.timeInMillis = nowMs
-    return "%04d-%02d-%02d".format(
+    // Locale.ROOT, because this string is COMPARED, not read. String.format
+    // uses the default locale, and in Arabic (Egypt) or Persian "%d" emits
+    // Eastern-Arabic digits — so the result was neither equal to nor ordered
+    // against Episode.airDate, and every episode's date column on those boxes
+    // read as unaired or lost its year.
+    return String.format(
+        java.util.Locale.ROOT,
+        "%04d-%02d-%02d",
         cal.get(java.util.Calendar.YEAR),
         cal.get(java.util.Calendar.MONTH) + 1,
         cal.get(java.util.Calendar.DAY_OF_MONTH),

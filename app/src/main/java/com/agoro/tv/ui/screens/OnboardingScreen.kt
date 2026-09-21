@@ -129,6 +129,15 @@ fun OnboardingScreen(
     if (cancellable) {
         androidx.activity.compose.BackHandler(enabled = step == Step.Choose) { onCancel() }
     }
+    // And BACK does NOTHING while the login runs, rather than falling past
+    // both handlers above. On first run there is no chooser to fall back to,
+    // so `cancellable` is false and neither handler is registered — BACK went
+    // to the Activity and CLOSED THE APP mid-sign-in, credentials unsaved,
+    // after a username and a password had just been typed on a remote. On the
+    // edit route it popped the screen while the save carried on underneath.
+    // The on-screen Back is disabled for exactly this window; the remote's
+    // has to agree with it.
+    androidx.activity.compose.BackHandler(enabled = addState is AddState.Loading) {}
 
     // adjustResize, for THIS screen and no other.
     //

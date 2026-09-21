@@ -111,4 +111,40 @@ class GuideGridTest {
         assertEquals(1, cellIndexFor(row, windowStart + 5 * hour))
         assertTrue(cellIndexFor(row, windowStart - hour) == 0)
     }
+
+
+    /**
+     * A row with nothing long enough to repay the debt. Eighteen ten-minute
+     * programmes in a three-hour window: every one is under MIN_CELL_MINUTES,
+     * so each borrowed and none ever paid back, the row measured 288 minutes
+     * against a 180-minute ruler, and the cell under the NOW line was an hour
+     * and a half from what was on. The rows share one scroll, so it pulled the
+     * rest of the grid out of line too.
+     */
+    @Test
+    fun `a row of short programmes never measures wider than its window`() {
+        val programs = (0 until 18).map { program(it * 10L, (it + 1) * 10L) }
+        val layout = layoutGuideRow(programs, windowStart, windowStart + 180 * minute)
+        val drawn = layout.cells.fold(0f) { acc, c -> acc + c.gapMinutesBefore + c.widthMinutes }
+        assertTrue(
+            "row measured $drawn minutes against a 180-minute window",
+            drawn <= 180f + com.agoro.tv.ui.screens.MAX_BORROWED_MINUTES,
+        )
+        assertTrue("the tail is never negative", layout.tailMinutes >= 0f)
+        assertEquals(18, layout.cells.size)
+    }
+
+    /** The short ones are still widened until the debt reaches its bound. */
+    @Test
+    fun `short programmes are still widened while the debt is affordable`() {
+        val layout = layoutGuideRow(
+            listOf(program(0L, 5L), program(5L, 10L), program(10L, 180L)),
+            windowStart, windowStart + 180 * minute,
+        )
+        assertEquals(com.agoro.tv.ui.screens.MIN_CELL_MINUTES, layout.cells[0].widthMinutes, 0.01f)
+        assertEquals(com.agoro.tv.ui.screens.MIN_CELL_MINUTES, layout.cells[1].widthMinutes, 0.01f)
+        // The long one pays the debt back, so the row still ends on the ruler.
+        val drawn = layout.cells.fold(0f) { acc, c -> acc + c.gapMinutesBefore + c.widthMinutes }
+        assertEquals(180f, drawn + layout.tailMinutes, 0.01f)
+    }
 }

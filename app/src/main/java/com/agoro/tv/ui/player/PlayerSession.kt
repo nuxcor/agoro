@@ -358,6 +358,9 @@ class PlayerSession internal constructor(
      * climbed by then, so this is only ever the last word on it.
      */
     var errorEnded: Boolean by mutableStateOf(false)
+
+    /** The fault behind the card on screen. See [canRetryTolerant]. */
+    var errorFault: PlaybackFault? by mutableStateOf(null)
         private set
     var statusMessage: String? by mutableStateOf(null)
     var positionMs: Long by mutableLongStateOf(0L)
@@ -818,6 +821,7 @@ class PlayerSession internal constructor(
                     // broke, which is what a finished fixture looks like from
                     // here. The card says so and leads with the way out.
                     errorEnded = fault == PlaybackFault.ENDED
+                    errorFault = fault
                     layer = PlayerLayer.Error
                 }
             }
@@ -1196,6 +1200,16 @@ class PlayerSession internal constructor(
     fun dismissUpNext() {
         upNextIndex = null
         if (layer == PlayerLayer.UpNext) layer = PlayerLayer.None
+        // The item HAS finished and the viewer HAS said no to what follows.
+        // [ended] is only set for the last item in a playlist, so declining
+        // mid-series dropped the layer to None in exactly the state an ended
+        // ExoPlayer reports — not playing, not buffering, not tuning — and a
+        // 56dp pause glyph came up dead centre over the credits, claiming
+        // they had stopped it. Saying the peek is dismissed too stops the
+        // corner card bouncing straight back in off a stale position poll,
+        // which made BACK a thing you pressed twice.
+        ended = true
+        upNextPeekDismissed = true
     }
 
     /**
@@ -1341,6 +1355,7 @@ class PlayerSession internal constructor(
     fun clearError() {
         errorMessage = null
         errorEnded = false
+        errorFault = null
         if (layer == PlayerLayer.Error) layer = PlayerLayer.None
     }
 
@@ -1361,6 +1376,7 @@ class PlayerSession internal constructor(
         errorMessage = reason
         // A tune that never resolved is not a stream that finished.
         errorEnded = false
+        errorFault = null
         layer = PlayerLayer.Error
     }
 
@@ -1567,7 +1583,19 @@ class PlayerSession internal constructor(
     }
 
     /** Whether [retryTolerant] has anywhere left to go. */
-    val canRetryTolerant: Boolean get() = decodeProfile == DecodeProfile.FAST
+    /**
+     * Whether the error card may offer software decoding.
+     *
+     * The profile alone is not enough: every PERMANENT and ENDED fault leaves
+     * it FAST, so a 403, a 404 and a finished fixture all drew a button
+     * promising "there is one more thing the app can try" — which rebuilt the
+     * engine, showed the tune card for up to 45 seconds and landed on the
+     * same error. The ladder's own tolerant rung has always been gated on the
+     * fault being a DECODE one; the card has to ask the same question, or it
+     * is offering a knob where the app already knows the answer.
+     */
+    val canRetryTolerant: Boolean
+        get() = decodeProfile == DecodeProfile.FAST && errorFault == PlaybackFault.DECODE
 
     /** Retry the current item after an error, with a fresh ladder. */
     fun retryAfterError() {

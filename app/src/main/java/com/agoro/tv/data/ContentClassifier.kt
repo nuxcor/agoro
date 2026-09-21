@@ -69,7 +69,7 @@ object ContentClassifier {
         fun groupId(map: LinkedHashMap<String, String>, name: String?): String? {
             val n = name?.trim()?.takeIf { it.isNotBlank() } ?: return null
             val id = n.lowercase()
-            map.putIfAbsent(id, n)
+            if (id !in map) map[id] = n
             return id
         }
 

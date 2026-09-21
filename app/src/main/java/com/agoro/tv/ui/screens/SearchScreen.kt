@@ -107,12 +107,10 @@ fun SearchTab(
     // Recorded only once the typing stops AND the query found something. A
     // keystroke on the way to a word is not a search, and neither is a
     // misspelling that matched nothing — a history of those is worse than none.
-    LaunchedEffect(query) {
-        val trimmed = query.trim()
-        if (trimmed.length < 2) return@LaunchedEffect
-        kotlinx.coroutines.delay(1_200)
-        vm.recordSearch(trimmed)
-    }
+    // (The second half of that — "found something" — is enforced where the
+    // results are: this effect cannot see them. It recorded "batmam" and
+    // every half-typed prefix on the way to a word, which is the history the
+    // comment above says is worse than none.)
     // Search IS a drawer destination, but BACK still returns to the tab it
     // was opened from rather than opening the drawer again — reaching search
     // from Series and being handed the menu loses the shelf you were standing
@@ -190,6 +188,19 @@ fun SearchTab(
         }
         // The old result's name must not stand over the new results.
         shownHero.value = null
+        // Recorded here, where whether it found anything is known, and only
+        // after the typing has stopped long enough to be a word rather than a
+        // prefix. The 250ms debounce above already guarantees these results
+        // belong to this query.
+        val trimmed = query.trim()
+        val foundSomething = results.let {
+            it.channels.isNotEmpty() || it.movies.isNotEmpty() ||
+                it.series.isNotEmpty() || it.programs.isNotEmpty()
+        }
+        if (trimmed.length >= 2 && foundSomething) {
+            kotlinx.coroutines.delay(950)
+            vm.recordSearch(trimmed)
+        }
     }
 
     val timeFmt = rememberClockFormat()
@@ -680,7 +691,7 @@ private fun SearchStarterRow(
     onHero: (HeroInfo?) -> Unit,
 ) {
     Column {
-        SectionTitle("Top rated")
+        SectionTitle("Highly rated films")
         LazyRow(
             modifier = Modifier.focusRestorer().shelfRingRoom(),
             horizontalArrangement = Arrangement.spacedBy(14.dp),

@@ -1909,7 +1909,7 @@ object SportsParser {
         val known = HashMap<String, Long>()
         for (e in events.sortedWith(byFeed)) {
             val at = e.startMs ?: continue
-            known.putIfAbsent(fixtureKey(e), at)
+            fixtureKey(e).let { k -> if (k !in known) known[k] = at }
         }
         if (known.isEmpty()) return events
         return events.map { e ->

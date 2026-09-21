@@ -1850,7 +1850,7 @@ internal fun mergeEpisodeCopies(lists: List<List<Episode>>): List<Episode> {
     if (lists.size == 1) return lists[0]
     val bySlot = LinkedHashMap<Pair<Int, Int>, Episode>()
     for (list in lists) {
-        for (e in list) bySlot.putIfAbsent(e.season to e.episodeNum, e)
+        for (e in list) (e.season to e.episodeNum).let { k -> if (k !in bySlot) bySlot[k] = e }
     }
     return bySlot.values.sortedWith(compareBy({ it.season }, { it.episodeNum }))
 }

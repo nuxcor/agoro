@@ -148,6 +148,18 @@ private val ROW_HEIGHT = 52.dp
  *  960dp panel, more on a wider one since the scale grows with it. */
 internal const val MIN_CELL_MINUTES = 16f
 
+/**
+ * How much width a row may owe before it stops widening.
+ *
+ * One column. Borrowing is what keeps a five-minute bulletin readable, but the
+ * debt is only ever repaid out of a LONGER programme or a gap — and a row that
+ * has neither (rolling news, music video, teleshopping) just keeps borrowing,
+ * measures wider than its window, and slides out of line with the ruler above
+ * it. Bounded here, a row can be at most one column out and re-syncs at the
+ * first programme long enough to pay.
+ */
+internal const val MAX_BORROWED_MINUTES = 30f
+
 /** What the browse guide's timeline never gets: the channel column. The rail
  *  is a summoned drawer now and reserves nothing, and the grid spends most
  *  of the TV-safe gutter to reach the panel edge (see Modifier.spendGutter),
@@ -258,6 +270,19 @@ internal fun layoutGuideRow(
             val repaid = minOf(borrowedMinutes, naturalMinutes - MIN_CELL_MINUTES)
             widthMinutes = naturalMinutes - repaid
             borrowedMinutes -= repaid
+        } else if (borrowedMinutes >= MAX_BORROWED_MINUTES) {
+            // The debt is already a column wide and nothing has repaid it, so
+            // this row is all short programmes — a news channel on bulletins,
+            // a music channel, a shopping channel in ten-minute blocks. Widen
+            // one more and the row measures wider than the window it is drawn
+            // in: eighteen ten-minute programmes at a 16-minute minimum is 288
+            // minutes of cells against a 180-minute ruler, so the cell under
+            // the NOW line is an hour and a half from what is on. Every row
+            // shares one scroll, so it takes the other rows out of line too.
+            //
+            // Past this point the sliver is the lesser fault: it is the cell
+            // it says it is, in the place the ruler says it is.
+            widthMinutes = naturalMinutes
         } else {
             widthMinutes = MIN_CELL_MINUTES
             borrowedMinutes += MIN_CELL_MINUTES - naturalMinutes
@@ -266,7 +291,14 @@ internal fun layoutGuideRow(
         cells += GuideCellSpec(program, gapMinutes, widthMinutes, start, end)
         cursor = end
     }
-    return GuideRowLayout(cells, ((windowEnd - cursor) / 60_000f) - borrowedMinutes)
+    // Never negative. A debt still outstanding at the end of the row used to
+    // come off the tail, which the renderer then dropped as a non-positive
+    // spacer — so the row kept the width it had borrowed and the arithmetic
+    // that says a row is exactly one window wide stopped being true.
+    return GuideRowLayout(
+        cells,
+        (((windowEnd - cursor) / 60_000f) - borrowedMinutes).coerceAtLeast(0f),
+    )
 }
 
 /**
@@ -297,6 +329,10 @@ class GuideReminders {
 
     fun mark(programId: String) {
         ids = ids + programId
+    }
+
+    fun unmark(programId: String) {
+        ids = ids - programId
     }
 }
 

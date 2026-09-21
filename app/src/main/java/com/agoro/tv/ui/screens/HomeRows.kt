@@ -4,6 +4,7 @@ import com.agoro.tv.MainViewModel
 import com.agoro.tv.data.ArtworkUrl
 import com.agoro.tv.data.Category
 import com.agoro.tv.data.ContentBundle
+import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.LiveChannel
 import com.agoro.tv.data.Movie
 import com.agoro.tv.data.QualityTag
@@ -164,6 +165,17 @@ internal fun buildRecentlyAdded(
     series: List<Series>,
     limit: Int = 20,
     minimum: Int = 4,
+    /**
+     * Titles the viewer said "Not interested" to, skipped INSIDE the walk.
+     *
+     * Filtered after the cut — which is where this used to happen, at the
+     * call site — hiding a title just left a hole: the row went 20, 19, 18
+     * beside shelves of 24, with hundreds of newer titles queued behind it.
+     * Every other shelf here filters before it takes, and Catalog's own doc
+     * states the rule. `dated` still counts hidden titles, so [minimum] keeps
+     * meaning "this playlist carries dates" rather than "enough survived".
+     */
+    hidden: Set<String> = emptySet(),
 ): List<CatalogCard> {
     // Bounded insertion rather than sorting the catalogue. This walks every
     // title it is given — the whole dated catalogue, 20,000 on an ordinary
@@ -207,12 +219,12 @@ internal fun buildRecentlyAdded(
     movies.forEach { m ->
         val added = m.addedMs ?: return@forEach
         val at = slotFor(added)
-        if (at >= 0) insert(at, added, CatalogCard.MovieCard(m))
+        if (at >= 0 && movieHomeKey(m) !in hidden) insert(at, added, CatalogCard.MovieCard(m))
     }
     series.forEach { s ->
         val added = s.addedMs ?: return@forEach
         val at = slotFor(added)
-        if (at >= 0) insert(at, added, CatalogCard.SeriesCard(s))
+        if (at >= 0 && seriesHomeKey(s) !in hidden) insert(at, added, CatalogCard.SeriesCard(s))
     }
     if (dated < minimum) return emptyList()
     return topCards
@@ -625,7 +637,7 @@ internal inline fun <T> List<T>.foldVariants(
         val bare = name(item).trim().lowercase(java.util.Locale.ROOT)
         val key = bare + "|" + (releaseYear ?: 0)
         poster(item)?.takeIf { it.isNotBlank() && !ArtworkUrl.isDoctored(it) }
-            ?.let { clean.putIfAbsent(key, it) }
+            ?.let { if (key !in clean) clean[key] = it }
         val held = at[key]
         if (held == null) {
             at[key] = out.size
@@ -802,7 +814,7 @@ internal fun buildCatalogIndex(
         val category = movie.categoryId?.takeIf { it in knownMovieCategories } ?: VOD_MORE
         moviesByCategory.getOrPut(category) { ArrayList() }.add(movie)
         for (g in splitGenres(movie.genre)) {
-            movieGenreLabels.putIfAbsent(genreKey(g), g)
+            genreKey(g).let { k -> if (k !in movieGenreLabels) movieGenreLabels[k] = g }
             moviesByGenre.getOrPut(genreKey(g)) { ArrayList() }.add(movie)
         }
         if (movie.addedMs != null && isRecentRelease(movie.year, nowYear)) newMovies.add(movie)
@@ -821,7 +833,7 @@ internal fun buildCatalogIndex(
         val category = show.categoryId?.takeIf { it in knownSeriesCategories } ?: VOD_MORE
         seriesByCategory.getOrPut(category) { ArrayList() }.add(show)
         for (g in splitGenres(show.genre)) {
-            seriesGenreLabels.putIfAbsent(genreKey(g), g)
+            genreKey(g).let { k -> if (k !in seriesGenreLabels) seriesGenreLabels[k] = g }
             seriesByGenre.getOrPut(genreKey(g)) { ArrayList() }.add(show)
         }
         if (show.addedMs != null && isRecentRelease(show.year, nowYear)) newSeries.add(show)
@@ -971,13 +983,7 @@ internal fun buildCatalog(
         .take((CONTINUE_SHELF_LIMIT - listed.size).coerceAtLeast(0))
         .toList()
 
-    val recentlyAdded = buildRecentlyAdded(index.newMovies, index.newSeries)
-        .filterNot { card ->
-            when (card) {
-                is CatalogCard.MovieCard -> movieHomeKey(card.movie) in hiddenTitles
-                is CatalogCard.SeriesCard -> seriesHomeKey(card.series) in hiddenTitles
-            }
-        }
+    val recentlyAdded = buildRecentlyAdded(index.newMovies, index.newSeries, hidden = hiddenTitles)
     // The curated shelves, built before the starter rows because what the
     // starter rows are for is the playlist these cannot cover.
     val acclaimed = acclaimedMovies(index.movies, hiddenTitles)
@@ -1085,6 +1091,13 @@ internal fun channelHero(channel: LiveChannel, nowNext: MainViewModel.NowNext?):
     val programme = now?.title
         ?.takeUnless { TextNorm.isProgrammePlaceholder(it) }
         ?.let { TextNorm.cleanProgrammeTitle(it) }
+    // What the CARD cannot say. A channel card already prints the channel's
+    // name and the programme on it, so a hero repeating both put the same two
+    // strings twice on one screen, two inches apart, and added the word
+    // "Live" — which the card says too. How much of it is left is the thing
+    // only the hero has room for, and it is what a viewer standing on
+    // Recents is deciding on.
+    val remaining = now?.let { minutesLeft(it, System.currentTimeMillis()) }
     return HomeHero(
         HeroInfo(
             title = channel.displayName,
@@ -1096,8 +1109,23 @@ internal fun channelHero(channel: LiveChannel, nowNext: MainViewModel.NowNext?):
             chips = listOf("Live"),
             plot = null,
         ),
-        line = programme,
+        line = listOfNotNull(programme, remaining).joinToString("  ·  ").ifBlank { null },
     )
+}
+
+/**
+ * "12 min left", or null when the clock cannot say it honestly.
+ *
+ * Null for a programme already over, for one that has not started, and for a
+ * run so long that the number stops meaning anything — a 24-hour block on a
+ * music channel is the guide filing a lack of listings, not a programme with
+ * eleven hours to go.
+ */
+internal fun minutesLeft(program: EpgProgram, nowMs: Long): String? {
+    if (nowMs !in program.startMs until program.endMs) return null
+    val minutes = (program.endMs - nowMs) / 60_000L
+    if (minutes < 1 || minutes > 240) return null
+    return "$minutes min left"
 }
 
 /**
@@ -1120,12 +1148,20 @@ internal fun channelHero(channel: LiveChannel, nowNext: MainViewModel.NowNext?):
  * behind the slot is more of the same text, so the plot line stays empty
  * rather than filling with it.
  */
-internal fun fixtureHero(fixture: LiveFixture): HomeHero = HomeHero(
-    HeroInfo(
-        title = fixture.event.title,
-        poster = null,
-        backdrop = null,
-        chips = listOfNotNull("Live", fixture.event.league.takeIf { it.isNotBlank() }),
-        plot = null,
-    ),
-)
+internal fun fixtureHero(fixture: LiveFixture, nowMs: Long = System.currentTimeMillis()): HomeHero =
+    HomeHero(
+        HeroInfo(
+            title = fixture.event.title,
+            poster = null,
+            backdrop = null,
+            chips = listOfNotNull("Live", fixture.event.league.takeIf { it.isNotBlank() }),
+            plot = null,
+        ),
+        // The card under this one already prints the fixture and its
+        // competition. How long it has been on does not fit on a card and is
+        // the reason to press OK on this one rather than the next.
+        line = fixture.event.startMs?.let { start ->
+            val minutes = (nowMs - start) / 60_000L
+            if (minutes in 1..240) "Started $minutes min ago" else null
+        },
+    )

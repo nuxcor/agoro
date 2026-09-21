@@ -5,6 +5,12 @@ package com.agoro.tv.ui.screens
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -128,6 +134,12 @@ internal const val STARTER_ROW_LENGTH = 20
  * [HomeHeroSlot].
  */
 private val HOME_HERO_HEIGHT = 110.dp
+
+/**
+ * How many channels of history it takes before Home stops offering the
+ * starter row. One is not a history; it is one card in a twenty-card lane.
+ */
+private const val STARTER_CHANNELS_RETIRE = 5
 
 /**
  * What long-pressing a Home card opens. Only the cards with actions OK cannot
@@ -304,8 +316,11 @@ internal fun HomeLoungeTab(
             kotlinx.coroutines.delay(60_000)
         }
     }
-    val liveSport = remember(fixtures, bundle.events, sportMinute) {
-        liveSportShelf(fixtures, bundle.events, sportMinute)
+    // The index is keyed on the bundle; only the window is keyed on the
+    // minute. Together they rebuilt a map over every event slot once a minute.
+    val sportSlots = remember(bundle.events) { bundle.events.associateBy { it.xtreamId } }
+    val liveSport = remember(fixtures, bundle.events, sportMinute, sportSlots) {
+        liveSportShelf(fixtures, bundle.events, sportMinute, sportSlots)
     }
 
     val favoritesRow = remember(displayChannels, favorites) {
@@ -322,13 +337,20 @@ internal fun HomeLoungeTab(
     // before the live shelf was prepended above them — so Home opened
     // anchored on Movies with its first row scrolled off the top, and focus
     // on a film instead of on television.
+    // A skeleton, not a black rectangle. Both of these gates are ordinary —
+    // the channel fold and the catalogue index each take a beat on a 29,000
+    // title playlist — but what they drew was `Box(Modifier.fillMaxSize())`,
+    // nothing at all, on the screen the app BOOTS INTO. Movies and Shows
+    // fixed exactly this and named the fault: a tab that opens blank is the
+    // shape of a crash. Nothing in a skeleton is focusable, so the arrival
+    // focus that follows is unaffected.
     if (displayChannels.isEmpty() && bundle.channels.isNotEmpty()) {
-        Box(Modifier.fillMaxSize())
+        HomeSkeleton()
         return
     }
     val shelves = catalog?.takeIf { it.index.bundle === bundle }
     if (shelves == null && (bundle.movies.isNotEmpty() || bundle.series.isNotEmpty())) {
-        Box(Modifier.fillMaxSize())
+        HomeSkeleton()
         return
     }
     val continueRow = shelves?.continueWatching.orEmpty()
@@ -360,7 +382,10 @@ internal fun HomeLoungeTab(
     // nothing but a record of what you had already watched.
     val acclaimed = shelves?.acclaimedMovies.orEmpty()
     val genreShelves = shelves?.genreShelves.orEmpty()
-    val watchedChannels = favoritesRow.isNotEmpty() || recentsRow.isNotEmpty()
+    // Retired on VOLUME, not on existence. Watching a single channel used to
+    // delete a 20-tile "Live channels" row and leave "Recent channels" with
+    // one card alone in the lane — the top of Home, on day two.
+    val watchedChannels = favoritesRow.size + recentsRow.size >= STARTER_CHANNELS_RETIRE
     val starterChannels = remember(displayChannels, watchedChannels) {
         if (watchedChannels) emptyList() else displayChannels.take(STARTER_ROW_LENGTH)
     }
@@ -609,14 +634,13 @@ internal fun HomeLoungeTab(
     // card in again: Home leaves composition for both, and the stamp was
     // re-taken on each return. Only a fresh launch animates.
     val entrance = rememberSaveable { android.os.SystemClock.uptimeMillis() }
-    val scope = rememberCoroutineScope()
 
     // Where focus lands on arrival: the card the viewer left, or the first
     // card of the first shelf on a fresh visit. Left to the shell's geometric
-    // parking, focus went to whichever node existed first — the Search pill,
-    // because the hero composes a frame before the lazy rows do — so the app
-    // opened (and every return from a detail page landed) on Search rather
-    // than on anything to watch. Rides on the card itself; the shelf's
+    // parking, focus went to whichever node existed first — which is the hero
+    // band, since it composes a frame before the lazy rows do — so the app
+    // opened (and every return from a detail page landed) above the shelves
+    // rather than on anything to watch. Rides on the card itself; the shelf's
     // restorer is the fallback when that card has scrolled out of composition.
     //
     // The target is read ONCE, at composition, and without observation: the
@@ -1267,8 +1291,9 @@ private fun HomeContextMenu(
             actions = listOf(
                 MenuAction("Details") { onOpenMovie(menu.movie) },
                 // Destructive only in the sense that it cannot be undone from
-                // here; nothing is deleted but the bookmark.
-                MenuAction("Clear progress", destructive = true) {
+                // here; nothing is deleted but the bookmark. Named as the
+                // series page names the same act — one call, one word.
+                MenuAction("Mark as unwatched", destructive = true) {
                     onRemove()
                     vm.forgetResume(menu.movie.url)
                 },
@@ -1309,7 +1334,7 @@ private fun HomeContextMenu(
             title = menu.series.name,
             actions = listOf(
                 MenuAction("Details") { onOpenSeries(menu.series) },
-                MenuAction("Clear progress", destructive = true) {
+                MenuAction("Mark as unwatched", destructive = true) {
                     onRemove()
                     vm.forgetSeriesResume(menu.series)
                 },
@@ -1319,4 +1344,59 @@ private fun HomeContextMenu(
     }
 }
 
-/** The launcher-style search entry: an outlined pill, top-right of the hero. */
+
+
+/**
+ * Home while its shelves are still being built: the hero band and two rows of
+ * cards, at the heights the real ones occupy, so nothing moves when they land.
+ *
+ * Widths are unequal on purpose — a row of identical blocks reads as a
+ * pattern, where uneven ones read as words and pictures waiting to arrive.
+ * The same sweep [CatalogueSkeleton] uses, held as State and read in the draw
+ * lambda so the animation never recomposes this column.
+ */
+@Composable
+private fun HomeSkeleton() {
+    val motion = rememberInfiniteTransition(label = "homeSkeleton")
+    val sweep = motion.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(1_500, easing = LinearEasing),
+            RepeatMode.Restart,
+        ),
+        label = "sweep",
+    )
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier.fillMaxWidth().height(HOME_HERO_HEIGHT),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SkeletonBar(width = 300.dp, height = 24.dp, sweep = sweep)
+                SkeletonBar(width = 180.dp, height = 16.dp, sweep = sweep)
+            }
+        }
+        repeat(2) { row ->
+            SkeletonBar(
+                width = if (row == 0) 150.dp else 190.dp,
+                height = 18.dp,
+                sweep = sweep,
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+            Row(
+                modifier = Modifier.padding(bottom = 28.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                listOf(232.dp, 232.dp, 232.dp, 232.dp, 232.dp).forEach { width ->
+                    SkeletonBar(
+                        width = width,
+                        height = 130.dp,
+                        sweep = sweep,
+                        shape = NuxShape.Card,
+                    )
+                }
+            }
+        }
+    }
+}

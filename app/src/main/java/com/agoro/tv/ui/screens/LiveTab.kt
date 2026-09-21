@@ -370,9 +370,14 @@ internal fun LiveTab(
                     playFromHost(channel)
                     null
                 } else if (reminders.isSet(program.id)) {
-                    // Same rule the guide follows: a second press reports,
-                    // it does not arm the same alarm again.
-                    "Reminder already set"
+                    // Same rule the guide follows: a second press takes the
+                    // reminder back rather than arming the same alarm again.
+                    if (vm.cancelReminder(channel, program)) {
+                        reminders.unmark(program.id)
+                        "Reminder removed"
+                    } else {
+                        "Reminder already set"
+                    }
                 } else {
                     vm.scheduleReminder(channel, program)
                     reminders.mark(program.id)
@@ -394,7 +399,13 @@ internal fun LiveTab(
         // finished ones, while the sheet lists only what has yet to end.
         val hasSchedule = remember(channel.id, epgState) {
             val now = System.currentTimeMillis()
-            vm.programsFor(channel).any { it.endMs > now }
+            // Placeholders are not programmes — the gate and the sheet have
+            // to agree on that, or "What's on" opens on "No guide data for
+            // this channel", which is the empty sheet this gate exists to
+            // prevent. The panel's filler block is what reached here.
+            vm.programsFor(channel).any {
+                it.endMs > now && !TextNorm.isProgrammePlaceholder(it.title)
+            }
         }
         ContextMenu(
             title = channel.displayName,

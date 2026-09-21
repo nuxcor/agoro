@@ -204,9 +204,12 @@ fun ChannelSchedule(
                         val onNow = tick in program.startMs until program.endMs
                         // The date only where it changes, so an evening of
                         // programmes doesn't repeat today's date twenty times.
-                        val showDay = index > 0 &&
-                            dayFmt.format(Date(program.startMs)) !=
-                            dayFmt.format(Date(upcoming[index - 1].startMs))
+                        // The first row states its day too when that day is
+                        // not today — a channel off air overnight opened the
+                        // sheet on "6:00 AM" with nothing saying tomorrow.
+                        val showDay = dayFmt.format(Date(program.startMs)) != dayFmt.format(
+                            Date(if (index > 0) upcoming[index - 1].startMs else tick)
+                        )
                         if (showDay) {
                             Text(
                                 text = dayFmt.format(Date(program.startMs)),
@@ -273,7 +276,7 @@ private fun ScheduleRow(
                 if (!program.description.isNullOrBlank()) {
                     Text(
                         text = program.description.orEmpty(),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelMedium,
                         color = NuxColors.OnSurfaceDim,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

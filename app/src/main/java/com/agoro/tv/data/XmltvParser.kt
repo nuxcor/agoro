@@ -41,9 +41,9 @@ class XmltvMerger {
         count++
         // First source wins: these identify a channel, and the pack order is
         // the ranking.
-        data.channelNames.forEach { (k, v) -> channelNames.putIfAbsent(k, v) }
-        data.nameToId.forEach { (k, v) -> nameToId.putIfAbsent(k, v) }
-        data.altNames.forEach { (k, v) -> altNames.putIfAbsent(k, v) }
+        data.channelNames.forEach { (k, v) -> if (k !in channelNames) channelNames[k] = v }
+        data.nameToId.forEach { (k, v) -> if (k !in nameToId) nameToId[k] = v }
+        data.altNames.forEach { (k, v) -> if (k !in altNames) altNames[k] = v }
         data.normalizedToId.forEach { (k, ids) ->
             val holders = normalizedToId.getOrPut(k) { mutableListOf() }
             ids.forEach { if (it !in holders) holders += it }
@@ -338,7 +338,7 @@ object XmltvParser {
             channelNames[id] = names.first()
             altNames[lowerId] = names
             names.forEach { name ->
-                nameToId.putIfAbsent(name.trim().lowercase(), lowerId)
+                name.trim().lowercase().let { k -> if (k !in nameToId) nameToId[k] = lowerId }
                 val key = EpgMatcher.normalizeKey(name)
                 val holders = normalizedToId.getOrPut(key) { mutableListOf() }
                 if (lowerId !in holders) holders += lowerId
