@@ -2447,4 +2447,70 @@ class SportsParserTest {
         )
         assertEquals(1, SportsParser.applySchedule(listOf(slot), fixtures, now).size)
     }
+
+
+    /**
+     * "Live Football 01" is the PIPE's name, not a claim about the match on
+     * it. All four of these were on the panel on 2026-09-20 holding the
+     * Carabao Cup third round, played on the 16th and 17th, each with a bare
+     * time no format here will date. Copied verbatim.
+     */
+    private val liveFootballPack = listOf(
+        1538186 to "Live Football 01 : Manchester City vs Norwich City 7:45 pm",
+        1538185 to "Live Football 02 : Fleetwood vs Sheffield United 7:45 pm",
+        1538184 to "Live Football 03 : Coventry vs Aston Villa 8:00 pm",
+        1538183 to "Live Football 04 : Manchester Unt vs Brighton 8:00 pm",
+    )
+
+    @Test
+    fun `a pack's own label is not a claim that the match is on`() {
+        val now = ms(2026, 9, 20, 20, 50, "UTC")
+        val roster = mapOf(
+            "Premier League" to listOf("Manchester City", "Aston Villa", "Brighton",
+                "Manchester United", "Sheffield United", "Coventry City"),
+        )
+        // The weekend the pack's names have nothing to do with.
+        val fixtures = listOf(
+            ScheduleFixture(league = "Premier League", home = "Manchester City",
+                away = "Sunderland", start = "2026-09-20T13:00Z", state = "post"),
+            ScheduleFixture(league = "Premier League", home = "Aston Villa",
+                away = "Tottenham Hotspur", start = "2026-09-20T15:30Z", state = "post"),
+        )
+        val parsed = SportsParser.parseAll(liveFootballPack, now, roster)
+        val rows = SportsParser.upcoming(SportsParser.applySchedule(parsed, fixtures, now), now, 60)
+        assertEquals("four days of stale pipe names, nothing on screen", 0, rows.size)
+    }
+
+    /**
+     * And the same pack while its match IS being played. Tightening the word
+     * must not cost a real row: the slot is clockless either way, so the
+     * schedule dates it, which is the arrangement [needsSchedule] exists for.
+     */
+    @Test
+    fun `the same pack is on screen when the schedule dates the match`() {
+        val now = ms(2026, 9, 17, 19, 0, "UTC")
+        val roster = mapOf("Premier League" to listOf("Manchester City"))
+        val fixtures = listOf(ScheduleFixture(
+            league = "Carabao Cup", home = "Manchester City", away = "Norwich City",
+            start = "2026-09-17T18:30Z", state = "in",
+            homeAlt = listOf("Man City"), awayAlt = listOf("Norwich"),
+        ))
+        val parsed = SportsParser.parseAll(listOf(liveFootballPack[0]), now, roster)
+        val rows = SportsParser.upcoming(SportsParser.applySchedule(parsed, fixtures, now), now, 60)
+        assertEquals(1, rows.size)
+        assertTrue("on now, on the schedule's clock", rows.single().isOnNow(now))
+        assertEquals(ms(2026, 9, 17, 18, 30, "UTC"), rows.single().startMs)
+    }
+
+    /** The status form the packs that mean it write. Unchanged. */
+    @Test
+    fun `LIVE with a separator is still a status`() {
+        val now = ms(2026, 9, 20, 23, 0, "UTC")
+        val roster = mapOf("NFL" to listOf("Colts", "Chiefs"))
+        val slot = 1940018 to
+            "Live | Colts vs. Chiefs | all | 8K EXCLUSIVE | US: SOCCER PPV 139"
+        val parsed = SportsParser.parseAll(listOf(slot), now, roster)
+        assertTrue("admitted on the word", parsed.single().live)
+        assertEquals(1, SportsParser.upcoming(parsed, now, 60).size)
+    }
 }

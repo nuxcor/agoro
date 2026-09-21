@@ -207,7 +207,32 @@ object SportsParser {
      * which is why [parse] leans on the clock rather than this.
      */
     private val ended = Regex("""(?i)^\s*(END|ENDED|FINISHED)\b""")
-    private val liveWord = Regex("""(?i)^\s*LIVE\b""")
+
+    /**
+     * LIVE as a STATUS, which means a separator after it and nothing else.
+     *
+     * "Live" at the front of a name is as often the pipe's own label as a
+     * claim about the match on it. Counted on the panel 2026-09-20: 142 slots
+     * open with the word, and 102 of them are labels — "LIVE EVENT 01 - 8pm
+     * WWE Monday Night RAW", "Live Football 01 : Manchester City vs Norwich
+     * City 7:45 pm" — against 40 that use it as a status, every one of them
+     * "Live | …". A label is permanent and says nothing about today.
+     *
+     * That distinction is the whole of "saw mancity vs norwich and others",
+     * reported from the box on 2026-09-18 and still on the panel four days
+     * after the tie: `Live Football 01`..`04` were holding the Carabao Cup
+     * third round — Manchester City v Norwich City, Fleetwood v Sheffield
+     * United, Coventry v Aston Villa, Manchester United v Brighton — each
+     * with a bare "7:45 pm" that no format here will date. Read as LIVE, a
+     * clockless slot is admitted on its own say-so and there is nothing left
+     * to age it by: it stood on both screens until the pack renamed the pipe.
+     *
+     * Read as a label instead, the slot is [needsSchedule] like any other
+     * clockless one, so the published schedule decides: it dates the match
+     * that is really being played and drops the one that is not. A pack that
+     * means it writes the separator.
+     */
+    private val liveWord = Regex("""(?i)^\s*LIVE\s*[|:\-–—]""")
 
     /** "Team A vs. Team B", "Team A v Team B", "Raiders at Texans", "X x Y". */
     private val fixture = Regex("""(?i)(.{2,60}?)\s+(?:vs?\.?|at|x)\s+(.{2,60}?)\s*$""")
