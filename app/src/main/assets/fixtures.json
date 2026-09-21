@@ -1,16 +1,16 @@
 {
- "generated": "2026-09-20T20:47:19Z",
+ "generated": "2026-09-21T04:52:42Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
   "NFL": 31,
   "NBA": 0,
-  "MLS": 31,
-  "Premier League": 10,
-  "La Liga": 10,
-  "Serie A": 10,
-  "Bundesliga": 9,
-  "Ligue 1": 9,
+  "MLS": 30,
+  "Premier League": 9,
+  "La Liga": 9,
+  "Serie A": 9,
+  "Bundesliga": 8,
+  "Ligue 1": 8,
   "Champions League": 0,
   "Europa League": 0,
   "Conference League": 0,
@@ -18,75 +18,6 @@
   "FA Cup": 0
  },
  "fixtures": [
-  {
-   "league": "Bundesliga",
-   "home": "Bayern Munich",
-   "away": "1. FC Union Berlin",
-   "start": "2026-09-18T18:30Z",
-   "homeAlt": [
-    "Bayern"
-   ],
-   "awayAlt": [
-    "Union Berlin"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/132.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/598.png",
-   "state": "post"
-  },
-  {
-   "league": "Ligue 1",
-   "home": "AS Monaco",
-   "away": "Lens",
-   "start": "2026-09-18T18:45Z",
-   "homeAlt": [
-    "Monaco"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/174.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/175.png",
-   "state": "post"
-  },
-  {
-   "league": "Serie A",
-   "home": "Monza",
-   "away": "Sassuolo",
-   "start": "2026-09-18T18:45Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/4007.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3997.png",
-   "state": "post"
-  },
-  {
-   "league": "La Liga",
-   "home": "Espanyol",
-   "away": "Elche",
-   "start": "2026-09-18T19:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/88.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3751.png",
-   "state": "post"
-  },
-  {
-   "league": "Premier League",
-   "home": "Brentford",
-   "away": "Chelsea",
-   "start": "2026-09-18T19:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/337.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/363.png",
-   "state": "post"
-  },
-  {
-   "league": "MLS",
-   "home": "New York City FC",
-   "away": "Red Bull New York",
-   "start": "2026-09-18T23:30Z",
-   "homeAlt": [
-    "NYCFC"
-   ],
-   "awayAlt": [
-    "Red Bull NY"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/17606.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
-   "state": "post"
-  },
   {
    "league": "Premier League",
    "home": "Tottenham Hotspur",
@@ -820,7 +751,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/tb.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/cle.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -883,7 +814,7 @@
    "start": "2026-09-20T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/94.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/89.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -898,7 +829,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/den.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/jax.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -913,7 +844,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lac.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lv.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -928,7 +859,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ari.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/sea.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -943,7 +874,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/dal.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/wsh.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -958,7 +889,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/sf.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/mia.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "MLS",
@@ -973,7 +904,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20232.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/22529.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -988,7 +919,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/kc.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ind.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
