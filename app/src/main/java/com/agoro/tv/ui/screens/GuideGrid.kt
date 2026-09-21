@@ -142,7 +142,7 @@ internal val CHANNEL_COLUMN_GAP = 8.dp
 // dp on the row is sixteen across the grid, which is the fourth channel. The
 // four extra dp the taller line needs come out of the cell's own insets
 // instead, which are spacing and not information. See [ProgramCell].
-private val ROW_HEIGHT = 52.dp
+internal val ROW_HEIGHT = 52.dp
 
 /** The narrowest cell that still shows a title and a focus ring — 61dp on a
  *  960dp panel, more on a wider one since the scale grows with it. */

@@ -92,15 +92,44 @@ import com.agoro.tv.data.answersTo
  * A guide showing fewer than four channels stops being a guide, which is why
  * the rows win this trade and why nothing above the grid may grow without
  * something else above it shrinking.
+ *
+ * WHAT A FIFTH ROW WOULD COST, written down because it gets asked:
+ *
+ *     rows available = 430 - 54 (strip) - 6 (gap) - 36 (ruler) - header
+ *                    = 334 - header
+ *     four rows  4x52 + 3x6 = 226  ->  header <= 108   (this is 104)
+ *     five rows  5x52 + 4x6 = 284  ->  header <=  50
+ *
+ * So a fifth channel costs 54dp, and there are only three places to find it.
+ *
+ * Dropping the synopsis for a 50dp header DOES NOT WORK, and the arithmetic
+ * says so twice. 50 does not even hold the title and the time line (32 + 2 +
+ * 20 = 54), so the title would have to come down a step in the one place a
+ * programme's full name is legible at all — the grid cell can only truncate
+ * it. And [NOTICE_BAR_COST] is 54: the notice path is `HEADER_HEIGHT -
+ * NOTICE_BAR_COST`, which at a 50dp header is MINUS four, on the routine case
+ * of a playlist whose XMLTV 404s. [GuideBudgetTest] holds that floor.
+ *
+ * Shrinking the rows does not work either — GuideGrid's ROW_HEIGHT is spent
+ * exactly, and 46dp clips the time line.
+ *
+ * The only route that does not pay for the row out of the header's words is
+ * to spend the vertical gutter the way this tab already spends the horizontal
+ * one (see the spendGutter call below): a 462dp lane gives five rows at an
+ * 82dp header, which still holds a full title, the time and one line of
+ * synopsis. Its cost is that the bottom row sits in the TV-safe margin, and
+ * Space.gutter's own note records a Sony Bravia clipping at 48dp — so the row
+ * this would add is exactly the row a cropping panel eats. It needs hardware
+ * before it is worth anything, which is why four still stands.
  */
-private val HEADER_HEIGHT = 104.dp
+internal val HEADER_HEIGHT = 104.dp
 
 /**
  * What [GuideNoticeBar] costs the header when it is up: its own 44dp plus the
  * 10dp spacer under it. Charged to the header rather than to the grid, so the
  * guide keeps four channels on the screen where the notice matters most.
  */
-private val NOTICE_BAR_COST = 54.dp
+internal val NOTICE_BAR_COST = 54.dp
 
 /**
  * The grid view of Live TV. Not a destination of its own: it is one of two ways
