@@ -37,8 +37,16 @@ class SourceStore(private val context: Context) {
             runCatching { json.decodeFromString<List<PlaylistSource>>(it) }.getOrNull()
         } ?: emptyList()
 
+    /**
+     * Every configured source, with a branded build's address applied — see
+     * [followProviderHost]. Read through here rather than written back, so a
+     * provider that moves is followed on the next launch and nothing has to
+     * migrate.
+     */
     val sources: Flow<List<PlaylistSource>> =
-        context.dataStore.data.map { prefs -> prefs.readSources() }
+        context.dataStore.data.map { prefs ->
+            followProviderHost(prefs.readSources(), com.agoro.tv.BuildConfig.PROVIDER_HOST)
+        }
 
     val activeId: Flow<String?> = context.dataStore.data.map { prefs -> prefs[activeKey] }
 
