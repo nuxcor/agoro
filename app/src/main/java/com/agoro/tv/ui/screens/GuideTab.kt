@@ -40,6 +40,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -93,6 +94,13 @@ import com.agoro.tv.data.answersTo
  * something else above it shrinking.
  */
 private val HEADER_HEIGHT = 104.dp
+
+/**
+ * What [GuideNoticeBar] costs the header when it is up: its own 44dp plus the
+ * 10dp spacer under it. Charged to the header rather than to the grid, so the
+ * guide keeps four channels on the screen where the notice matters most.
+ */
+private val NOTICE_BAR_COST = 54.dp
 
 /**
  * The grid view of Live TV. Not a destination of its own: it is one of two ways
@@ -436,6 +444,12 @@ fun GuideTab(
                 } else false
             },
     ) {
+        // The bar is paid for out of the HEADER, not out of the grid. Grown
+        // on top of a fixed-height header it took 54dp from the rows below —
+        // and four channels is the line under which a guide stops being a
+        // guide, so the one case where the channel list is all a viewer has
+        // (no guide data, or a guide that does not match the playlist) was
+        // the case that dropped them to three.
         notice?.let {
             GuideNoticeBar(notice = it)
             Spacer(Modifier.height(10.dp))
@@ -549,12 +563,18 @@ fun GuideTab(
         // first channel's on-now programme, not a channel name over a void.
         // Only for the true resting state — a focused channel whose lane reads
         // "No information" must not borrow another channel's programme.
-        val restingProgram = remember(channels.firstOrNull()?.id, guideWindow, nowTick) {
-            channels.firstOrNull()?.let { first ->
+        // And only on TODAY. programsFor reads the resident now/next window,
+        // so paged to tomorrow the header described the first channel's
+        // CURRENT programme — "25 minutes left" and all — over a grid showing
+        // a different day. On a paged day the honest answer is the channel
+        // name and no clock.
+        val restingProgram = remember(channels.firstOrNull()?.id, guideWindow, nowTick, dayOffset) {
+            if (dayOffset != 0) null else channels.firstOrNull()?.let { first ->
                 vm.programsFor(first).firstOrNull { nowTick in it.startMs until it.endMs }
             }
         }
         GuideHeader(
+            height = if (notice != null) HEADER_HEIGHT - NOTICE_BAR_COST else HEADER_HEIGHT,
             vm = vm,
             // Lambdas, not values: read in this scope these would
             // invalidate the whole guide — LazyColumn and every visible
@@ -690,8 +710,20 @@ fun GuideTab(
                 // with nothing on screen ever having said it was set the first
                 // time. The cell carries a bell and the header chip says so
                 // now, and a repeat press reports rather than re-arms.
+                // And a second press TAKES IT BACK. OK is the only thing a
+                // future cell answers to, so a reminder is easy to set by
+                // accident — and "Reminder already set" was the end of the
+                // road: no route from the cell, the header chip or the
+                // schedule sheet ever reached MainViewModel.cancelReminder,
+                // which was written for this and had no caller at all. The
+                // alarm fired whatever the viewer did.
                 if (reminders.isSet(program.id)) {
-                    statusMessage = "Reminder already set"
+                    statusMessage = if (vm.cancelReminder(channel, program)) {
+                        reminders.unmark(program.id)
+                        "Reminder removed"
+                    } else {
+                        "Reminder already set"
+                    }
                 } else {
                     vm.scheduleReminder(channel, program)
                     reminders.mark(program.id)
@@ -758,6 +790,8 @@ private fun GuideHeader(
     reminders: GuideReminders,
     /** Video for the focused channel, when previewing is on and one is running. */
     preview: @Composable () -> Unit = {},
+    /** Shorter when a notice bar is up; see where the notice is drawn. */
+    height: Dp = HEADER_HEIGHT,
 ) {
     val timeFmt = rememberClockFormat()
     // The app's one date idiom, with no year on it — see [NuxFormat.DAY_PATTERN].
@@ -795,7 +829,7 @@ private fun GuideHeader(
         // ruler and grid were laid out at zero height. A fixed height also
         // keeps the grid from shifting vertically as focus moves between
         // programmes with and without a synopsis.
-        modifier = Modifier.fillMaxWidth().height(HEADER_HEIGHT),
+        modifier = Modifier.fillMaxWidth().height(height),
         horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // Channel artwork, with the live preview drawn over it. Gated on a
@@ -1263,7 +1297,7 @@ private const val SHELF_SEPARATOR = " · "
 internal fun RegionGroupLabel(label: String) {
     Text(
         text = label.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.labelMedium,
         color = NuxColors.OnSurfaceDim,
         maxLines = 1,
         modifier = Modifier.padding(start = 14.dp, end = 6.dp),

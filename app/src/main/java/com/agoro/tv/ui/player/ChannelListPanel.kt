@@ -514,19 +514,12 @@ internal fun ChannelListPanel(
                 }
             }
         }
-        // Clicking the exposed video area closes the guide.
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown &&
-                        event.key.nativeKeyCode == AndroidKeyEvent.KEYCODE_DPAD_RIGHT
-                    ) {
-                        onDismiss()
-                        true
-                    } else false
-                }
-        )
+        // The exposed video, and nothing else. The spacer used to carry a
+        // preview key handler for RIGHT — on a Box that is neither focusable
+        // nor clickable, so no key event could ever reach it (preview events
+        // travel the FOCUSED node's ancestors). RIGHT out of the panel is
+        // handled where the focus actually is; the comment here described a
+        // pointer gesture this remote does not have.
+        Box(modifier = Modifier.weight(1f).fillMaxHeight())
     }
 }

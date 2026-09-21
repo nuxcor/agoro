@@ -54,7 +54,6 @@ import com.agoro.tv.data.UpdateManager
 import com.agoro.tv.ui.components.ConfirmDialog
 import com.agoro.tv.ui.components.MetaChip
 import com.agoro.tv.ui.components.PlaylistOptionsDialog
-import com.agoro.tv.ui.components.SettingsChoiceRow
 import com.agoro.tv.ui.components.SettingsGroup
 import com.agoro.tv.ui.components.TextInputDialog
 import com.agoro.tv.ui.components.WideItem
@@ -141,26 +140,15 @@ internal fun SettingsTab(
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val manageFocus = remember { androidx.compose.ui.focus.FocusRequester() }
     var returnToManage by remember { mutableStateOf(false) }
-    if (manageOpen && shownBundle != null) {
-        ChannelManager(vm = vm, bundle = shownBundle, onClose = {
-            manageOpen = false
-            returnToManage = true
-        })
-        return
-    }
-    LaunchedEffect(returnToManage) {
-        if (!returnToManage) return@LaunchedEffect
-        returnToManage = false
-        manageFocus.requestFocusRetrying()
-    }
 
-    // Storage state lives HERE, not inside its item. A LazyColumn item is
-    // disposed the moment it scrolls out of view, so held in there the
-    // measurement was thrown away and re-walked — thousands of stat calls —
-    // every time the viewer moved past it, the "Freed 300 MB" confirmation
-    // vanished with no trace the button had done anything, and the
-    // rememberCoroutineScope running the clear was cancelled mid-flight if
-    // they scrolled away while it worked.
+    // Storage state lives ABOVE the manager's early return, for the same
+    // reason it lives above the LazyColumn item: anything remembered below a
+    // `return` is disposed the moment the manager opens. Hoisting it out of
+    // the item fixed a scroll past it; it did not fix a visit to Manage
+    // channels, which threw the measurement away just the same, re-walked
+    // thousands of files on the way back, dropped the "Freed 312 MB" line
+    // with no trace the button had done anything, and cancelled a clear that
+    // was still running.
     val storageScope = rememberCoroutineScope()
     val storageContext = LocalContext.current
     var storageReport by remember {
@@ -175,6 +163,19 @@ internal fun SettingsTab(
         storageReport = withContext(Dispatchers.IO) {
             com.agoro.tv.data.StorageUsage.report(storageContext)
         }
+    }
+
+    if (manageOpen && shownBundle != null) {
+        ChannelManager(vm = vm, bundle = shownBundle, onClose = {
+            manageOpen = false
+            returnToManage = true
+        })
+        return
+    }
+    LaunchedEffect(returnToManage) {
+        if (!returnToManage) return@LaunchedEffect
+        returnToManage = false
+        manageFocus.requestFocusRetrying()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -269,7 +270,14 @@ internal fun SettingsTab(
                 val daysLeft = info?.expiresAtMs?.let { (it - System.currentTimeMillis()) / dayMs }
                 val expiringSoon = daysLeft != null && daysLeft in 0..7
                 val inactive = info?.status != null && !info.status.equals("Active", ignoreCase = true)
-                val expired = daysLeft != null && daysLeft < 0
+                // From the timestamp, not from the quotient. Integer division
+                // truncates toward zero, so the whole of the last day gave
+                // daysLeft = 0 — not expired, and "expiring soon" — and an
+                // account that ended last night wore a gold Active chip over
+                // the words "Expires 19 Sep" while every stream was already
+                // failing. The one screen a viewer opens to ask why it stopped
+                // working was the one screen saying nothing had.
+                val expired = info?.expiresAtMs?.let { it < System.currentTimeMillis() } == true
                 val fmt = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
                 SettingsGroup(title = "Account") {
                     if (signedInAs != null) {
@@ -304,8 +312,17 @@ internal fun SettingsTab(
                                             }
                                         )
                                     }
-                                    if (info.maxConnections != null) {
-                                        add("${info.activeConnections ?: 0} of ${info.maxConnections} connections in use")
+                                    // Only when the panel actually said. The
+                                    // elvis printed a confident "0 of 1
+                                    // connections in use" for "the panel did
+                                    // not answer" — on a one-connection line,
+                                    // while the viewer was watching it.
+                                    if (info.maxConnections != null && info.activeConnections != null) {
+                                        val max = info.maxConnections
+                                        add(
+                                            "${info.activeConnections} of $max " +
+                                                if (max == 1) "connection in use" else "connections in use"
+                                        )
                                     }
                                 }.joinToString("   •   "),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -355,6 +372,22 @@ internal fun SettingsTab(
                 // row is walked to.
                 if (!brandedBuild) {
                     OutlinedButton(onClick = onAddPlaylist) { Text("Add playlist") }
+                }
+                // A branded build has an account, and an account's password
+                // changes — at a renewal, or when the provider reissues it.
+                // Every route to the sign-in form ran through the playlist
+                // ROWS, and those are composed only on the unbranded build,
+                // so on the build that ships there was no way to enter a new
+                // password or drop a dead login: Refresh simply kept failing.
+                // The only other door was Home's empty-library pane, which
+                // adds a SECOND source rather than mending this one.
+                //
+                // Capability, not taste, which is the line Settings is sorted
+                // on. It sits in the row that already exists rather than as a
+                // new list item, so nothing above or below it moves.
+                val signedIn = active
+                if (brandedBuild && signedIn != null) {
+                    OutlinedButton(onClick = { onEditPlaylist(signedIn.id) }) { Text("Change sign-in") }
                 }
                 // The label is the progress indicator: one stable button, so a
                 // load in flight can't move focus out from under the press.
@@ -697,7 +730,14 @@ internal fun SettingsTab(
             onConfirm = {
                 confirmForgetProgress = false
                 vm.forgetProgressEverywhere()
-                pendingLoadMessage = "Watch progress forgotten"
+                // Said now, not queued. pendingLoadMessage is drained by the
+                // transition OUT of ContentState.Loading, and forgetting
+                // progress never touches ContentState — so the confirmation
+                // sat in the queue until some unrelated refresh passed
+                // through Loading and then announced itself over that. A
+                // destructive act that cannot be undone has to answer for
+                // itself immediately, the way Export backup does.
+                statusMessage = "Watch progress forgotten"
             },
             onDismiss = { confirmForgetProgress = false },
         )

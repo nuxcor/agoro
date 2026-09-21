@@ -140,19 +140,8 @@ fun EpisodeRow(
                 // On the still, the way a thumbnail carries its own progress
                 // everywhere else — under the row it was a third dim line
                 // competing with the synopsis for the same strip of pixels.
-                if (progress != null && progress > 0f) Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(Color.Black.copy(alpha = 0.55f)),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(progress.coerceIn(0f, 1f))
-                            .background(NuxColors.Primary),
-                    )
+                if (progress != null && progress > 0f) {
+                    ProgressTrack(progress, Modifier.align(Alignment.BottomStart))
                 }
             }
 

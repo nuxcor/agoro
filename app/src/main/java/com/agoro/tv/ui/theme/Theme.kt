@@ -40,6 +40,12 @@ object NuxColors {
     val SurfaceRaised = Color(0xFF35322E)   // focused / raised
     val Stroke = Color(0xFF3C3A35)          // 1dp card outline
     val StrokeSoft = Color(0x1AFFFFFF)      // dividers
+    // The unfilled part of a resume bar, wherever one is drawn. Every card
+    // invented its own: white at 25%, white at 20%, black at 55% — so the
+    // resume bar under an episode still was a dark slot while the identical
+    // bar on that show's poster, one row away on the same screen, was a light
+    // one. Warm rather than pure white, like the rest of this ramp.
+    val TrackDim = Color(0x40E8E4DC)
 
     val Primary = Color(0xFFD99A2E)         // brand gold — never a full focus fill
     val PrimaryDim = Color(0xFF9C6D1C)

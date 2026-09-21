@@ -387,23 +387,34 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
     val feedLabel: String? =
         if (item?.sourceNames.isNullOrEmpty() || session.feedCount <= 1) null
         else "${session.currentFeed + 1} of ${session.feedCount}" +
-            (session.feedLabel?.let { " · $it" } ?: "") +
-            // What this feed actually decoded to, once it has.
-            //
-            // The app cannot know a pipe's picture before opening it, and it
-            // cannot infer it either: stream 1940147 measured 1080p on
-            // 2026-09-08 and 720p on the 9th, because a PPV pack re-streams
-            // whatever its source hands it that night. Nothing about the
-            // pack, the slot name or last night's probe predicts tonight.
-            // What CAN be said honestly is what is on screen right now — so
-            // the switcher shows it, and stepping round the feeds is how a
-            // viewer finds the good one. Measured on the two Champions League
-            // ties of 2026-09-09: 720p30, 1080p25, 1080p30, 1080p50, 1080p60
-            // and a 720p50 HEVC, all of the same match.
-            (session.videoSize?.second?.takeIf { it > 0 }?.let { height ->
-                val fps = session.videoFrameRate?.takeIf { it > 1f }?.let { "${it.toInt()}" }
-                " · ${height}p${fps.orEmpty()}"
-            } ?: "")
+            (session.feedLabel?.let { " · $it" } ?: "")
+
+    // The measured picture, for the OPTIONS menu and nowhere else.
+    //
+    // It used to be appended to feedLabel itself, and the banner prints that
+    // label — so every zap and every INFO press put "1080p50" over the
+    // picture, on the one surface whose own rule says the badges live in one
+    // place, the button row a viewer goes looking at. A resolution is the
+    // definition of a technical readout: it belongs where the control that
+    // acts on it is.
+    val feedLabelMeasured: String? = feedLabel?.let { label ->
+        // What this feed actually decoded to, once it has.
+        //
+        // The app cannot know a pipe's picture before opening it, and it
+        // cannot infer it either: stream 1940147 measured 1080p on
+        // 2026-09-08 and 720p on the 9th, because a PPV pack re-streams
+        // whatever its source hands it that night. Nothing about the pack,
+        // the slot name or last night's probe predicts tonight. What CAN be
+        // said honestly is what is on screen right now — so the switcher
+        // shows it, and stepping round the feeds is how a viewer finds the
+        // good one. Measured on the two Champions League ties of 2026-09-09:
+        // 720p30, 1080p25, 1080p30, 1080p50, 1080p60 and a 720p50 HEVC, all
+        // of the same match.
+        label + (session.videoSize?.second?.takeIf { it > 0 }?.let { height ->
+            val fps = session.videoFrameRate?.takeIf { it > 1f }?.let { "${it.toInt()}" }
+            " · ${height}p${fps.orEmpty()}"
+        } ?: "")
+    }
 
     // Engine lives until something asks for a rebuild; see engineGeneration.
     val engine = remember(session.engineGeneration) {
@@ -1195,7 +1206,22 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
         // slot PlayerGuideOverlay reserves — video and audio keep going, the
         // guide fills the rest. A scrim over fullscreen video was tried first
         // and read as "playback stopped"; broadcast guides embed the picture.
-        val guideVideoInset = session.layer == PlayerLayer.Guide && request.isLive && !inPip
+        // Held across the guide's exit. The overlay slides out over 350ms
+        // with no fade (a broadcast guide does not dissolve), but this flag
+        // flipped the instant the layer changed — so the picture snapped to
+        // full screen in one frame while the chips, the ruler, the grid and
+        // the hairline that outlined the video corner all carried on sliding
+        // down ON TOP of it.
+        val guideLayer = session.layer == PlayerLayer.Guide && request.isLive && !inPip
+        var guideInsetHeld by remember { mutableStateOf(false) }
+        LaunchedEffect(guideLayer) {
+            if (guideLayer) guideInsetHeld = true
+            else {
+                kotlinx.coroutines.delay(PlayerMotion.GuideMs.toLong() * 4 / 5)
+                guideInsetHeld = false
+            }
+        }
+        val guideVideoInset = guideLayer || guideInsetHeld
         androidx.compose.runtime.key(session.engineGeneration) {
             AndroidView(
                 modifier = if (guideVideoInset) {
@@ -1494,8 +1520,13 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                     onPlayPause = { session.togglePlayPause(); session.poke() },
                     onSeekBy = { delta -> session.nudgeSeekBy(delta); session.poke() },
                     onNudgeSeek = { direction -> session.nudgeSeek(direction); session.poke() },
-                    onPrevious = { engine.previous(); session.poke() },
-                    onNext = { engine.next(); session.poke() },
+                    // Through the session, not straight at the engine: every
+                    // other route onto an item (jumpTo, zap, playUpNext) sets
+                    // tuning, so it opens under a TuneCard that names what is
+                    // coming. These two skipped it, and the next episode began
+                    // as a blank frame and then a bare buffering sweep.
+                    onPrevious = { session.jumpTo(session.currentIndex - 1); session.poke() },
+                    onNext = { session.jumpTo(session.currentIndex + 1); session.poke() },
                     onChannels = { session.layer = PlayerLayer.ChannelList },
                     onGuide = { session.layer = PlayerLayer.Guide },
                     // One options panel, live or film. A film used to go
@@ -1596,7 +1627,10 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                 title = item?.title.orEmpty(),
                 message = lastError,
                 canRetryTolerant = session.canRetryTolerant,
-                hasNext = request.items.size > 1,
+                // Not "there is more than one item": zap(+1) wraps, so on
+                // the last episode of a season the card offered "Next
+                // episode" and played episode 1.
+                hasNext = request.isLive || session.currentIndex < request.items.size - 1,
                 isLive = request.isLive,
                 ended = lastEnded,
                 onRetry = { session.retryAfterError() },
@@ -1709,6 +1743,7 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                         session.positionMs = 0
                         vm.playCatchup(catchupChannel, program, url)
                     },
+                    onStatus = { session.statusMessage = it },
                 )
             }
         }
@@ -1743,7 +1778,7 @@ fun PlayerScreen(vm: MainViewModel, onExit: () -> Unit) {
                 videoRungs = videoRungs,
                 videoSelection = videoSelection,
                 canChooseTracks = canChooseTracks,
-                feedLabel = feedLabel,
+                feedLabel = feedLabelMeasured,
                 onFavoriteToggle = { channel?.let { vm.toggleFavorite(it) } },
                 onCatchup = { session.layer = PlayerLayer.Catchup },
                 onTracks = { session.layer = PlayerLayer.Tracks },

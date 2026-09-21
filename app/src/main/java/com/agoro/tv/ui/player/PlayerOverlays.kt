@@ -120,6 +120,7 @@ internal fun CatchupOverlay(
     vm: MainViewModel,
     channel: LiveChannel,
     onPlay: (EpgProgram, String) -> Unit,
+    onStatus: (String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var programs by remember(channel.id) { mutableStateOf<List<EpgProgram>?>(null) }
@@ -187,7 +188,14 @@ internal fun CatchupOverlay(
                             onClick = {
                                 scope.launch {
                                     val url = vm.catchupUrl(channel, program)
+                                    // The null arm was empty: OK did nothing,
+                                    // and the panel is focus-trapped, so the
+                                    // next OK did nothing too. The grid guide
+                                    // says this out loud for the same failure
+                                    // — one fault cannot have two answers
+                                    // depending on which surface found it.
                                     if (url != null) onPlay(program, url)
+                                    else onStatus("Catch-up isn't available for this programme")
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -216,13 +224,13 @@ internal fun CatchupOverlay(
                                     text = "${dayFmt.format(Date(program.startMs))} • " +
                                         "${clockFmt.format(Date(program.startMs))}" +
                                         " – ${clockFmt.format(Date(program.endMs))}",
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = NuxColors.OnSurfaceDim,
                                 )
                                 if (!program.description.isNullOrBlank()) {
                                     Text(
                                         text = program.description,
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.labelMedium,
                                         color = NuxColors.OnSurfaceDim,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -836,7 +844,7 @@ private fun PlayerCornerCard(
             Spacer(Modifier.width(12.dp))
             Text(
                 text = hint,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = NuxColors.OnSurfaceDim,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

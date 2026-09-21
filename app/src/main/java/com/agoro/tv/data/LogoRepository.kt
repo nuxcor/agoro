@@ -81,9 +81,9 @@ class LogoRepository(context: Context, private val http: OkHttpClient) {
             val base = path.substringAfterLast('/').removeSuffix(".png")
             val url = RAW_BASE + path
             // File names end with a country code: "sky-sports-main-event-uk".
-            built.putIfAbsent(base, url)
+            if (base !in built) built[base] = url
             val withoutCountry = base.substringBeforeLast('-', base)
-            if (withoutCountry.length > 2) built.putIfAbsent(withoutCountry, url)
+            if (withoutCountry.length > 2 && withoutCountry !in built) built[withoutCountry] = url
         }
         // Only memoise a usable index, so a failed fetch is retried next time
         // instead of pinning an empty map for the life of the process.

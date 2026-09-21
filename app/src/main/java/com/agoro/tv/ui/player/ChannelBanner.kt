@@ -301,7 +301,7 @@ internal fun ChannelBanner(
 private fun KeyHint(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.labelMedium,
         color = NuxColors.OnSurfaceDim,
         maxLines = 1,
     )
@@ -312,7 +312,7 @@ private fun KeyHint(text: String) {
 private fun KeyHintDot() {
     Text(
         text = "·",
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.labelMedium,
         color = NuxColors.OnSurfaceDim,
     )
 }

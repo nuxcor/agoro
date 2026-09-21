@@ -512,7 +512,14 @@ private fun Fixtures(
             // The clock, not just the fixture — the whole point of the sheet
             // is the thing the row's status column was already saying and the
             // press ignored.
-            title = "${event.title} · ${fixtureStatus(event, now, clock) ?: "not started"}",
+            // isLive decides, not the null. fixtureStatus returns null to
+            // mean "draw the LIVE badge", and the sheet read that same null
+            // as "has not started" — so a match flipped to "not started" at
+            // the exact minute it kicked off.
+            title = "${event.title} · " + (
+                if (event.isLive(now)) "on now"
+                else fixtureStatus(event, now, clock) ?: "not started"
+                ),
             actions = listOf(
                 MenuAction("Open anyway") { launched[0] = true; play(event) },
             ),
@@ -616,7 +623,7 @@ private fun Crest(club: String, url: String?) {
         // square nobody asked for.
         contentScale = ContentScale.Fit,
         background = Color.Transparent,
-        monogramStyle = MaterialTheme.typography.labelSmall,
+        monogramStyle = MaterialTheme.typography.titleMedium,
         modifier = Modifier.size(CrestSize),
     )
 }

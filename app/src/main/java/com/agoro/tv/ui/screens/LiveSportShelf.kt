@@ -89,9 +89,18 @@ internal fun liveSportShelf(
     fixtures: List<SportsEvent>?,
     events: List<LiveChannel>,
     nowMs: Long,
+    /**
+     * The slot index, when the caller already holds one.
+     *
+     * It depends on the BUNDLE, and only the window below depends on the
+     * clock — but Home keyed the whole call on its minute tick, so this map
+     * was rebuilt over six thousand event slots every sixty seconds, in
+     * composition, for as long as Home was on screen.
+     */
+    slotIndex: Map<Int?, LiveChannel>? = null,
 ): List<LiveFixture> {
     if (fixtures.isNullOrEmpty() || events.isEmpty()) return emptyList()
-    val slots = events.associateBy { it.xtreamId }
+    val slots = slotIndex ?: events.associateBy { it.xtreamId }
     return fixtures.asSequence()
         // isOnNow, not isLive: isLive has no upper bound, so a match that
         // kicked off stays 'live' until the schedule forgets it. That is a

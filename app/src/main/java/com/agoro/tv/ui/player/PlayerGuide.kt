@@ -352,7 +352,12 @@ private fun GuideDetails(
     Row(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = currentProgram?.title ?: current?.name ?: "Guide",
+                // Never the name of the screen. On a category switch the
+                // focus state is cleared and the grid does not re-fire
+                // onFocus, so the pane headlined the single word "Guide" with
+                // nothing under it until the viewer pressed DOWN. The channel
+                // that is actually playing is the honest fallback.
+                text = currentProgram?.title ?: current?.name ?: categoryName.orEmpty(),
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = NuxColors.OnSurface,
                 maxLines = 1,

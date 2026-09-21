@@ -148,15 +148,7 @@ private val FOCUS_OVERHANG = 12.dp
 private fun gridColumnsFor(width: Dp): Int =
     ((width + GRID_GAP) / (POSTER_TARGET_WIDTH + GRID_GAP)).let { kotlin.math.round(it).toInt() }
         .coerceIn(3, 7)
-/**
- * The strip's "Search" chip. An ACTION wearing a filter's clothes: it is in
- * [VodBrowser]'s `shown` list so it rides the same LazyRow, the same focus
- * travel and the same restorer as the categories around it, but nothing ever
- * assigns it to `selectedCategory` — the item block branches on this id
- * before a [CategoryItem] with an onClick is ever built. So `activeCategory`
- * cannot land here, and `entriesFor` is never asked about it.
- */
-
+/** Titles the viewer is part-way through, gathered as a pseudo-category. */
 internal const val VOD_CONTINUE = "__continue__"
 
 /** Titles filed under a category the playlist never declared — see [CatalogIndex]. */
@@ -310,7 +302,6 @@ internal suspend fun snapRetrying(attempts: Int = 3, scroll: suspend () -> Unit)
 internal data class VodEntry(
     val id: String,
     val title: String,
-    val subtitle: String?,
     val poster: String?,
     /** Looked up when [poster] is null — see [borrowedArt]. */
     val art: ArtRef?,
@@ -960,7 +951,6 @@ fun MoviesTab(
     fun Movie.entry() = VodEntry(
         id = id,
         title = name,
-        subtitle = year?.toString(),
         poster = poster,
         art = artRef(),
         year = year,
@@ -1064,7 +1054,6 @@ fun SeriesTab(
     fun Series.entry() = VodEntry(
         id = id,
         title = name,
-        subtitle = episodes?.let { "${it.size} episodes" } ?: year?.toString(),
         poster = poster,
         art = artRef(),
         year = year,

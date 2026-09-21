@@ -156,7 +156,13 @@ fun MovieDetailScreen(
             // billed "4K" here can be the one that will not play. The
             // player's badge is measured off the stream that actually
             // opened, and that is the only honest place to say it.
-            val yearChip = movie.year?.toString()
+            // Guarded the way the poster card guards it (Components.kt's
+            // year > 1800): the panel sends "0" for a year it does not know
+            // and XtreamClient.int() turns that into 0, not null — so the
+            // same film showed no year on its Home card and a gold chip
+            // reading "0" on its own page. Gold is the year; it cannot be a
+            // placeholder.
+            val yearChip = movie.year?.takeIf { it > 1800 }?.toString()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOfNotNull(
                     yearChip,
@@ -298,18 +304,6 @@ private fun MissingItemPane(kind: String, contentState: ContentState, onBack: ()
     )
 }
 
-/** "1h 12m" — a resume offset a viewer can recognise at a glance. */
-internal fun formatOffset(ms: Long): String {
-    val totalMinutes = (ms / 60_000).coerceAtLeast(0)
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
-    return when {
-        hours > 0 -> "${hours}h ${minutes}m"
-        // Under a minute rounded down to "0m", which read as a bug.
-        minutes == 0L -> "${(ms / 1_000).coerceAtLeast(1)}s"
-        else -> "${minutes}m"
-    }
-}
 
 /**
  * A show, its episodes, and one D-pad path from the top of the page to the
@@ -550,6 +544,14 @@ fun SeriesDetailScreen(
                             "The first open of a series can take a minute."
                         } else null,
                         loading = true,
+                        // A landing spot while the episodes are still coming.
+                        // Nothing else on this page is focusable until they
+                        // land — the hero's Play button needs an episode to
+                        // play — so on a lazy provider the D-pad did nothing
+                        // in any direction for up to a minute on a full-screen
+                        // route with no nav bar to fall back to. BACK worked,
+                        // silently; this says so.
+                        action = StatusAction("Back", onBack),
                     )
                 }
                 eps.isEmpty() -> item(key = "empty") {
@@ -644,7 +646,13 @@ fun SeriesDetailScreen(
                     // to the end in another room, a show the viewer wants
                     // back at the start. Nothing else could undo a watch mark.
                     add(
-                        MenuAction("Mark as unwatched") {
+                        // Destructive, and named the same thing it is named
+                        // on Home: holding OK on a Continue-watching card and
+                        // holding OK on the same episode here ran the one
+                        // call — PlayerPrefs.clearResume, which drops the
+                        // position AND the watch mark — under two labels in
+                        // two colours.
+                        MenuAction("Mark as unwatched", destructive = true) {
                             vm.forgetResume(episode.url)
                         }
                     )
@@ -709,11 +717,11 @@ private fun SeriesHero(
             Spacer(Modifier.height(8.dp))
             // Gold is the year — see the film page for why the accent is a
             // meaning rather than a position.
-            val yearChip = series.year?.toString()
+            val yearChip = series.year?.takeIf { it > 1800 }?.toString()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOfNotNull(
                     yearChip,
-                    episodeCount?.let { "$it episodes" },
+                    episodeCount?.let { if (it == 1) "1 episode" else "$it episodes" },
                     series.genre,
                 ).forEach { chip -> MetaChip(chip, accent = chip == yearChip) }
             }
