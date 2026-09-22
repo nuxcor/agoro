@@ -634,8 +634,31 @@ class ManifestRepository(
                 val cacheStamp = readStamp { cacheFile.takeIf { it.exists() }?.inputStream() }
                 val assetStamp = readStamp { context.assets.open(CatalogueManifest.ASSET) }
                 val parsed = if (cacheStamp != null && assetStamp != null) {
-                    // Equal stamps keep the cache, as they always have.
-                    if (assetStamp > cacheStamp) readAsset() ?: readCache()
+                    // A TIE GOES TO THE ASSET, which is a reversal, and the
+                    // reason is that [generated] is not quite the content
+                    // version it is described as above. It is the BUILDER's
+                    // run time, so every hand edit to the shipped asset leaves
+                    // it untouched — and the provider host has been hand
+                    // edited three times (pro.dzidzi.online ->
+                    // pro.business-cdn-8k.com -> cf.dzidzi.online) under one
+                    // unchanged stamp of 2026-09-11T01:39:33.
+                    //
+                    // Keeping the cache on a tie therefore meant a box that
+                    // fetched the remote copy while it still named the first
+                    // host could NEVER stop serving it: the stamps are equal
+                    // for ever, so the stale copy wins the tie-break every
+                    // time, and it lives in cacheDir so app updates do not
+                    // clear it. That box then had a manifest naming one
+                    // provider and a build dialling another, which switched
+                    // curation off entirely — and no amount of updating fixed
+                    // it, because the APK was never the stale part.
+                    //
+                    // The asset ships INSIDE the build and is guaranteed to be
+                    // the one that build was made against; the cache is a
+                    // remote copy of unknown vintage. On equal content
+                    // versions the one that came with the binary is the one to
+                    // trust. See [assetWinsTie].
+                    if (assetWinsTie(assetStamp, cacheStamp)) readAsset() ?: readCache()
                     else readCache() ?: readAsset()
                 } else {
                     newerOfBoth()
@@ -685,7 +708,7 @@ class ManifestRepository(
     }.getOrNull()
 
     /** Orders as [load] always has: schema first, then the build stamp. */
-    private data class Stamp(val version: Int, val generated: String) : Comparable<Stamp> {
+    internal data class Stamp(val version: Int, val generated: String) : Comparable<Stamp> {
         override fun compareTo(other: Stamp): Int =
             compareValuesBy(this, other, { it.version }, { it.generated })
     }
@@ -737,6 +760,15 @@ class ManifestRepository(
          * so no credential is involved; any failure just leaves the asset in
          * charge.
          */
+    /**
+     * Whether the bundled asset beats the cached remote copy.
+     *
+     * Pulled out so the tie-break is testable without an Android context: it
+     * is one comparison, and it was wrong for months in a way no test could
+     * see because deciding it needed assets and a cache directory.
+     */
+    internal fun assetWinsTie(asset: Stamp, cache: Stamp): Boolean = asset >= cache
+
         const val DEFAULT_REMOTE =
             "https://raw.githubusercontent.com/nuxcor/agoro/main/" +
                 "app/src/main/assets/catalogue-manifest.json"

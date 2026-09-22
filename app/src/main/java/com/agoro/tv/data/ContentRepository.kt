@@ -644,7 +644,11 @@ class ContentRepository(context: Context) {
         // The rule itself is in ProviderMove.kt, beside followProviderHost —
         // the two halves of "which provider is this build for" belong
         // together, and the comparison needs to be reachable from a test.
-        return curationApplies(sourceHost, manifest.provider.host)
+        return curationApplies(
+            sourceHost,
+            manifest.provider.host,
+            com.agoro.tv.BuildConfig.PROVIDER_HOST,
+        )
     }
 
     private suspend fun fetchRaw(source: PlaylistSource): ContentBundle = when (source) {

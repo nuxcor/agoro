@@ -52,25 +52,35 @@ internal fun followProviderHost(
 /**
  * Whether the shipped manifest describes the catalogue this source serves.
  *
- * The rule is one line and it decides everything the manifest does: sections,
- * drops, shelf order, artwork, the collapse tiles. When it says no, the
- * bundle passes through uncurated and the viewer gets the provider's own
- * 18,780 channels under the provider's own shelf names — every DirecTV
- * re-stream, every Tubi FAST loop, every separator row.
+ * ON A BRANDED BUILD THE ANSWER IS ALWAYS YES, and that is the change that
+ * matters here. Such a build dials exactly one panel, carries that panel's
+ * manifest inside the same APK, and rewrites every stored source to its own
+ * address on read ([followProviderHost]). The manifest and the build ship
+ * together and are versioned together, so they cannot be for different
+ * catalogues — there is nothing left for a hostname to decide.
  *
- * It is written down here, apart from its caller, because it is a comparison
- * between two build-time constants that are set in two different places and
- * have already drifted once. The manifest's host is baked into the asset by
- * tools/manifest; the build's is a CI secret. Nothing brought them together,
- * so when the provider moved and only one of them was updated, curation
- * silently stopped running — no error, no log, nothing on screen, just the
- * raw catalogue. [ProviderCurationTest] compares them now, and it fails the
- * build rather than the viewer.
+ * It used to decide it anyway, by comparing the source's host against the
+ * host the manifest names, and that comparison was a bad proxy for the
+ * question. Everything the manifest does is keyed on the panel's STREAM IDS.
+ * A provider moving from one domain to another does not change a single
+ * stream id — the catalogue is identical — yet the compare went false and
+ * curation stopped dead: no sections, no drops, no shelf order, no artwork,
+ * and the viewer got the provider's own 18,780 channels with every DirecTV
+ * re-stream and Tubi loop in them. So the check failed exactly when nothing
+ * about the catalogue had changed, which is the worst possible time, and it
+ * did it in silence.
  *
- * A blank [manifestHost] means the manifest names no provider and cannot
- * claim any catalogue.
+ * On an UNBRANDED build the viewer types their own address and may point at
+ * any provider at all, so the host is the only signal there is and the
+ * compare stays. A blank [manifestHost] there means the manifest names no
+ * provider and can claim no catalogue.
  */
-internal fun curationApplies(sourceUrl: String, manifestHost: String): Boolean {
+internal fun curationApplies(
+    sourceUrl: String,
+    manifestHost: String,
+    providerHost: String,
+): Boolean {
+    if (providerHost.isNotBlank()) return true
     val host = manifestHost.takeIf { it.isNotBlank() } ?: return false
     return sourceUrl.contains(host, ignoreCase = true)
 }
