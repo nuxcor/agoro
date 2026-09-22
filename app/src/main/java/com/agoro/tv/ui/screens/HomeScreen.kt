@@ -42,6 +42,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import com.agoro.tv.MainViewModel
 import com.agoro.tv.data.ContentState
 import com.agoro.tv.data.Movie
@@ -55,9 +56,11 @@ import com.agoro.tv.ui.components.StatusAction
 import com.agoro.tv.ui.components.StatusPane
 import com.agoro.tv.ui.components.requestFocusRetrying
 import com.agoro.tv.ui.theme.HEADER_BAND_HEIGHT
+import com.agoro.tv.ui.theme.HEADER_RETRACTED_INSET
 import com.agoro.tv.ui.theme.HeaderWash
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import com.agoro.tv.ui.theme.NuxMotion
 import com.agoro.tv.ui.theme.Space
 import kotlinx.coroutines.delay
@@ -126,6 +129,77 @@ fun HomeScreen(
     // the viewer is choosing a destination, and the guide stands its BACK
     // rungs down for the same reason.
     var headerFocused by remember { mutableStateOf(false) }
+
+    // --- how much of the navigation is on screen ---------------------------
+    //
+    // See [navChromeLevel] for why the two rows retract at all. This is the
+    // plumbing: three inputs, one rule, and nothing about the D-pad changes.
+
+    /**
+     * Whether the tab's own top-edge control holds focus, debounced.
+     *
+     * The debounce is not a nicety. onFocusChanged{hasFocus} on a LazyRow
+     * reports a one-frame FALSE between two children, so travelling LEFT or
+     * RIGHT along the category strip publishes lost-then-found on every
+     * single press — and the chrome would flicker the whole way along it.
+     * LiveTab records this exact trap for the entry tick and the same cure:
+     * treat only a SUSTAINED loss as a loss. Done here, once, so both strips
+     * inherit it and neither has to remember.
+     */
+    var stripFocused by remember { mutableStateOf(false) }
+    var stripFocusRaw by remember { mutableStateOf(false) }
+    LaunchedEffect(stripFocusRaw) {
+        if (stripFocusRaw) {
+            stripFocused = true
+        } else {
+            kotlinx.coroutines.delay(NAV_CHROME_BLIP_MS)
+            stripFocused = false
+        }
+    }
+
+    /**
+     * False until the viewer's first D-pad move on this tab.
+     *
+     * Saveable, for the reason hasLaunched is: the shell leaves composition
+     * for every channel and every detail page, and coming back is a RETURN,
+     * not a launch. Without this the bar would pop up again over a grid the
+     * viewer only stepped away from. Keyed on the tab, so arriving somewhere
+     * new shows the navigation that got you there.
+     */
+    var movedSinceArrival by rememberSaveable(tab) { mutableStateOf(false) }
+
+    /**
+     * The strip has been ASKED for but focus has not arrived yet.
+     *
+     * It is composed out while the chrome is down, so its requester is
+     * detached and "focus the strip" cannot be what brings it back — it has to
+     * exist first. A redirect raises this, the strip composes, and the retry
+     * ladder in requestFocusRetrying lands on it a frame or two later.
+     *
+     * Dropped again if focus never arrives, so a request that fails cannot
+     * strand the navigation on screen. The window is longer than the ladder
+     * it is covering (8 tries, 60ms apart).
+     */
+    var stripRequested by remember { mutableStateOf(false) }
+    LaunchedEffect(stripRequested, stripFocused) {
+        if (!stripRequested) return@LaunchedEffect
+        if (stripFocused) {
+            stripRequested = false
+        } else {
+            kotlinx.coroutines.delay(NAV_CHROME_REQUEST_MS)
+            stripRequested = false
+        }
+    }
+
+    val chrome = navChromeLevel(
+        headerFocused = headerFocused,
+        stripFocused = stripFocused || stripRequested,
+        movedSinceArrival = movedSinceArrival,
+    )
+    // Resolved once, read inside the offset lambda's layout pass.
+    val headerBandPx = with(androidx.compose.ui.platform.LocalDensity.current) {
+        HEADER_BAND_HEIGHT.roundToPx()
+    }
     // One requester per header control, owned here rather than by [TopNav] so
     // that none of them ever moves between nodes — see the parameter's doc for
     // the bug that costs. One spare, always allocated: sizing this to the
@@ -245,6 +319,15 @@ fun HomeScreen(
                     if (event.type == KeyEventType.KeyDown) openSearch()
                     return@onPreviewKeyEvent true
                 }
+                // The first move on this tab. Guarded, so this costs one
+                // recomposition per visit rather than one per press — and
+                // still observe-only: the key is never consumed.
+                if (!movedSinceArrival &&
+                    event.type == KeyEventType.KeyDown &&
+                    event.key in NAV_CHROME_MOVE_KEYS
+                ) {
+                    movedSinceArrival = true
+                }
                 false // everything else: observe only, never consume
             },
     ) {
@@ -299,10 +382,21 @@ fun HomeScreen(
                 // The browse tabs bleed their backdrop past their own bounds,
                 // and a Column draws its children in order — so as a sibling
                 // the content painted straight over the header.
+                // Stepped, never animated. NuxMotion's own note forbids it:
+                // transform and alpha only, because low-end sticks cannot
+                // afford animated layout — and this is layout, re-measuring a
+                // windowed guide grid every frame it ran. The lane's height
+                // cannot be tweened anyway, so the content relocates in one
+                // frame regardless; sliding the bar over content that has
+                // already moved is a ghost bar disagreeing with the page.
+                // Both transitions are caused by a press, so there is always
+                // something on screen explaining the cut.
                 .padding(
                     start = Space.gutter,
                     end = Space.gutter,
-                    top = HEADER_BAND_HEIGHT,
+                    top = if (chrome.barVisible) {
+                        HEADER_BAND_HEIGHT
+                    } else HEADER_RETRACTED_INSET,
                     bottom = Space.gutterVertical,
                 )
                 .focusRequester(contentFocus)
@@ -376,6 +470,15 @@ fun HomeScreen(
                 // tab already intercepts UP at its top edge; before the header
                 // existed they all intercepted it and went nowhere.
                 com.agoro.tv.ui.components.LocalTopNavFocus provides { focusHeader() },
+                // The other direction: a tab's top-edge control saying whether
+                // it holds focus, so the shell can tell "in the strip" from
+                // "in content". Debounced above — see [stripFocusRaw].
+                com.agoro.tv.ui.components.LocalTopEdgeFocus provides
+                    { held: Boolean -> stripFocusRaw = held },
+                // Whether the tab should draw its top-edge control at all,
+                // and how it asks for it back. See [LocalShowTopEdge].
+                com.agoro.tv.ui.components.LocalNavChromeStrip provides chrome.stripVisible,
+                com.agoro.tv.ui.components.LocalShowTopEdge provides { stripRequested = true },
             ) {
             tabStateHolder.SaveableStateProvider(current.name) {
                 if (current == HomeTab.Settings) {
@@ -442,12 +545,33 @@ fun HomeScreen(
     // sits over the page's own artwork, 20sp labels need something to sit on,
     // and a bar would have a lower edge — the exact thing the nav redesign
     // took the drawer apart to avoid.
+    // With the bar retracted there are no labels to sit on, and an opaque
+    // 78dp wash over a retracted lane would darken the strip and the first
+    // channel row for nothing. It holds no focus and no requester, so unlike
+    // the bar it is safe to compose out.
+    if (chrome.barVisible) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(HEADER_BAND_HEIGHT)
+                .background(HeaderWash)
+        )
+    }
+    // NEVER composed out, only displaced.
+    //
+    // Its FocusRequesters are owned by this shell precisely so they never move
+    // between nodes — committing a tab used to leave the ring stranded on Home
+    // permanently — and resolving a redirect to a DETACHED requester throws,
+    // which is the crash behind "the app froze and went back to the Google TV
+    // home screen". Always composed, always attached, offset out of view.
+    //
+    // It also makes the machine self-healing: if focus reaches the bar by any
+    // route at all, headerFocused flips and it is back on screen next frame.
     Box(
-    Modifier
-        .fillMaxWidth()
-        .height(HEADER_BAND_HEIGHT)
-        .background(HeaderWash)
-    )
+        Modifier.offset {
+            IntOffset(0, if (chrome.barVisible) 0 else -headerBandPx)
+        }
+    ) {
     TopNav(
         selected = tab,
         // OK or DOWN commits: switch the tab and hand focus to the
@@ -509,6 +633,7 @@ fun HomeScreen(
         // disagree about what pressing means in a given state.
         onUpdate = { vm.downloadAndInstallUpdate() },
     )
+    }
 
     // Above everything, so the readout survives any pane that opens over the
     // content — otherwise it stops measuring exactly when the viewer is doing

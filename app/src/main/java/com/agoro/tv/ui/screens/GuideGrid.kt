@@ -601,6 +601,17 @@ internal fun GuideGrid(
      * to the host's controls row (category chips) instead.
      */
     upFromTopRow: FocusRequester? = null,
+    /**
+     * Run just before [upFromTopRow] is asked for, so a host whose controls
+     * row is not currently composed can put it back first.
+     *
+     * The guide's category strip is composed OUT while the navigation chrome
+     * is retracted — it has to be, or its 54dp stays reserved and the grid
+     * never gains them — which leaves its requester detached. This is how the
+     * host is told to compose it; requestFocusRetrying then lands on it a
+     * frame or two later, which is what that helper is for.
+     */
+    onBeforeUpFromTopRow: (() -> Unit)? = null,
     onChannelLongPress: (LiveChannel) -> Unit = {},
     listState: LazyListState = rememberLazyListState(
         prefetchStrategy = remember { GuideRowPrefetchStrategy() },
@@ -906,6 +917,9 @@ internal fun GuideGrid(
                         // focusProperties.up override is not consulted for
                         // D-pad moves on this tv-material version.
                         if (gridFocus.focusedRow == 0 && upFromTopRow != null) {
+                            // Ask the host to compose its controls row back
+                            // before aiming at it — see onBeforeUpFromTopRow.
+                            onBeforeUpFromTopRow?.invoke()
                             scope.launch { upFromTopRow.requestFocusRetrying() }
                             true
                         } else {
@@ -1060,6 +1074,8 @@ internal fun TimeRuler(
     canStepForward: Boolean = false,
     dayFocus: FocusRequester? = null,
     dayUp: FocusRequester? = null,
+    /** Reports day-chip focus as top-edge chrome — see the call site. */
+    topEdge: ((Boolean) -> Unit)? = null,
     /** DOWN from the day chip. Intercepted rather than left to the geometric
      *  search, which finds no candidate below and lets the unconsumed event
      *  fall back to the first category chip — see [GuideGridHandle]. */
@@ -1095,6 +1111,13 @@ internal fun TimeRuler(
                     modifier = Modifier
                         .then(dayFocus?.let { Modifier.focusRequester(it) } ?: Modifier)
                         .focusProperties { dayUp?.let { up = it } }
+                        // The day chip is top-edge chrome too, and saying so
+                        // is what keeps [dayUp] safe: without it, standing
+                        // here retracted the strip out of composition and the
+                        // next UP resolved to a DETACHED requester, which
+                        // throws. The strip and the day chip are one band —
+                        // focus in either keeps both on screen.
+                        .onFocusChanged { topEdge?.invoke(it.hasFocus) }
                         .onPreviewKeyEvent { event ->
                             if (event.type != KeyEventType.KeyDown) {
                                 return@onPreviewKeyEvent false

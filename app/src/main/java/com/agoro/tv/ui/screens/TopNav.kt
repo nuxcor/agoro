@@ -5,18 +5,14 @@
 
 package com.agoro.tv.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
@@ -45,6 +41,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
@@ -62,12 +59,25 @@ import com.agoro.tv.ui.theme.Space
  * a 10-foot label allows: the guide reads its rows out of what is left, and
  * this is the only navigation in the app that costs the content anything.
  */
-private val ITEM_PADDING_H = 16.dp
-private val ITEM_PADDING_V = 9.dp
+internal val ITEM_PADDING_H = 16.dp
+internal val ITEM_PADDING_V = 9.dp
 
-/** The gold rule under the tab you are on. Drawn in its own fixed-height slot. */
-private val MARKER_HEIGHT = 4.dp
-private val MARKER_WIDTH = 26.dp
+/** Above the words. This is also the app's top safe inset — see Theme.kt. */
+internal val ROW_PADDING_TOP = 18.dp
+
+/**
+ * Below the words, and it is load-bearing at 14.
+ *
+ * It was 6 while a 4dp gold rule and its 4dp pad sat under each tab. The rule
+ * is gone (see [TopNavItem]) and those eight dp are spent HERE rather than
+ * reclaimed as a shorter band: a shorter band would pull the bar and the
+ * category strip eight dp closer together, which is the exact complaint this
+ * change answers. Spent here it does the opposite — the seam between the two
+ * rows goes from 0dp to 8 — and [HEADER_BAND_HEIGHT] is still exactly 78, so
+ * the wash, the content lane's top padding and the guide's whole row budget
+ * are all untouched. [HeaderBandTest] holds the arithmetic.
+ */
+internal val ROW_PADDING_BOTTOM = 14.dp
 
 /**
  * The header's own type scale — titleMedium, a step above the labelLarge it
@@ -88,6 +98,91 @@ private val ICON_WITH_LABEL_SIZE = 22.dp
 /** Alone in its control, so it carries the weight a word would: Settings. */
 private val ICON_ONLY_SIZE = 28.dp
 
+/**
+ * How long a lost strip focus must stay lost before the chrome believes it.
+ *
+ * A LazyRow reports hasFocus=false for one frame as focus moves between two
+ * children, so without this the chrome flickers on every press along the
+ * strip. Matched to the sustained-loss window LiveTab already uses for the
+ * guide's entry tick, and to NuxMotion.FastMs.
+ */
+internal const val NAV_CHROME_BLIP_MS = 120L
+
+/**
+ * How long the strip stays up waiting for a focus request to land, before the
+ * shell gives up and drops it again. Longer than requestFocusRetrying's own
+ * ladder (8 tries, 60ms apart) so a slow compose is not cut off, short enough
+ * that a failed request does not leave the navigation stranded on screen.
+ */
+internal const val NAV_CHROME_REQUEST_MS = 800L
+
+/** The presses that count as "the viewer has started moving". */
+internal val NAV_CHROME_MOVE_KEYS = setOf(
+    Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight,
+    Key.DirectionCenter, Key.Enter,
+)
+
+/**
+ * How much of the navigation is on screen.
+ *
+ * The two rows at the top cost 132dp of a 540dp canvas — a quarter of the
+ * screen — permanently, on an app that is live TV before it is a library and
+ * whose guide gets only four channel rows because of it. And neither row is
+ * doing anything while the viewer is scanning that grid: you pick a tab and
+ * stay, you pick a shelf and then look. Chrome should cost in proportion to
+ * how often it is used, and this pair was the least-used and most expensive
+ * thing on screen.
+ *
+ * So it steps out of the way, and the escalation upward mirrors the ladder
+ * BACK already walks downward (see [guideBackAction]): grid, then strip, then
+ * bar. Nothing about the D-pad changes — every route that reaches the bar
+ * today reaches it unchanged. This only decides what is DRAWN.
+ *
+ * Why [movedSinceArrival] is a term. The shell parks launch focus in the
+ * CONTENT on purpose, so the app boots one OK away from watching. A purely
+ * focus-driven rule would therefore retract the navigation on boot, before
+ * the viewer has pressed anything — a menu that vanishes unbidden, which is
+ * the drawer's failure mode reintroduced. Pinning both rows until the first
+ * move also means the viewer has SEEN the bar before it can ever go away,
+ * which is what makes the UP that brings it back discoverable rather than
+ * folklore.
+ */
+internal enum class NavChrome {
+    /** Focus is in content. Neither row is drawn. */
+    Hidden,
+
+    /** Focus is on a tab's own top-edge control. The strip is drawn. */
+    Strip,
+
+    /** Focus is in the bar, or nothing has moved yet. Both rows are drawn. */
+    Full,
+    ;
+
+    val barVisible get() = this == Full
+    val stripVisible get() = this != Hidden
+}
+
+/**
+ * One rule, in one place, for the same reason [guideBackAction] is: the ORDER
+ * is the thing that breaks, and an order expressed as nested ifs across two
+ * files is an order nobody can check.
+ *
+ * Tabs with no top-edge control of their own — Home, Sport, Settings, Search —
+ * never report [stripFocused], so this collapses to a one-rung escalation for
+ * them, which is exactly what they do today. Deliberately NOT scoped to
+ * strip-bearing tabs: a bar whose presence depends on which tab you are on is
+ * a rule no viewer can name, and it reads as a bug.
+ */
+internal fun navChromeLevel(
+    headerFocused: Boolean,
+    stripFocused: Boolean,
+    movedSinceArrival: Boolean,
+): NavChrome = when {
+    headerFocused || !movedSinceArrival -> NavChrome.Full
+    stripFocused -> NavChrome.Strip
+    else -> NavChrome.Hidden
+}
+
 enum class HomeTab(val label: String, val icon: ImageVector) {
     // Enum order is header order, left to right. The ordinal is also the index
     // of a control's FocusRequester, so this order is the LEFT/RIGHT order and
@@ -102,15 +197,18 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
     // The mark still opens the app on the splash and sits on the sign-in form,
     // which is where a brand belongs.
     //
-    // Search follows, keeping its magnifier AHEAD of its word rather than
-    // instead of it. The argument for Search leading is a real one: it is an
-    // ACTION rather than a place — you go to Home, to Movies, to Live, but you
-    // don't go to Search, you use it — and the top-left is where a television
-    // puts that shape.
+    // Search follows, and it is a word now like the rest. It kept a magnifier
+    // ahead of that word for a long time on the argument that it is an ACTION
+    // rather than a place — you go to Home, to Movies, to Live, but you don't
+    // go to Search, you use it. That argument is sound and it survives; what
+    // carries it is the POSITION, on the leading edge, which is where a
+    // television puts that shape. It never needed the glyph as well.
     //
     // So the six destinations on the left are six words, which is the whole
     // point of the row: a glyph has to be DECODED where a word is simply read,
-    // and a television has no tooltip to fall back on.
+    // and a television has no tooltip to fall back on. Settings is the only
+    // mark in the row, and its position past the weighted gap is what earns
+    // it — see [TopNavItem.labelled].
     //
     // Settings is last, pushed to the far right, and is the one control with
     // no word — see [TopNavItem.labelled] for why its position earns that.
@@ -229,7 +327,12 @@ internal fun TopNav(
                 }
             }
             .onFocusChanged { onHeaderFocusChanged(it.hasFocus) }
-            .padding(start = Space.gutter, end = Space.gutter, top = 18.dp, bottom = 6.dp),
+            .padding(
+                start = Space.gutter,
+                end = Space.gutter,
+                top = ROW_PADDING_TOP,
+                bottom = ROW_PADDING_BOTTOM,
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.xs),
     ) {
@@ -244,13 +347,14 @@ internal fun TopNav(
             TopNavItem(
                 label = item.label,
                 selected = item == selected,
-                // Every destination is a word. Two of them lead that word with
-                // a symbol — Home with the app's own mark, Search with the
-                // magnifier — because those two earn a glyph, not because they
-                // can do without the word.
-                icon = item.icon.takeIf {
-                    item == HomeTab.Search || item == HomeTab.Settings
-                },
+                // Settings alone. Six destinations, six words — the row's
+                // own argument, applied to the row: a glyph has to be DECODED
+                // where a word is simply read, and a television has no
+                // tooltip. Search's claim to a mark was that it is an ACTION
+                // rather than a place, and that claim is carried by its
+                // POSITION on the leading edge, exactly as the gear's is
+                // carried by sitting past the weighted gap.
+                icon = item.icon.takeIf { item == HomeTab.Settings },
                 labelled = item != HomeTab.Settings,
                 onClick = { commit(index) },
                 modifier = Modifier
@@ -305,31 +409,60 @@ private fun TopNavItem(
         Surface(
             onClick = onClick,
             shape = ClickableSurfaceDefaults.shape(NuxShape.FilterChip),
+            // ONE STATE LANGUAGE, and the category strip below now uses the
+            // same one. These two rows sat one dp apart saying opposite
+            // things: here selection was transparent and focus a dim raised
+            // fill; down there selection was FILLED and focus a solid white
+            // one. The same press produced different results one row apart,
+            // which is what made the two of them read as a single confusing
+            // block rather than as a bar over a filter.
+            //
+            //   resting            dim text, no container
+            //   selected           gold text, no container
+            //   focused            white fill, dark text
+            //   focused + selected white fill, gold text
+            //
+            // The rule this file has always stated — "two filled states one
+            // lightness step apart is one state at ten feet" — is finally true
+            // of the whole app: exactly one state fills, and it is focus.
             colors = ClickableSurfaceDefaults.colors(
-                // Transparent even when selected. Two filled states one
-                // lightness step apart is one state at ten feet, and the
-                // header has to say which tab you are ON and which you are
-                // POINTING AT at the same time. Selection is the gold word
-                // and the gold rule below it; focus is the fill and the white
-                // ring. Two marks of different kinds, never two greys.
                 containerColor = Color.Transparent,
-                focusedContainerColor = NuxColors.SurfaceRaised,
+                // The fill IS the focus mark. A raised grey was a lightness
+                // step; this is the largest one the palette can make.
+                focusedContainerColor = NuxColors.FocusBorder,
                 contentColor = when {
                     selected -> NuxColors.Primary
                     accent -> NuxColors.Secondary
                     else -> NuxColors.OnSurfaceDim
                 },
-                // Gold survives focus: BACK puts focus on the tab you are
-                // already on, and with white-on-focus the header could not say
+                // Gold survives focus, because BACK puts focus on the tab you
+                // are already on and the header would otherwise stop saying
                 // where you were until you moved off it.
+                //
+                // PrimaryDim, not Primary, and only here. Gold #D99A2E on the
+                // white fill is about 2.0:1 — a smudge at ten feet rather than
+                // a colour. PrimaryDim #9C6D1C is the palette's own darkened
+                // gold, reads about 3.7:1 on that fill, and still reads as
+                // GOLD rather than as grey. Resting-selected keeps full
+                // Primary, where it sits on near-black at about 7.4:1.
+                //
+                // The update control does NOT keep its teal: #4FD1C5 on white
+                // is about 1.5:1, and unlike selection it has nothing to
+                // preserve — its own label says "Update to 2.40.0".
                 focusedContentColor = when {
-                    selected -> NuxColors.Primary
-                    accent -> NuxColors.Secondary
-                    else -> NuxColors.OnSurface
+                    selected -> NuxColors.PrimaryDim
+                    else -> NuxColors.Background
                 },
             ),
+            // No scale. These are words in a run spaced by Space.xs = 4dp, and
+            // 1.06 on a ~120dp pill grows it seven dp — the whole gap — so a
+            // solid white pill would butt against its neighbour's word. A
+            // poster grows because it is a picture you are picking up; a word
+            // that grows shoves its neighbours.
             scale = ClickableSurfaceDefaults.scale(focusedScale = NuxFocus.RowScale),
-            border = ClickableSurfaceDefaults.border(focusedBorder = NuxFocus.ringChip),
+            // No ring. A 2dp #E6FFFFFF ring around a solid #E6FFFFFF fill is
+            // the same colour as the thing it is drawn on.
+            border = ClickableSurfaceDefaults.border(focusedBorder = Border.None),
         ) {
             Row(
                 modifier = Modifier.padding(
@@ -362,14 +495,17 @@ private fun TopNavItem(
                 )
             }
         }
-        // A fixed slot, painted or not. Laying the rule out only when selected
-        // would move every label 3dp on each tab change.
-        Box(
-            Modifier
-                .padding(top = 4.dp)
-                .height(MARKER_HEIGHT)
-                .width(if (selected) MARKER_WIDTH else 0.dp)
-                .background(NuxColors.Primary, NuxShape.Track),
-        )
+        // No rule under the selected tab any more. It was the third mark
+        // doing the second job — gold text already says which tab you are on,
+        // and the strip below has never had a rule, so the two rows now mark
+        // themselves the same way.
+        //
+        // Its 8dp (a 4dp rule and its 4dp pad) is NOT reclaimed as a shorter
+        // band. That would pull the two rows eight dp CLOSER, which is the
+        // complaint this change exists to answer. It is spent as air instead:
+        // the Row's bottom padding went 6 -> 14 so the band is still exactly
+        // 78, and the seam between the bar and the strip went from 0dp to 8.
+        // See [ROW_PADDING_BOTTOM] — the 14 is load-bearing, and restoring
+        // the rule means putting the 6 back with it.
     }
 }
