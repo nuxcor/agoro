@@ -532,6 +532,19 @@ def channel_key(n):
     n = NBC_FAMILY.sub('', VARIANT_TAG.sub('', QUAL.sub('', SPFX.sub('', asc(n)))))
     for pat, base in PLURALISE:          # "Sky Sport 1" == "Sky Sports 1"
         n = re.sub(pat, base, n, flags=re.I)
+    # A "+" service is not the same channel as its base, and it is not a valid
+    # fallback for it either — they play different content. The plus was being
+    # thrown away as punctuation by the strip below, which folded four tiles
+    # that should never have met: AMC with AMC+, MGM with MGM+, BET with BET+,
+    # Bloomberg with Bloomberg TV+. The AMC tile then took its label from one
+    # of the "+" sources, so the shelf read "AMC +" for the plain network and
+    # sat it next to a separate "AMC PLUS" — which looked like a duplicate and
+    # was really the network wearing the service's name.
+    #
+    # One token, so the two spellings of the SERVICE still meet: "AMC +" and
+    # "AMC PLUS" both key as amcplus, while "AMC" stays amc.
+    n = re.sub(r'\s*\+', ' plus ', n)
+    n = re.sub(r'\bPLUS\b', ' plus ', n, flags=re.I)
     k = re.sub(r'[^a-z0-9]', '', n.lower())
     # Never down to a short stub. "PRIME TV" -> "prime" collided with the
     # provider's own separator rows ("#### PRIME ####") and cost a real DSTV
@@ -2088,6 +2101,10 @@ MANUAL_SECTION = {
     '1562526': 'ENTERTAINMENT',
     '162255':  'ENTERTAINMENT',
     '1031379': 'SPORTS',
+    # KUHT is Houston's PBS station — a local broadcaster that landed on the
+    # Entertainment shelf between Adult Swim and Baby First. Its category says
+    # entertainment because the panel files it there; what it is, is a local.
+    '1910073': 'LOCALS',
 }
 name_section.update(MANUAL_SECTION)
 # The tiles were built before this map existed, and a tile's own section is
@@ -3758,6 +3775,29 @@ for _sid in afr_assign:
     if _stripped and _stripped != _cur:
         display_name[_sid] = _stripped
         _afr_renamed += 1
+
+# A doubled colon is the provider's typo, not a name.
+#
+# Five channels ship as "US: : NATIONAL GEOGRAPHIC HD" and "UK:: NATIONAL
+# GEOGRAPHIC 4K" — the territory prefix, then a second empty one. Live channel
+# names are NOT cleaned by the app (only display_name is consulted), so these
+# reach the shelf exactly as written and sort to the top of Entertainment on
+# the stray punctuation.
+#
+# Only the doubled colon is touched. The prefix itself stays, because it is
+# how every other channel on the shelf reads and a single corrected name in a
+# different shape would look more wrong, not less.
+_colon_fixed = 0
+for _st in ls:
+    _sid = str(_st['stream_id'])
+    _cur = display_name.get(_sid) or asc(_st.get('name', ''))
+    _fix = re.sub(r':\s*:\s*', ': ', _cur)
+    _fix = re.sub(r'\s{2,}', ' ', _fix).strip()
+    if _fix and _fix != _cur:
+        display_name[_sid] = _fix
+        _colon_fixed += 1
+if _colon_fixed:
+    print(f"  names with a doubled colon corrected: {_colon_fixed}")
 
 # How early a fixture may appear, in minutes. An hour ahead of kick-off, which
 # also covers the catalogue refresh: slot names only change when the catalogue

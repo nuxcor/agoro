@@ -136,12 +136,6 @@ internal const val STARTER_ROW_LENGTH = 20
 private val HOME_HERO_HEIGHT = 110.dp
 
 /**
- * How many channels of history it takes before Home stops offering the
- * starter row. One is not a history; it is one card in a twenty-card lane.
- */
-private const val STARTER_CHANNELS_RETIRE = 5
-
-/**
  * What long-pressing a Home card opens. Only the cards with actions OK cannot
  * reach get a menu — a channel (favorite, hide) and a Continue watching card
  * (start over, forget). A catalogue poster's every action is one OK press away
@@ -183,7 +177,7 @@ private sealed interface HomeMenu {
  * braces rather than a state the list can actually be in.
  */
 private enum class HomeRow {
-    LiveSport, Recents, Continue, Favorites, StarterChannels, New, Acclaimed,
+    LiveSport, Recents, Continue, Favorites, New, Acclaimed,
     GenreA, GenreB, GenreC, StarterMovies, StarterSeries
 }
 
@@ -211,7 +205,6 @@ private class HomeShelves(
     val favoritesRow: List<LiveChannel>,
     val recentsRow: List<LiveChannel>,
     val recentlyAdded: List<CatalogCard>,
-    val starterChannels: List<LiveChannel>,
     val starterMovies: List<Movie>,
     val starterSeries: List<Series>,
     val acclaimed: List<Movie>,
@@ -230,7 +223,6 @@ private class HomeShelves(
         HomeRow.Continue -> continueRow.size
         HomeRow.Favorites -> favoritesRow.size
         HomeRow.Recents -> recentsRow.size
-        HomeRow.StarterChannels -> starterChannels.size
         HomeRow.StarterMovies -> starterMovies.size
         HomeRow.StarterSeries -> starterSeries.size
         HomeRow.New -> recentlyAdded.size
@@ -259,7 +251,6 @@ private class HomeShelves(
             HomeRow.LiveSport -> liveSport.at()?.let { fixtureHero(it) }
             HomeRow.Favorites -> favoritesRow.at()?.let { channelHero(it, nowNext[it.id]) }
             HomeRow.Recents -> recentsRow.at()?.let { channelHero(it, nowNext[it.id]) }
-            HomeRow.StarterChannels -> starterChannels.at()?.let { channelHero(it, nowNext[it.id]) }
             HomeRow.StarterMovies -> starterMovies.at()?.let { HomeHero(it.toHero()) }
             HomeRow.StarterSeries -> starterSeries.at()?.let { HomeHero(it.toHero()) }
             HomeRow.Acclaimed -> acclaimed.at()?.let { HomeHero(it.toHero()) }
@@ -382,46 +373,56 @@ internal fun HomeLoungeTab(
     // nothing but a record of what you had already watched.
     val acclaimed = shelves?.acclaimedMovies.orEmpty()
     val genreShelves = shelves?.genreShelves.orEmpty()
-    // Retired on VOLUME, not on existence. Watching a single channel used to
-    // delete a 20-tile "Live channels" row and leave "Recent channels" with
-    // one card alone in the lane — the top of Home, on day two.
-    val watchedChannels = favoritesRow.size + recentsRow.size >= STARTER_CHANNELS_RETIRE
-    val starterChannels = remember(displayChannels, watchedChannels) {
-        if (watchedChannels) emptyList() else displayChannels.take(STARTER_ROW_LENGTH)
-    }
+    // No "Live channels" row any more, and the argument is the one this file
+    // already made about the films and shows beside it: it was
+    // displayChannels.take(20) — the alphabetical head of eighteen thousand
+    // channels, nothing chosen about it — sitting FIFTH on Home, above
+    // "Recently added", "Highly rated films" and every genre shelf. It opened
+    // on 5 USA, 90'S - DIRECT and ALIBI because those sort first, which is the
+    // whole of what it ever meant.
+    //
+    // The starter MOVIES and SERIES rows were demoted to last-and-usually-
+    // absent for exactly this reason; this one was left where it was, so two
+    // of the three were fixed. Day one now opens on shelves that all have a
+    // reason for their order — Sport on now, Recently added, Highly rated
+    // films, the genre shelves — and one fewer row is the right price for
+    // none of them being arbitrary.
 
     // Only rows with something in them compose — an empty shelf is a dead
     // D-pad press (same rule as the browse tabs' Continue watching shortcut).
     val rowKeys = remember(
         liveSport, continueRow, favoritesRow, recentsRow, recentlyAdded,
-        starterChannels, starterMovies, starterSeries, acclaimed, genreShelves,
+        starterMovies, starterSeries, acclaimed, genreShelves,
     ) {
         // Live first, then films, then shows.
         //
-        // Recent channels take the top. Continue watching held it for a while,
-        // on the reasoning that "what was I doing" is the first question Home
-        // answers — but on this app it usually is not. This is a live TV app
-        // before it is a library: the common arrival is someone coming back to
-        // a channel they were watching, not to a film they were halfway
-        // through, and a live row is also the one that is populated on almost
-        // every install. Continue watching keeps second place, which is still
-        // above the fold, and is still absent entirely for anyone who has not
-        // started something.
+        // Continue watching leads, and Recent channels follows it.
+        //
+        // This has been argued both ways and has now been decided twice. It
+        // read Continue-then-Recent, was swapped on the reasoning that this is
+        // a live TV app before it is a library — the common arrival being
+        // someone coming back to a channel rather than to a half-watched film
+        // — and is swapped back here by the owner's call. The live argument is
+        // real and is why Recent sits immediately beneath rather than further
+        // down; what it does not settle is that an unfinished thing is a
+        // stronger claim on the top row than a finished one. Continue watching
+        // is also absent entirely for anyone who has not started something, so
+        // on the installs where the live argument is strongest the row order
+        // is unchanged anyway.
         //
         // Everything after them runs live -> movies -> shows, so the shelf
         // order matches the rail order and the thing this app is primarily for
         // is the thing on screen when Home opens.
         buildList {
-            // ON NOW sport takes the very top, above even recent channels.
+            // ON NOW sport takes the very top, above everything else.
             // It is the only shelf on this screen with a clock running
             // against it: a film waits, a channel waits, a match does not.
             // It is also absent most of the time, so it costs the usual
             // arrival nothing.
             if (liveSport.isNotEmpty()) add(HomeRow.LiveSport)
-            if (recentsRow.isNotEmpty()) add(HomeRow.Recents)
             if (continueRow.isNotEmpty()) add(HomeRow.Continue)
+            if (recentsRow.isNotEmpty()) add(HomeRow.Recents)
             if (favoritesRow.isNotEmpty()) add(HomeRow.Favorites)
-            if (starterChannels.isNotEmpty()) add(HomeRow.StarterChannels)
             // Recently added is a mixed catalogue row, so it trails the
             // typed ones rather than splitting them.
             if (recentlyAdded.isNotEmpty()) add(HomeRow.New)
@@ -544,12 +545,12 @@ internal fun HomeLoungeTab(
         // to step off the doomed card.
         remember(
             rowKeys, liveSport, continueRow, favoritesRow, recentsRow, recentlyAdded,
-            starterChannels, starterMovies, starterSeries, acclaimed, genreShelves,
+            starterMovies, starterSeries, acclaimed, genreShelves,
             nowNext,
         ) {
             HomeShelves(
                 rowKeys, liveSport, continueRow, favoritesRow, recentsRow, recentlyAdded,
-                starterChannels, starterMovies, starterSeries, acclaimed, genreShelves,
+                starterMovies, starterSeries, acclaimed, genreShelves,
                 nowNext,
             )
         },
@@ -604,11 +605,12 @@ internal fun HomeLoungeTab(
                 snapRetrying { columnState.animateScrollToItem(row.coerceAtLeast(0)) }
             }
     }
-    // Shelves arrive in waves: the catalogue lands first, and displayChannels
-    // folds a beat later to prepend "Live channels". The lane keeps its offset
-    // when a row is inserted above, so Home opened anchored on Movies with the
-    // live row hidden off the top — while the hero, which reads rowKeys.first(),
-    // was already describing a channel the viewer could not see.
+    // Shelves arrive in waves: the catalogue lands first and the rows that
+    // depend on displayChannels fold a beat later, so one can be prepended
+    // above the lane's current position. The lane keeps its offset when that
+    // happens, so Home opened anchored on Movies with the new row hidden off
+    // the top — while the hero, which reads rowKeys.first(), was already
+    // describing something the viewer could not see.
     //
     // Only before the first focus. After that the position is the viewer's, and
     // a late-arriving shelf must not move it under them.
@@ -982,18 +984,6 @@ internal fun HomeLoungeTab(
                         }
                     }
                 }
-                HomeRow.StarterChannels -> Column {
-                    SectionTitle("Live channels")
-                    LazyRow(
-                        modifier = shelf.focusRestorer().shelfRingRoom(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(horizontal = ShelfRingRoom),
-                    ) {
-                        itemsIndexed(starterChannels, key = { _, c -> c.id }) { index, channel ->
-                            ChannelTile(starterChannels, row, rowIndex, index, channel)
-                        }
-                    }
-                }
                 HomeRow.StarterMovies -> Column {
                     SectionTitle("Movies")
                     LazyRow(
@@ -1262,8 +1252,7 @@ private fun HomeContextMenu(
                 actions = listOf(
                     MenuAction(if (isFav) "Remove from favorites" else "Add to favorites") {
                         // Un-starring removes the card only from the
-                        // Favorites shelf; on Recents or Live channels it
-                        // stays where it is.
+                        // Favorites shelf; on Recents it stays where it is.
                         if (isFav && menu.row === favoritesRow) onRemove()
                         vm.toggleFavorite(menu.channel)
                     },
