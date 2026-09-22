@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -52,6 +53,8 @@ import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.data.TextNorm
 import com.agoro.tv.ui.components.NuxFormat
 import com.agoro.tv.ui.components.rememberProgramDescription
+import com.agoro.tv.ui.components.ShelfRingRoom
+import com.agoro.tv.ui.components.shelfRingRoom
 import com.agoro.tv.ui.components.spendGutter
 import com.agoro.tv.ui.theme.Space
 import com.agoro.tv.data.LiveChannel
@@ -526,8 +529,20 @@ fun GuideTab(
             // where a day belongs; going UP they are leaving for a category or
             // a tab, and a stop at a time control is a press spent on a
             // question they did not ask. See [GuideGrid]'s upFromTopRow.
+            contentPadding = PaddingValues(horizontal = ShelfRingRoom),
             modifier = Modifier
                 .padding(bottom = STRIP_GAP)
+                // The ring room the browse strip has carried for a while and
+                // this one never did. A focused chip fills solid white inside
+                // a LazyRow, and a LazyRow clips its main axis — so the FIRST
+                // chip, which is the one focus arrives on, lost the left edge
+                // of that fill against the row's own bound. The row measures
+                // wider by ShelfRingRoom each side and reports its original
+                // width; the matching content padding puts the resting chips
+                // back on the line they were on. The two strips must not
+                // differ, and this is the room anyone restoring a focus scale
+                // would otherwise have to rediscover.
+                .shelfRingRoom()
                 // The requester lives on the ROW, not on a chip.
                 //
                 // It used to be attached to the first chip, on the reasoning

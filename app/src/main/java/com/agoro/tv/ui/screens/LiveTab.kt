@@ -525,22 +525,39 @@ fun CategoryItem(
         shape = ClickableSurfaceDefaults.shape(NuxShape.FilterChip),
         // Focus is a FILL, not an outline. A 2dp ring is a desktop idiom read
         // from 60cm; across a room the eye finds a solid shape long before it
-        // finds a hairline, and it is what every chip strip on this platform
-        // does. It also ends the argument about the ring's corners — there is
-        // no ring.
+        // finds a hairline. It also ends the argument about the ring's
+        // corners — there is no ring.
         //
-        // Selection keeps gold and focus takes white, so the two never have to
-        // be told apart by brightness alone: a chip can be selected, focused,
-        // both, or neither, and all four read differently.
+        // ONE STATE LANGUAGE, shared with the bar above ([TopNavItem]). The
+        // two rows used to say opposite things one dp apart: up there
+        // selection was transparent and focus a dim raised fill, down here
+        // selection was FILLED and focus a solid white one. Exactly one state
+        // fills now, and it is focus.
+        //
+        //   resting            dim text, no container
+        //   selected           gold text, no container
+        //   focused            white fill, dark text
+        //   focused + selected white fill, gold text
+        //
+        // The selected container is gone, which is the header's own rule
+        // finally applied here: "two filled states one lightness step apart is
+        // one state at ten feet".
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (selected) NuxColors.SelectedContainer else Color.Transparent,
+            containerColor = Color.Transparent,
             focusedContainerColor = NuxColors.FocusBorder,
             contentColor = if (selected) NuxColors.Primary else NuxColors.OnSurfaceDim,
             // Dark ON the fill: white text on a white chip is a blank pill.
-            focusedContentColor = NuxColors.Background,
+            // Selected keeps gold, so a chip you are pointing at and a chip
+            // you are on stay tellable apart — PrimaryDim, because full gold
+            // on this fill is about 2.0:1 and reads as a smudge at ten feet.
+            focusedContentColor =
+                if (selected) NuxColors.PrimaryDim else NuxColors.Background,
         ),
+        // No scale, matching the bar. The fill is the whole focus mark, and a
+        // chip that grows 1.06 inside a clipping LazyRow is what forced the
+        // ring room the strips carry — see [shelfRingRoom].
         scale = ClickableSurfaceDefaults.scale(
-            focusedScale = NuxFocus.ButtonScale,
+            focusedScale = NuxFocus.RowScale,
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border.None,
