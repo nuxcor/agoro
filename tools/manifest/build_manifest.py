@@ -389,7 +389,13 @@ GENRE_SECTIONS  = ['NEWS','SPORTS','KIDS','DOCUMENTARY','MUSIC','MOVIES']
 BUNDLE_SECTIONS = ['LOCALS','ENTERTAINMENT','STREAMING','24/7']
 # upstream miscategorisations no rule recovers from
 SECTION_OVERRIDE = {"qvc": "ENTERTAINMENT", "abcnewslive": "NEWS", "foxweather": "NEWS",
-                    "hsn": "ENTERTAINMENT"}
+                    "hsn": "ENTERTAINMENT",
+                    # 2026-09-22, from reading the Entertainment tab back:
+                    # Pop is general entertainment (the panel files it Kids),
+                    # Animal Planet is a documentary channel, and Red Bull TV
+                    # is action sport, not entertainment.
+                    "pop": "ENTERTAINMENT", "animalplanet": "DOCUMENTARY",
+                    "redbull": "SPORTS"}
 
 PLURALISE = [(r'\bSPORTS?\b', 'SPORT'), (r'\bNETWORKS?\b', 'NETWORK'),
              (r'\bCHANNELS?\b', 'CHANNEL')]
@@ -1005,7 +1011,16 @@ for s in ls:
     if not c: continue
     # DGO re-streams carry a burned-in watermark and duplicate native feeds;
     # dropped outright, not demoted — the catalogue serves the originals.
-    if re.match(r'^GO\s*:', asc(s['name']), re.I):
+    # The provider renamed the bundle by 2026-09-22: the same category 2036
+    # now ships it as "TV:", under fresh ids, so an id-keyed drop list built
+    # from the old dump let all of it back onto Entertainment ("20/20", "50
+    # CENT ACTION CHANNEL"). "TV:" is matched only inside 2036 because 2049
+    # uses the same prefix for the city locals, which fold into metro tiles.
+    # AT&T: (category 2041, new the same week) is another platform re-stream
+    # of the same national channels and goes the same way, like RK: before it.
+    if re.match(r'^(?:GO|AT&T)\s*:', asc(s['name']), re.I) or (
+            str(s.get('category_id')) == '2036'
+            and re.match(r'^TV\s*:', asc(s['name']), re.I)):
         go_drop.append(s['stream_id']); continue
     # Telemundo's stations are Spanish-language and were filling eight of the
     # metro shelves' tiles. Dropped at ingest so they never form a tile at
@@ -1143,7 +1158,11 @@ PRIMARY_PIN = {
 # and leaves at sd_all_drop, and both CA copies went with the territory, so
 # the only survivor is the UK one. Pinning that to US would have opened the
 # new tile on the US News shelf — the pin doing harm rather than nothing.
-REGION_PIN = {'nbcnewsnow': 'US'}
+# Nat Geo Wild took the UK 4K copy as its primary, so the US feed folded into
+# a UK tile and the channel was only on the UK tab — Nat Geo itself, built the
+# same way, was pinned by nothing and still landed US. Red Bull TV is a PRIME:
+# re-stream the panel files under a UK category; it is not a British channel.
+REGION_PIN = {'nbcnewsnow': 'US', 'nationalgeographicwild': 'US', 'redbull': 'US'}
 
 # The broadcaster's own public feed, played BEFORE the provider's copies.
 #
@@ -2168,7 +2187,9 @@ for _srcs in tiles.values():
                      and re.match(r'^PRIME\s*:', asc(_donor_nm.get(x['id'], '')), re.I))
 
 # 1. a second locals bundle hides under a CITY: prefix inside Entertainment
-LOCAL_PREFIX = re.compile(r'^\s*(?:CITY|PRIME)\s*:', re.I)
+#    (renamed "TV: ... city" in category 2049 by 2026-09-22; the 2036 "TV:"
+#    bundle never reaches here, it is dropped at ingest)
+LOCAL_PREFIX = re.compile(r'^\s*(?:CITY|PRIME|TV)\s*:', re.I)
 
 def _is_local_affiliate(n):
     """A local station, as opposed to a national channel under the same prefix.
@@ -2272,7 +2293,7 @@ SHOW_CHANNEL  = re.compile(
     r"|BOB ROSS|FAMILY HANDYMAN|50 CENT|DANCE MOMS|KEEPING UP|DECLASSIFIED|PRANKS"
     r"|COSMIC FRONTIERS|EARTH TOUCH|DROOL|E! KEEPING", re.I)
 _NET_THEN_CALL = re.compile(
-    r'^(?:CITY\s*:\s*)?(?:ABC|CBS|NBC|FOX|CW|PBS|IND|MNT|TMO)\d*\s+([WK][A-Z]{2,3})\b', re.I)
+    r'^(?:(?:CITY|TV)\s*:\s*)?(?:ABC|CBS|NBC|FOX|CW|PBS|IND|MNT|TMO)\d*\s+([WK][A-Z]{2,3})\b', re.I)
 _LEADING_CALL  = re.compile(r'^([WK][A-Z]{2,3})\b')
 
 def stray_local_call(body):
@@ -2392,7 +2413,11 @@ for sid, win in section_canon.items():
 # explicit corrections win over every rule above
 FINAL_OVERRIDE = {'fuse': 'MUSIC', 'fusemusic': 'MUSIC', 'qvc': 'ENTERTAINMENT', 'qvc2': 'ENTERTAINMENT', 'lovenature': 'DOCUMENTARY',
                   'abcnewslive': 'NEWS', 'foxweather': 'NEWS', 'shoplc': 'ENTERTAINMENT',
-                  'hsn': 'ENTERTAINMENT'}
+                  'hsn': 'ENTERTAINMENT',
+                  # FXX is FX's adult comedy channel (Simpsons, It's Always
+                  # Sunny). Another copy filed as Kids won the canon pass above
+                  # and put it between Disney XD and MeTV Toons.
+                  'fxx': 'ENTERTAINMENT'}
 for st in ls:
     k = channel_key(st['name'])
     if k in FINAL_OVERRIDE:
@@ -2814,7 +2839,7 @@ MAIN_ENTERTAINMENT = {
  'US': {
   'a&e','amc','adult swim','animal planet','bbc america','bet','bravo','cartoon network',
   'cmt','comedy central','cooking channel','discovery','discovery family','discovery life',
-  'destination america','disney channel','e!','food network','freeform','fx','fxm',
+  'destination america','disney channel','e!','food network','freeform','fx','fxm','fxx',
   'fx movie channel','fyi','gsn','hallmark','hallmark drama','hgtv','history','ifc',
   'investigation discovery','lifetime','lifetime movie network','logo','mgm','motortrend',
   'national geographic','nickelodeon','outdoor channel','own','oxygen','paramount','pbs',
