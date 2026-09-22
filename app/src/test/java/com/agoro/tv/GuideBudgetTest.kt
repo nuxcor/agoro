@@ -7,6 +7,7 @@ import com.agoro.tv.ui.screens.ROW_GAP
 import com.agoro.tv.ui.screens.ROW_HEIGHT
 import com.agoro.tv.ui.screens.STRIP_GAP
 import com.agoro.tv.ui.theme.HEADER_BAND_HEIGHT
+import com.agoro.tv.ui.theme.HEADER_RETRACTED_INSET
 import com.agoro.tv.ui.theme.Space
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,6 +46,13 @@ class GuideBudgetTest {
     private val ruler = 36.dp
 
     private val lane = canvas - HEADER_BAND_HEIGHT - Space.gutterVertical
+
+    /**
+     * The lane with the navigation retracted — both rows gone, the top inset
+     * down to the app's safe margin. This is what the guide is browsed in;
+     * the expanded lane above is only what it is ARRIVED in.
+     */
+    private val laneRetracted = canvas - HEADER_RETRACTED_INSET - Space.gutterVertical
     private val rowsAvailable = lane - strip - STRIP_GAP - ruler - HEADER_HEIGHT
 
     private fun rows(n: Int) = ROW_HEIGHT * n + ROW_GAP * (n - 1)
@@ -100,12 +108,40 @@ class GuideBudgetTest {
      * the lane rather than for the header's words — see GuideTab's KDoc.
      */
     @Test
-    fun `a fifth row does not fit in this lane`() {
+    fun `a fifth row does not fit while the bar is up`() {
         val headerForFive = lane - strip - STRIP_GAP - ruler - rows(5)
         assertTrue(
             "five rows would need a ${headerForFive.value}dp header, " +
                 "which is under the ${NOTICE_BAR_COST.value}dp notice floor",
             headerForFive <= NOTICE_BAR_COST,
         )
+    }
+
+    /**
+     * What the retraction is FOR. With both rows gone and the strip's 54dp
+     * back in the lane, the guide holds six channel rows instead of four —
+     * a fifty per cent increase on the surface this app exists for.
+     */
+    @Test
+    fun `the retracted lane holds six channel rows`() {
+        val avail = laneRetracted - ruler - HEADER_HEIGHT - STRIP_GAP
+        assertTrue(
+            "retracted lane leaves ${avail.value}dp; six rows need ${rows(6).value}dp",
+            avail >= rows(6),
+        )
+    }
+
+    /**
+     * And it holds them by TWO dp. Written down because that is not comfort,
+     * it is a warning: any growth in the guide header (104), the ruler (36) or
+     * the gap costs the sixth row outright. If this starts failing, the honest
+     * answer is five rows, not a smaller header.
+     */
+    @Test
+    fun `the sixth row has almost no margin`() {
+        val avail = laneRetracted - ruler - HEADER_HEIGHT - STRIP_GAP
+        val spare = avail - rows(6)
+        assertTrue("the sixth row now has ${spare.value}dp spare", spare < 8.dp)
+        assertTrue("the sixth row no longer fits: ${spare.value}dp", spare >= 0.dp)
     }
 }

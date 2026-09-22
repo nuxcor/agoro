@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -48,6 +49,8 @@ import com.agoro.tv.data.ContentState
 import com.agoro.tv.data.EpgProgram
 import com.agoro.tv.ui.components.rememberProgramDescription
 import com.agoro.tv.data.LiveChannel
+import com.agoro.tv.ui.components.ShelfRingRoom
+import com.agoro.tv.ui.components.shelfRingRoom
 import com.agoro.tv.ui.components.StatusPane
 import com.agoro.tv.ui.components.rememberClockFormat
 import com.agoro.tv.ui.screens.defaultCategoryId
@@ -241,8 +244,14 @@ internal fun PlayerGuideOverlay(
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
+            contentPadding = PaddingValues(horizontal = ShelfRingRoom),
             modifier = Modifier
                 .padding(bottom = 10.dp)
+                // Same ring room as the browse strip and the guide's, for the
+                // same reason: a focused chip fills solid white and a LazyRow
+                // clips its main axis, so the first chip lost the left edge of
+                // its fill. All three strips now measure alike.
+                .shelfRingRoom()
                 .focusRequester(chipsFocus)
                 .focusRestorer(),
         ) {

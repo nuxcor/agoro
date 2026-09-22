@@ -10,7 +10,7 @@ Encodes the agreed decisions:
 """
 import json, re, collections, datetime, os, sys, time, unicodedata
 
-HOST = "pro.business-cdn-8k.com"
+HOST = "cf.dzidzi.online"
 # Allow-list AND shelf order: the app renders territories in this sequence, so
 # the order here is a decision, not incidental. It used to be emitted through
 # sorted(), which is alphabetical by CODE — that put AFR/DSTV first, ahead of
