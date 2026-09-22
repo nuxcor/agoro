@@ -37,32 +37,46 @@ class ProviderCurationTest {
     }
 
     /**
-     * THE ONE THAT MATTERS. On a branded build — one that carries a provider
-     * address — the shipped manifest has to describe that provider, or none
-     * of it runs.
+     * THE ONE THAT MATTERS. A branded build always curates.
      *
-     * Skipped when PROVIDER_HOST is blank, which is the unbranded build: there
-     * the viewer types their own address, the manifest is expected not to
-     * match it, and passing through uncurated is the correct behaviour rather
-     * than the bug. That is also why this cannot be asserted from a developer
-     * machine — it earns its keep in CI, where the secret is set.
+     * It dials exactly one panel and carries that panel's manifest in the same
+     * APK, so the two cannot be for different catalogues and there is nothing
+     * for a hostname to decide. This used to assert that the two hosts MATCH,
+     * and that assertion described a rule which was itself the bug: everything
+     * the manifest does is keyed on stream ids, a provider changing domain
+     * changes no stream id, and yet the compare went false and curation
+     * stopped dead. It failed exactly when nothing about the catalogue had
+     * changed.
+     *
+     * Skipped when PROVIDER_HOST is blank — that is the unbranded build, and
+     * its rule is the one below.
      */
     @Test
-    fun `a branded build ships a manifest for the provider it dials`() {
+    fun `a branded build curates whatever address it dials`() {
         val providerHost = BuildConfig.PROVIDER_HOST
         if (providerHost.isBlank()) return
-        // Exactly what the app will hold at runtime: followProviderHost
-        // rewrites every stored source to the build's address on read, so
-        // this is the url manifestApplies will actually be handed.
         val dialled = XtreamClient.normalize(providerHost)
         assertTrue(
-            "This build dials $dialled but the shipped manifest is written for " +
-                "'${manifest.provider.host}', so ManifestCuration will not run at all: " +
-                "no sections, no drops, no shelf order, no artwork. Re-emit the " +
-                "manifest for the new host (tools/manifest) or correct the " +
-                "PROVIDER_HOST secret — whichever moved.",
-            curationApplies(dialled, manifest.provider.host),
+            "a branded build must curate: it ships the manifest for the panel it dials",
+            curationApplies(dialled, manifest.provider.host, providerHost),
         )
+        // And it keeps curating after the provider moves house, which is the
+        // whole point — same panel, same stream ids, different address.
+        assertTrue(
+            "a domain move must not switch curation off",
+            curationApplies("http://somewhere.else.example.com", manifest.provider.host, providerHost),
+        )
+    }
+
+    /**
+     * The unbranded build is the one that still has to ask. Its viewer types
+     * an address and may point at any provider at all, so the manifest's host
+     * is the only signal there is.
+     */
+    @Test
+    fun `an unbranded build still checks the host`() {
+        assertTrue(curationApplies("http://pro.example.com:8080", "pro.example.com", ""))
+        assertFalse(curationApplies("http://other.example.com", "pro.example.com", ""))
     }
 
     /** The manifest must name a provider at all, or it can claim no catalogue. */
@@ -81,15 +95,15 @@ class ProviderCurationTest {
      */
     @Test
     fun `a manifest naming no provider claims no catalogue`() {
-        assertFalse(curationApplies("http://anything.example.com", ""))
-        assertFalse(curationApplies("", ""))
+        assertFalse(curationApplies("http://anything.example.com", "", ""))
+        assertFalse(curationApplies("", "", ""))
     }
 
     @Test
     fun `the host is matched case-insensitively and inside a url`() {
-        assertTrue(curationApplies("http://PRO.EXAMPLE.COM:8080", "pro.example.com"))
-        assertTrue(curationApplies("http://pro.example.com", "PRO.EXAMPLE.COM"))
-        assertFalse(curationApplies("http://other.example.com", "pro.example.com"))
+        assertTrue(curationApplies("http://PRO.EXAMPLE.COM:8080", "pro.example.com", ""))
+        assertTrue(curationApplies("http://pro.example.com", "PRO.EXAMPLE.COM", ""))
+        assertFalse(curationApplies("http://other.example.com", "pro.example.com", ""))
     }
 
     /**
@@ -108,10 +122,10 @@ class ProviderCurationTest {
             password = "p",
         )
         val followed = followProviderHost(stored, "pro.example.com") as PlaylistSource.Xtream
-        assertTrue(curationApplies(followed.serverUrl, "pro.example.com"))
+        assertTrue(curationApplies(followed.serverUrl, "pro.example.com", "pro.example.com"))
         // Unbranded: the address the viewer typed is never touched, and the
         // manifest correctly declines to claim it.
         val untouched = followProviderHost(stored, "") as PlaylistSource.Xtream
-        assertFalse(curationApplies(untouched.serverUrl, "pro.example.com"))
+        assertFalse(curationApplies(untouched.serverUrl, "pro.example.com", ""))
     }
 }
