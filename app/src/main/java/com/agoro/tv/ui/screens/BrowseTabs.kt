@@ -42,6 +42,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusRestorer
 import com.agoro.tv.ui.components.LocalArrivalFocusAllowed
 import com.agoro.tv.ui.theme.Space
@@ -428,6 +429,9 @@ private fun VodBrowser(
     val categoriesFocus = remember { FocusRequester() }
     /** Where UP out of the strip goes; null when nothing is above. */
     val toTopNav = com.agoro.tv.ui.components.LocalTopNavFocus.current
+    val topEdgeFocus = com.agoro.tv.ui.components.LocalTopEdgeFocus.current
+    val chromeStripVisible = com.agoro.tv.ui.components.LocalNavChromeStrip.current
+    val showTopEdge = com.agoro.tv.ui.components.LocalShowTopEdge.current
     val posterFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
 
@@ -465,6 +469,7 @@ private fun VodBrowser(
                 }
                 browsingGrid = false
             }
+            showTopEdge?.invoke()
             categoriesFocus.requestFocusRetrying()
         } finally {
             arriving[0] = false
@@ -506,12 +511,17 @@ private fun VodBrowser(
         // hero reset — and a dwell turned travelling the strip into a series
         // of those. A viewer moving along the chips to reach "Thriller" does
         // not want "Action", "Comedy" and "Drama" laid out on the way.
+        if (chromeStripVisible) {
         androidx.compose.foundation.lazy.LazyRow(
             modifier = Modifier
                 .padding(bottom = 10.dp)
                 .focusRequester(categoriesFocus)
                 .focusRestorer()
                 .shelfRingRoom()
+                // Tells the shell whether this row holds focus, so it can draw
+                // the right amount of navigation. Raw — the shell debounces
+                // the one-frame blip a LazyRow reports between two children.
+                .onFocusChanged { topEdgeFocus?.invoke(it.hasFocus) }
                 // The strip is this tab's top edge, so UP out of it belongs to
                 // the navigation above. Explicit, not geometric: the chips
                 // scroll horizontally, and the search happily sails from a
@@ -551,6 +561,7 @@ private fun VodBrowser(
                     },
                 )
             }
+        }
         }
         // Pinned above the grid, like Home's: posters are captionless, so
         // the focused one's name has to live somewhere that does not scroll
@@ -636,6 +647,9 @@ private fun VodBrowser(
                         focusedEntryIndex < gridColumns
                     ) {
                         browsingGrid = false
+                        // Raise it before aiming at it — while the chrome
+                        // is retracted the strip is not composed.
+                        showTopEdge?.invoke()
                         scope.launch { categoriesFocus.requestFocusRetrying() }
                         true
                     } else false

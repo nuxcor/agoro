@@ -304,6 +304,22 @@ private val PageGradient = Brush.verticalGradient(
 val HEADER_BAND_HEIGHT = 78.dp
 
 /**
+ * What the content lane is inset by while the navigation is retracted.
+ *
+ * NOT zero, and this is the whole reason it is a named constant. Space.gutterVertical
+ * is applied at the BOTTOM only; the app's de-facto top safe inset has always
+ * been the header row's own 18dp of top padding. Retract to nothing and the
+ * first channel row sits on the panel's first pixel line — inside overscan on
+ * exactly the sets [Space.gutter]'s note records as croppers. Retracting to
+ * the same 18 keeps the top margin identical in both states, so nothing moves
+ * except the chrome.
+ *
+ * The 60dp between this and [HEADER_BAND_HEIGHT] is what the guide's row
+ * budget gains; see GuideTab.
+ */
+val HEADER_RETRACTED_INSET = 18.dp
+
+/**
  * A short wash under the top navigation.
  *
  * The header sits over the page's own artwork — a Home backdrop can be a

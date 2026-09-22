@@ -67,6 +67,46 @@ val LocalArrivalFocusAllowed = androidx.compose.runtime.compositionLocalOf { tru
 val LocalTopNavFocus = androidx.compose.runtime.compositionLocalOf<(() -> Unit)?> { null }
 
 /**
+ * A tab's own top-edge control reporting whether it holds focus — the mirror
+ * of [LocalTopNavFocus], which sends focus the other way.
+ *
+ * Exactly two things provide it: the guide's category strip and the browse
+ * tabs'. The shell needs it because the navigation retracts while focus is in
+ * content, and "in content" is precisely "not in the bar AND not in the
+ * strip" — the shell already knows the first half and had no way to learn the
+ * second.
+ *
+ * Null on every tab that has no such control (Home, Sport, Settings, Search).
+ * Those collapse to a one-rung escalation, which is what they do today.
+ */
+val LocalTopEdgeFocus =
+    androidx.compose.runtime.compositionLocalOf<((Boolean) -> Unit)?> { null }
+
+/**
+ * Whether the tab's top-edge control is drawn at all.
+ *
+ * True everywhere that does not manage navigation chrome — the player's guide
+ * overlay hosts the same grid and has no bar to retract — so a host that says
+ * nothing gets today's behaviour.
+ */
+val LocalNavChromeStrip = androidx.compose.runtime.compositionLocalOf { true }
+
+/**
+ * Ask the shell to put the top-edge control back on screen.
+ *
+ * Needed because the strip is composed OUT while the chrome is down — it has
+ * to be, or its 54dp stays reserved inside the tab's Column and the grid never
+ * sees them. Which means its FocusRequester is detached, and "focus the strip"
+ * cannot be the thing that brings the strip back: it has to exist first.
+ *
+ * So a redirect that aims at it raises the level through here, then requests
+ * focus with [requestFocusRetrying], whose whole purpose is a target that
+ * composes a frame or two later. If focus never arrives the shell drops the
+ * level again on its own, so a failed request cannot strand the chrome up.
+ */
+val LocalShowTopEdge = androidx.compose.runtime.compositionLocalOf<(() -> Unit)?> { null }
+
+/**
  * The common "focus this on arrival" case: a requester whose target is focused
  * once per [keys] change, with the standard retry loop.
  *

@@ -66,6 +66,7 @@ import androidx.tv.material3.Icon
 import com.agoro.tv.ui.components.MetaChip
 import com.agoro.tv.ui.components.requestFocusRetrying
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import com.agoro.tv.ui.theme.NuxColors
@@ -435,11 +436,21 @@ fun GuideTab(
     val chipsFocus = remember { androidx.compose.ui.focus.FocusRequester() }
     /** Where UP out of the strip goes; null when nothing is above. */
     val toTopNav = com.agoro.tv.ui.components.LocalTopNavFocus.current
+    val topEdgeFocus = com.agoro.tv.ui.components.LocalTopEdgeFocus.current
+    // Whether the strip is drawn at all. Null on a host that does not manage
+    // navigation chrome (the player's guide overlay), where it is always up.
+    val chromeStripVisible = com.agoro.tv.ui.components.LocalNavChromeStrip.current
+    val showTopEdge = com.agoro.tv.ui.components.LocalShowTopEdge.current
     GuideBackHandler(
         awayFromNow = awayFromNow,
         handle = gridHandle,
         onJumpToNow = { jumpToNow() },
-        toCategoryStrip = { chipsFocus.requestFocusRetrying() },
+        toCategoryStrip = {
+            // Raise it before aiming at it: while the chrome is retracted the
+            // strip is not composed and its requester is detached.
+            showTopEdge?.invoke()
+            chipsFocus.requestFocusRetrying()
+        },
     )
 
     // The grid's focus entry — see GuideGridHandle. Every downward route into
@@ -515,6 +526,20 @@ fun GuideTab(
         // repeating four words nineteen times, where the eye is trying to find
         // a section. Named once per run, the chips carry only what differs.
         val strip = remember(categories) { groupByRegion(categories) }
+        // Composed out, not displaced — and the difference from the bar is
+        // deliberate. The bar's space is reclaimed by the shell stepping the
+        // content lane's top padding, so it can stay composed (its requesters
+        // must never detach). The strip's 54dp is inside THIS Column, so if it
+        // stayed composed the grid would never see those dp and the sixth
+        // channel row would not appear.
+        //
+        // Which means chipsFocus IS detached while the chrome is down, and
+        // every redirect that aims at it — upFromTopRow, dayUp, BACK's second
+        // rung — has to raise the level first and then retry. That is what
+        // requestFocusRetrying exists for ("the target composes a frame or two
+        // after the effect that wants to focus it"), and it is the single
+        // riskiest line in this change.
+        if (chromeStripVisible) {
         androidx.compose.foundation.lazy.LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -543,6 +568,11 @@ fun GuideTab(
                 // differ, and this is the room anyone restoring a focus scale
                 // would otherwise have to rediscover.
                 .shelfRingRoom()
+                // Tells the shell whether the strip holds focus, so it can
+                // tell "in the strip" from "in content" and draw the right
+                // amount of navigation. Raw — the shell debounces the
+                // one-frame blip a LazyRow reports between two children.
+                .onFocusChanged { topEdgeFocus?.invoke(it.hasFocus) }
                 // The requester lives on the ROW, not on a chip.
                 //
                 // It used to be attached to the first chip, on the reasoning
@@ -611,6 +641,7 @@ fun GuideTab(
                 )
             }
         }
+        }
 
         // What the header describes before anything in the grid has focus: the
         // first channel's on-now programme, not a channel name over a void.
@@ -664,6 +695,7 @@ fun GuideTab(
             canStepForward = dayOffset < maxDayOffset,
             dayFocus = dayFocus,
             dayUp = chipsFocus,
+            topEdge = topEdgeFocus,
             onDayDown = { scope.launch { gridHandle.focusAnchor() } },
         )
 
@@ -685,6 +717,7 @@ fun GuideTab(
             // to choose a day in. focusRestorer on the strip means UP returns
             // to the chip that was last focused rather than to chip one.
             upFromTopRow = chipsFocus,
+            onBeforeUpFromTopRow = { showTopEdge?.invoke() },
             // Reserve "No information" for a guide that arrived with none.
             // Idle counts as loading: it is the state before the first fetch on
             // a fresh install, and a playlist with no guide source configured

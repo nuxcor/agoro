@@ -98,6 +98,91 @@ private val ICON_WITH_LABEL_SIZE = 22.dp
 /** Alone in its control, so it carries the weight a word would: Settings. */
 private val ICON_ONLY_SIZE = 28.dp
 
+/**
+ * How long a lost strip focus must stay lost before the chrome believes it.
+ *
+ * A LazyRow reports hasFocus=false for one frame as focus moves between two
+ * children, so without this the chrome flickers on every press along the
+ * strip. Matched to the sustained-loss window LiveTab already uses for the
+ * guide's entry tick, and to NuxMotion.FastMs.
+ */
+internal const val NAV_CHROME_BLIP_MS = 120L
+
+/**
+ * How long the strip stays up waiting for a focus request to land, before the
+ * shell gives up and drops it again. Longer than requestFocusRetrying's own
+ * ladder (8 tries, 60ms apart) so a slow compose is not cut off, short enough
+ * that a failed request does not leave the navigation stranded on screen.
+ */
+internal const val NAV_CHROME_REQUEST_MS = 800L
+
+/** The presses that count as "the viewer has started moving". */
+internal val NAV_CHROME_MOVE_KEYS = setOf(
+    Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight,
+    Key.DirectionCenter, Key.Enter,
+)
+
+/**
+ * How much of the navigation is on screen.
+ *
+ * The two rows at the top cost 132dp of a 540dp canvas — a quarter of the
+ * screen — permanently, on an app that is live TV before it is a library and
+ * whose guide gets only four channel rows because of it. And neither row is
+ * doing anything while the viewer is scanning that grid: you pick a tab and
+ * stay, you pick a shelf and then look. Chrome should cost in proportion to
+ * how often it is used, and this pair was the least-used and most expensive
+ * thing on screen.
+ *
+ * So it steps out of the way, and the escalation upward mirrors the ladder
+ * BACK already walks downward (see [guideBackAction]): grid, then strip, then
+ * bar. Nothing about the D-pad changes — every route that reaches the bar
+ * today reaches it unchanged. This only decides what is DRAWN.
+ *
+ * Why [movedSinceArrival] is a term. The shell parks launch focus in the
+ * CONTENT on purpose, so the app boots one OK away from watching. A purely
+ * focus-driven rule would therefore retract the navigation on boot, before
+ * the viewer has pressed anything — a menu that vanishes unbidden, which is
+ * the drawer's failure mode reintroduced. Pinning both rows until the first
+ * move also means the viewer has SEEN the bar before it can ever go away,
+ * which is what makes the UP that brings it back discoverable rather than
+ * folklore.
+ */
+internal enum class NavChrome {
+    /** Focus is in content. Neither row is drawn. */
+    Hidden,
+
+    /** Focus is on a tab's own top-edge control. The strip is drawn. */
+    Strip,
+
+    /** Focus is in the bar, or nothing has moved yet. Both rows are drawn. */
+    Full,
+    ;
+
+    val barVisible get() = this == Full
+    val stripVisible get() = this != Hidden
+}
+
+/**
+ * One rule, in one place, for the same reason [guideBackAction] is: the ORDER
+ * is the thing that breaks, and an order expressed as nested ifs across two
+ * files is an order nobody can check.
+ *
+ * Tabs with no top-edge control of their own — Home, Sport, Settings, Search —
+ * never report [stripFocused], so this collapses to a one-rung escalation for
+ * them, which is exactly what they do today. Deliberately NOT scoped to
+ * strip-bearing tabs: a bar whose presence depends on which tab you are on is
+ * a rule no viewer can name, and it reads as a bug.
+ */
+internal fun navChromeLevel(
+    headerFocused: Boolean,
+    stripFocused: Boolean,
+    movedSinceArrival: Boolean,
+): NavChrome = when {
+    headerFocused || !movedSinceArrival -> NavChrome.Full
+    stripFocused -> NavChrome.Strip
+    else -> NavChrome.Hidden
+}
+
 enum class HomeTab(val label: String, val icon: ImageVector) {
     // Enum order is header order, left to right. The ordinal is also the index
     // of a control's FocusRequester, so this order is the LEFT/RIGHT order and
