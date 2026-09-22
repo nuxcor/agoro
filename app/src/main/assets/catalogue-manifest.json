@@ -1,6 +1,6 @@
 {
  "manifest_version": 1,
- "generated": "2026-09-22T21:37:52+00:00",
+ "generated": "2026-09-22T22:01:10+00:00",
  "provider": {
   "host": "cf.dzidzi.online",
   "protocol": "xtream"
@@ -3831,7 +3831,6 @@
   414090,
   414091,
   414080,
-  414081,
   996823,
   996822,
   996821,
@@ -20604,7 +20603,6 @@
   "325786": "ENTERTAINMENT",
   "325792": "ENTERTAINMENT",
   "162381": "ENTERTAINMENT",
-  "325810": "ENTERTAINMENT",
   "717704": "ENTERTAINMENT",
   "325771": "ENTERTAINMENT",
   "7236": "ENTERTAINMENT",
@@ -20626,7 +20624,6 @@
   "325831": "ENTERTAINMENT",
   "325776": "ENTERTAINMENT",
   "326358": "ENTERTAINMENT",
-  "325782": "ENTERTAINMENT",
   "325865": "ENTERTAINMENT",
   "325869": "ENTERTAINMENT",
   "325837": "ENTERTAINMENT",
@@ -30140,8 +30137,6 @@
   "498750": "KIDS",
   "1853541": "KIDS",
   "2162041": "KIDS",
-  "2161995": "KIDS",
-  "325782": "KIDS",
   "2161932": "KIDS",
   "2161913": "MUSIC",
   "2161899": "SPORTS",
@@ -39025,8 +39020,8 @@
   "1853541": "KIDS",
   "2162041": "KIDS",
   "2161998": "MUSIC",
-  "2161995": "KIDS",
-  "325782": "KIDS",
+  "2161995": "ENTERTAINMENT",
+  "325782": "ENTERTAINMENT",
   "2161932": "KIDS",
   "2161913": "MUSIC",
   "2161899": "SPORTS",
@@ -39092,6 +39087,7 @@
   "325058": "MUSIC",
   "436113": "ENTERTAINMENT",
   "436114": "ENTERTAINMENT",
+  "414158": "ENTERTAINMENT",
   "325031": "PPV",
   "1527597": "PPV",
   "1527596": "PPV",
@@ -41409,9 +41405,9 @@
     ],
     "primary": 1536512
    },
-   "redbull|UK": {
-    "section": "ENTERTAINMENT",
-    "region": "UK",
+   "redbull|US": {
+    "section": "SPORTS",
+    "region": "US",
     "sources": [
      1537411,
      1536488,
@@ -41510,7 +41506,7 @@
     "primary": 1860593
    },
    "animalplanet|US": {
-    "section": "ENTERTAINMENT",
+    "section": "DOCUMENTARY",
     "region": "US",
     "sources": [
      325780,
@@ -41647,12 +41643,13 @@
     ],
     "primary": 325792
    },
-   "nationalgeographicwild|UK": {
+   "nationalgeographicwild|US": {
     "section": "DOCUMENTARY",
-    "region": "UK",
+    "region": "US",
     "sources": [
      162381,
-     325785
+     325785,
+     414081
     ],
     "primary": 162381
    },
@@ -41666,7 +41663,7 @@
     "primary": 325806
    },
    "pop|US": {
-    "section": "KIDS",
+    "section": "ENTERTAINMENT",
     "region": "US",
     "sources": [
      325810,
@@ -92762,7 +92759,7 @@
   "live_tiles_collapsed": 3150,
   "collapse_groups": 154,
   "collapse_needs_review": 1,
-  "dropped_region_streams": 2955,
+  "dropped_region_streams": 2954,
   "religion_streams": 41,
   "telemundo_streams": 96,
   "regional_sport_streams": 162,
@@ -92785,7 +92782,7 @@
   "afr_kept": 86,
   "afr_dropped": 993,
   "afr_usuk_duplicates": 25,
-  "name_section_overrides": 1217,
+  "name_section_overrides": 1218,
   "entertainment_fixes": {
    "-> NEWS": 203,
    "-> SPORTS": 269,
@@ -92798,7 +92795,7 @@
   "entertainment_suffix_dupes": 86,
   "entertainment_trimmed": 1073,
   "entertainment_kept": {
-   "US": 89,
+   "US": 91,
    "UK": 69
   },
   "news_fixes": {
@@ -92833,7 +92830,7 @@
    "stray_local_dropped": 931
   },
   "replay_feeds_dropped": 720,
-  "section_canonicalised": 55,
+  "section_canonicalised": 53,
   "brand_groups": 10,
   "brand_dupes_dropped": 0,
   "rsn_dupes_dropped": 0,
@@ -92841,7 +92838,7 @@
   "region_fixed": 139,
   "misfiled_us_locals": 1,
   "sections_merged": 8,
-  "tiles_resectioned": 110,
+  "tiles_resectioned": 108,
   "epg_bound": 973,
   "logo_bound": 4386,
   "club_crests_bound": 467,

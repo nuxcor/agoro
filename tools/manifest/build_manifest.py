@@ -389,7 +389,13 @@ GENRE_SECTIONS  = ['NEWS','SPORTS','KIDS','DOCUMENTARY','MUSIC','MOVIES']
 BUNDLE_SECTIONS = ['LOCALS','ENTERTAINMENT','STREAMING','24/7']
 # upstream miscategorisations no rule recovers from
 SECTION_OVERRIDE = {"qvc": "ENTERTAINMENT", "abcnewslive": "NEWS", "foxweather": "NEWS",
-                    "hsn": "ENTERTAINMENT"}
+                    "hsn": "ENTERTAINMENT",
+                    # 2026-09-22, from reading the Entertainment tab back:
+                    # Pop is general entertainment (the panel files it Kids),
+                    # Animal Planet is a documentary channel, and Red Bull TV
+                    # is action sport, not entertainment.
+                    "pop": "ENTERTAINMENT", "animalplanet": "DOCUMENTARY",
+                    "redbull": "SPORTS"}
 
 PLURALISE = [(r'\bSPORTS?\b', 'SPORT'), (r'\bNETWORKS?\b', 'NETWORK'),
              (r'\bCHANNELS?\b', 'CHANNEL')]
@@ -1152,7 +1158,11 @@ PRIMARY_PIN = {
 # and leaves at sd_all_drop, and both CA copies went with the territory, so
 # the only survivor is the UK one. Pinning that to US would have opened the
 # new tile on the US News shelf — the pin doing harm rather than nothing.
-REGION_PIN = {'nbcnewsnow': 'US'}
+# Nat Geo Wild took the UK 4K copy as its primary, so the US feed folded into
+# a UK tile and the channel was only on the UK tab — Nat Geo itself, built the
+# same way, was pinned by nothing and still landed US. Red Bull TV is a PRIME:
+# re-stream the panel files under a UK category; it is not a British channel.
+REGION_PIN = {'nbcnewsnow': 'US', 'nationalgeographicwild': 'US', 'redbull': 'US'}
 
 # The broadcaster's own public feed, played BEFORE the provider's copies.
 #
@@ -2403,7 +2413,11 @@ for sid, win in section_canon.items():
 # explicit corrections win over every rule above
 FINAL_OVERRIDE = {'fuse': 'MUSIC', 'fusemusic': 'MUSIC', 'qvc': 'ENTERTAINMENT', 'qvc2': 'ENTERTAINMENT', 'lovenature': 'DOCUMENTARY',
                   'abcnewslive': 'NEWS', 'foxweather': 'NEWS', 'shoplc': 'ENTERTAINMENT',
-                  'hsn': 'ENTERTAINMENT'}
+                  'hsn': 'ENTERTAINMENT',
+                  # FXX is FX's adult comedy channel (Simpsons, It's Always
+                  # Sunny). Another copy filed as Kids won the canon pass above
+                  # and put it between Disney XD and MeTV Toons.
+                  'fxx': 'ENTERTAINMENT'}
 for st in ls:
     k = channel_key(st['name'])
     if k in FINAL_OVERRIDE:
@@ -2825,7 +2839,7 @@ MAIN_ENTERTAINMENT = {
  'US': {
   'a&e','amc','adult swim','animal planet','bbc america','bet','bravo','cartoon network',
   'cmt','comedy central','cooking channel','discovery','discovery family','discovery life',
-  'destination america','disney channel','e!','food network','freeform','fx','fxm',
+  'destination america','disney channel','e!','food network','freeform','fx','fxm','fxx',
   'fx movie channel','fyi','gsn','hallmark','hallmark drama','hgtv','history','ifc',
   'investigation discovery','lifetime','lifetime movie network','logo','mgm','motortrend',
   'national geographic','nickelodeon','outdoor channel','own','oxygen','paramount','pbs',
