@@ -396,28 +396,32 @@ internal fun HomeLoungeTab(
     ) {
         // Live first, then films, then shows.
         //
-        // Recent channels take the top. Continue watching held it for a while,
-        // on the reasoning that "what was I doing" is the first question Home
-        // answers — but on this app it usually is not. This is a live TV app
-        // before it is a library: the common arrival is someone coming back to
-        // a channel they were watching, not to a film they were halfway
-        // through, and a live row is also the one that is populated on almost
-        // every install. Continue watching keeps second place, which is still
-        // above the fold, and is still absent entirely for anyone who has not
-        // started something.
+        // Continue watching leads, and Recent channels follows it.
+        //
+        // This has been argued both ways and has now been decided twice. It
+        // read Continue-then-Recent, was swapped on the reasoning that this is
+        // a live TV app before it is a library — the common arrival being
+        // someone coming back to a channel rather than to a half-watched film
+        // — and is swapped back here by the owner's call. The live argument is
+        // real and is why Recent sits immediately beneath rather than further
+        // down; what it does not settle is that an unfinished thing is a
+        // stronger claim on the top row than a finished one. Continue watching
+        // is also absent entirely for anyone who has not started something, so
+        // on the installs where the live argument is strongest the row order
+        // is unchanged anyway.
         //
         // Everything after them runs live -> movies -> shows, so the shelf
         // order matches the rail order and the thing this app is primarily for
         // is the thing on screen when Home opens.
         buildList {
-            // ON NOW sport takes the very top, above even recent channels.
+            // ON NOW sport takes the very top, above everything else.
             // It is the only shelf on this screen with a clock running
             // against it: a film waits, a channel waits, a match does not.
             // It is also absent most of the time, so it costs the usual
             // arrival nothing.
             if (liveSport.isNotEmpty()) add(HomeRow.LiveSport)
-            if (recentsRow.isNotEmpty()) add(HomeRow.Recents)
             if (continueRow.isNotEmpty()) add(HomeRow.Continue)
+            if (recentsRow.isNotEmpty()) add(HomeRow.Recents)
             if (favoritesRow.isNotEmpty()) add(HomeRow.Favorites)
             // Recently added is a mixed catalogue row, so it trails the
             // typed ones rather than splitting them.
