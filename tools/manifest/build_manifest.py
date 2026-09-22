@@ -1005,7 +1005,16 @@ for s in ls:
     if not c: continue
     # DGO re-streams carry a burned-in watermark and duplicate native feeds;
     # dropped outright, not demoted — the catalogue serves the originals.
-    if re.match(r'^GO\s*:', asc(s['name']), re.I):
+    # The provider renamed the bundle by 2026-09-22: the same category 2036
+    # now ships it as "TV:", under fresh ids, so an id-keyed drop list built
+    # from the old dump let all of it back onto Entertainment ("20/20", "50
+    # CENT ACTION CHANNEL"). "TV:" is matched only inside 2036 because 2049
+    # uses the same prefix for the city locals, which fold into metro tiles.
+    # AT&T: (category 2041, new the same week) is another platform re-stream
+    # of the same national channels and goes the same way, like RK: before it.
+    if re.match(r'^(?:GO|AT&T)\s*:', asc(s['name']), re.I) or (
+            str(s.get('category_id')) == '2036'
+            and re.match(r'^TV\s*:', asc(s['name']), re.I)):
         go_drop.append(s['stream_id']); continue
     # Telemundo's stations are Spanish-language and were filling eight of the
     # metro shelves' tiles. Dropped at ingest so they never form a tile at
@@ -2168,7 +2177,9 @@ for _srcs in tiles.values():
                      and re.match(r'^PRIME\s*:', asc(_donor_nm.get(x['id'], '')), re.I))
 
 # 1. a second locals bundle hides under a CITY: prefix inside Entertainment
-LOCAL_PREFIX = re.compile(r'^\s*(?:CITY|PRIME)\s*:', re.I)
+#    (renamed "TV: ... city" in category 2049 by 2026-09-22; the 2036 "TV:"
+#    bundle never reaches here, it is dropped at ingest)
+LOCAL_PREFIX = re.compile(r'^\s*(?:CITY|PRIME|TV)\s*:', re.I)
 
 def _is_local_affiliate(n):
     """A local station, as opposed to a national channel under the same prefix.
@@ -2272,7 +2283,7 @@ SHOW_CHANNEL  = re.compile(
     r"|BOB ROSS|FAMILY HANDYMAN|50 CENT|DANCE MOMS|KEEPING UP|DECLASSIFIED|PRANKS"
     r"|COSMIC FRONTIERS|EARTH TOUCH|DROOL|E! KEEPING", re.I)
 _NET_THEN_CALL = re.compile(
-    r'^(?:CITY\s*:\s*)?(?:ABC|CBS|NBC|FOX|CW|PBS|IND|MNT|TMO)\d*\s+([WK][A-Z]{2,3})\b', re.I)
+    r'^(?:(?:CITY|TV)\s*:\s*)?(?:ABC|CBS|NBC|FOX|CW|PBS|IND|MNT|TMO)\d*\s+([WK][A-Z]{2,3})\b', re.I)
 _LEADING_CALL  = re.compile(r'^([WK][A-Z]{2,3})\b')
 
 def stray_local_call(body):
