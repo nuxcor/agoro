@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-23T18:06:11Z",
+ "generated": "2026-09-23T21:29:40Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -150,7 +150,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131423.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21685.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -162,7 +162,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20835.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19256.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -174,7 +174,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tca.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/msr.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -183,7 +183,7 @@
    "start": "2026-09-23T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20091.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21640.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -198,7 +198,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19970.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131643.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -207,7 +207,7 @@
    "start": "2026-09-23T20:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bah.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/stm.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
