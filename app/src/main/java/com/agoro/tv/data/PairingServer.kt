@@ -173,13 +173,13 @@ class PairingServer(
         body{background:#0B0A09;color:#EEEEED;font-family:-apple-system,Roboto,sans-serif;
              margin:0;padding:28px 20px;display:flex;justify-content:center}
         .card{width:100%;max-width:420px}
-        h1{font-size:22px;margin:0 0 4px;color:#D99A2E}
+        h1{font-size:22px;margin:0 0 4px;color:#E07A3C}
         p{color:#B4B1AB;font-size:14px;margin:0 0 20px}
         label{display:block;font-size:13px;color:#B4B1AB;margin:14px 0 6px}
         input{width:100%;box-sizing:border-box;background:#1B1917;color:#EEEEED;
               border:1px solid #3C3A35;border-radius:10px;padding:13px 14px;font-size:16px}
-        input:focus{outline:none;border-color:#D99A2E}
-        button{width:100%;margin-top:22px;background:#D99A2E;color:#1E1503;border:none;
+        input:focus{outline:none;border-color:#E07A3C}
+        button{width:100%;margin-top:22px;background:#E07A3C;color:#1F1005;border:none;
                border-radius:10px;padding:14px;font-size:16px;font-weight:600}
         .err{color:#FF6B6B;font-size:14px;margin:12px 0 0}
         </style></head><body><div class="card">
@@ -206,8 +206,8 @@ class PairingServer(
         <title>Sent</title><style>
         body{background:#0B0A09;color:#EEEEED;font-family:-apple-system,Roboto,sans-serif;
              margin:0;padding:60px 24px;text-align:center}
-        h1{color:#D99A2E;font-size:24px}p{color:#B4B1AB;font-size:15px}
-        a{color:#D99A2E}
+        h1{color:#E07A3C;font-size:24px}p{color:#B4B1AB;font-size:15px}
+        a{color:#E07A3C}
         </style></head><body>
         <h1>Sent to your TV</h1>
         <p>Look at the TV screen — it's connecting now.</p>

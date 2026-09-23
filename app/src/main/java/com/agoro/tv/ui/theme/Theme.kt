@@ -22,7 +22,7 @@ import androidx.tv.material3.Typography
 import androidx.tv.material3.darkColorScheme
 
 /**
- * Agoro palette — cinematic charcoal with a warm gold accent.
+ * Agoro palette — cinematic charcoal with a warm orange accent.
  *
  * The surface ramp is spaced for a 10-foot dark room: each step is a real
  * lightness increment (ΔL* ≈ 5), so resting cards are visible without focus.
@@ -47,10 +47,10 @@ object NuxColors {
     // one. Warm rather than pure white, like the rest of this ramp.
     val TrackDim = Color(0x40E8E4DC)
 
-    val Primary = Color(0xFFD99A2E)         // brand gold — never a full focus fill
-    val PrimaryDim = Color(0xFF9C6D1C)
+    val Primary = Color(0xFFE07A3C)         // brand orange — never a full focus fill
+    val PrimaryDim = Color(0xFFA0552A)
     val Secondary = Color(0xFF4FD1C5)
-    val OnAccent = Color(0xFF1E1503)
+    val OnAccent = Color(0xFF1F1005)
 
     val OnSurface = Color(0xFFEEEEED)
     val OnSurfaceDim = Color(0xFFB4B1AB)
