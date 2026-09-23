@@ -2213,6 +2213,95 @@ class SportsParserTest {
         assertEquals("Club Brugge", e.away)
     }
 
+    /**
+     * Reported from the box on 2026-09-23: "barcelona vs paris fc as laliga
+     * lol". It was the Women's Champions League. Barcelona is in the La Liga
+     * roster and Paris FC in Ligue 1's, and the home side's league won — but
+     * two clubs from two different leagues are not playing in either.
+     */
+    @Test
+    fun `clubs from two different leagues bill neither`() {
+        val now = ms(2026, 9, 23, 19, 0, "UTC")
+        val roster = mapOf("La Liga" to listOf("Barcelona"), "Ligue 1" to listOf("Paris FC"))
+        val e = SportsParser.parse(
+            1, "Live | Barcelona vs. Paris FC | all | 23-09-2026 | 19:00 (GMT)", now, roster,
+        )!!
+        assertEquals("", e.league)
+        assertEquals("Barcelona", e.home)
+        assertEquals("Paris FC", e.away)
+    }
+
+    /**
+     * The real slot, from the 2026-09-22 dump. Nothing in it says women's;
+     * only ESPN's women's scoreboard does, and that takes it off.
+     */
+    @Test
+    fun `a women's fixture the slot does not name is taken off`() {
+        val now = ms(2026, 9, 23, 19, 30, "UTC")
+        val roster = mapOf("La Liga" to listOf("Barcelona"), "Ligue 1" to listOf("Paris FC"))
+        val slot = SportsParser.parse(
+            1, "US (ESPN+ 108) | Soccer: Barcelona vs. Paris FC (ESP) (2026-09-23 14:30:00)",
+            now, roster,
+        )!!
+        val women = ScheduleFixture(
+            league = "Women", home = "Barcelona", away = "Paris FC", start = "2026-09-23T19:00Z",
+        )
+        assertTrue(SportsParser.applySchedule(listOf(slot), listOf(women), now).isEmpty())
+    }
+
+    /**
+     * ESPN names the women's sides as it names the men's, so a men's league
+     * match between the same clubs must never be touched by it — neither
+     * dropped nor re-billed, and never read as a club "committed elsewhere".
+     */
+    @Test
+    fun `a women's fixture never touches a men's league row`() {
+        val now = ms(2026, 9, 23, 19, 30, "UTC")
+        val roster = mapOf("La Liga" to listOf("Barcelona", "Real Madrid", "Sevilla"))
+        val slots = listOf(
+            SportsParser.parse(
+                1, "Live | Barcelona vs. Real Madrid | all | 23-09-2026 | 19:00 (GMT)", now, roster,
+            )!!,
+            SportsParser.parse(
+                2, "Live | Sevilla vs. Real Madrid | all | 23-09-2026 | 19:00 (GMT)", now, roster,
+            )!!,
+        )
+        val women = listOf(
+            ScheduleFixture(league = "Women", home = "Barcelona", away = "Real Madrid", start = "2026-09-23T19:00Z"),
+            ScheduleFixture(league = "Women", home = "Real Madrid", away = "Atletico Madrid", start = "2026-09-23T19:00Z"),
+            // La Liga playing that day, so the matchday guard has no say.
+            ScheduleFixture(league = "La Liga", home = "Getafe", away = "Villarreal", start = "2026-09-23T17:00Z"),
+        )
+        val out = SportsParser.applySchedule(slots, women, now)
+        assertEquals(listOf("La Liga", "La Liga"), out.map { it.league })
+    }
+
+    /** Two clubs of one league still bill it. */
+    @Test
+    fun `clubs from the same league still bill it`() {
+        val now = ms(2026, 9, 23, 19, 0, "UTC")
+        val roster = mapOf("La Liga" to listOf("Barcelona", "Sevilla"), "Ligue 1" to listOf("Paris FC"))
+        val e = SportsParser.parse(
+            1, "Live | Barcelona vs. Sevilla | all | 23-09-2026 | 19:00 (GMT)", now, roster,
+        )!!
+        assertEquals("La Liga", e.league)
+    }
+
+    /** The women's game, however the pack marks it, is not ours. */
+    @Test
+    fun `women's markers the packs use are refused`() {
+        val now = ms(2026, 9, 23, 19, 0, "UTC")
+        val roster = mapOf("La Liga" to listOf("Barcelona"), "Ligue 1" to listOf("Paris FC"))
+        for (name in listOf(
+            "Live | UWCL: Barcelona vs. Paris FC | all | 23-09-2026 | 19:00 (GMT)",
+            "Live | Barcelona (W) vs. Paris FC (W) | all | 23-09-2026 | 19:00 (GMT)",
+            "Live | Liga F: Barcelona vs. Sevilla | all | 23-09-2026 | 19:00 (GMT)",
+            "Live | Barcelona Femení vs. Paris FC | all | 23-09-2026 | 19:00 (GMT)",
+        )) {
+            assertEquals(name, null, SportsParser.parse(1, name, now, roster))
+        }
+    }
+
     /** Both entrants meeting IS the cup, and that still reads. */
     @Test
     fun `two clubs in a cup roster still bill the cup`() {
