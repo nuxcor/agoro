@@ -20,7 +20,7 @@
         android:scaleX="0.84"
         android:scaleY="0.84">
         <path
-            android:fillColor="#FFD99A2E"
+            android:fillColor="#FFE07A3C"
             android:fillType="evenOdd"
             android:pathData="M34.3,22 C34.3,18 37.3,16 40.8,18 L86.3,50 C89.3,52 89.3,56 86.3,58 L40.8,90 C37.3,92 34.3,90 34.3,86 Z M50.8,34 C53.3,34 55.3,36 55.3,38.5 L55.3,69.5 C55.3,72 53.3,74 50.8,74 C48.3,74 46.3,72 46.3,69.5 L46.3,38.5 C46.3,36 48.3,34 50.8,34 Z" />
     </group>

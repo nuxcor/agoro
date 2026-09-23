@@ -435,16 +435,16 @@ private fun TopNavItem(
                     accent -> NuxColors.Secondary
                     else -> NuxColors.OnSurfaceDim
                 },
-                // Gold survives focus, because BACK puts focus on the tab you
-                // are already on and the header would otherwise stop saying
-                // where you were until you moved off it.
+                // The accent survives focus, because BACK puts focus on the tab
+                // you are already on and the header would otherwise stop
+                // saying where you were until you moved off it.
                 //
-                // PrimaryDim, not Primary, and only here. Gold #D99A2E on the
-                // white fill is about 2.0:1 — a smudge at ten feet rather than
-                // a colour. PrimaryDim #9C6D1C is the palette's own darkened
-                // gold, reads about 3.7:1 on that fill, and still reads as
-                // GOLD rather than as grey. Resting-selected keeps full
-                // Primary, where it sits on near-black at about 7.4:1.
+                // PrimaryDim, not Primary, and only here. Orange #E07A3C on
+                // the white fill is about 3.0:1 — a smudge at ten feet rather
+                // than a colour. PrimaryDim #A0552A is the palette's own
+                // darkened orange, about 5.5:1 on white, and still reads as
+                // ORANGE rather than as brown-grey. Resting-selected keeps
+                // full Primary, on near-black at about 6.6:1.
                 //
                 // The update control does NOT keep its teal: #4FD1C5 on white
                 // is about 1.5:1, and unlike selection it has nothing to
