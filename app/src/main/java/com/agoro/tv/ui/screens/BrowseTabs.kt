@@ -777,7 +777,9 @@ internal fun BrowseHero(hero: HeroInfo?) {
         Row(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Space.m),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            // The corner is [TabMark]'s while the bar is retracted.
+            modifier = Modifier.fillMaxWidth()
+                .padding(bottom = 8.dp, end = com.agoro.tv.ui.theme.TAB_MARK_RESERVE),
         ) {
             Text(
                 text = current.title,
