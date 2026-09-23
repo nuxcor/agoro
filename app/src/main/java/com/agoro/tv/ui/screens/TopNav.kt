@@ -183,6 +183,39 @@ internal fun navChromeLevel(
     else -> NavChrome.Hidden
 }
 
+/**
+ * The tabs that say their own name while the bar is away.
+ *
+ * Home, Movies and Series are the same page to the eye — a hero line over
+ * rows of posters — so with the bar retracted nothing on screen told them
+ * apart, and the report was "I will be in Series before I realize it's not
+ * Home". The others are unmistakable without help: the guide is a grid and
+ * already names its category in its own corner, Sports is fixtures, Search
+ * is a field, and Settings scrolls its rows through that corner.
+ */
+/** Below the retracted inset, so the word sits on the hero's first line. */
+internal val TAB_MARK_DROP = 8.dp
+
+internal val TAB_MARK_TABS = setOf(HomeTab.Home, HomeTab.Movies, HomeTab.Series)
+
+/**
+ * The bar, retracted to the one word that matters: which tab this is.
+ *
+ * Gold, because that is how the selected tab reads in the bar itself — the
+ * mark is the bar's own answer, left behind, not a new element with a new
+ * look. Not focusable and not a control: UP still brings the whole bar back.
+ */
+@Composable
+internal fun TabMark(tab: HomeTab, modifier: Modifier = Modifier) {
+    Text(
+        text = tab.label,
+        style = LABEL_STYLE,
+        color = NuxColors.Primary,
+        maxLines = 1,
+        modifier = modifier,
+    )
+}
+
 enum class HomeTab(val label: String, val icon: ImageVector) {
     // Enum order is header order, left to right. The ordinal is also the index
     // of a control's FocusRequester, so this order is the LEFT/RIGHT order and
@@ -248,7 +281,8 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
  * the content no longer has. That is why the labels are text and not
  * icon-and-label stacks, and why the whole band comes to about 78dp.
  *
- * Travel highlights, OK or DOWN commits. There is no select-on-travel: it
+ * Travel highlights, OK commits, DOWN goes back to the page you are on. There
+ * is no select-on-travel: it
  * would recompose a whole grid on every LEFT press, and the box this runs on
  * has 2GB of RAM. LEFT/RIGHT are handled by index rather than left to the
  * geometric search, which proved unreliable inside an overlaid focus group
@@ -315,13 +349,22 @@ internal fun TopNav(
                         itemFocus[(focusedIndex - 1).coerceAtLeast(0)]
                             .requestFocus(); true
                     }
-                    // DOWN commits as OK does, and that is the whole reason it
-                    // is here rather than left to the focus search. Walking to
-                    // Movies and pressing DOWN plainly means "go to Movies";
-                    // letting the search take it would have dropped the viewer
-                    // into whatever tab was still on screen underneath.
+                    // DOWN goes back into the page you are ON, whatever the
+                    // highlight is resting on. Only OK changes the tab.
+                    //
+                    // It used to commit, on the argument that walking to
+                    // Movies and pressing DOWN plainly means "go to Movies".
+                    // On the box it meant something else: UP to peek at the
+                    // bar, a stray LEFT or RIGHT, then DOWN to "go back" — and
+                    // the viewer was in Series without having chosen it, on a
+                    // page that looks like Home, with the bar already gone.
+                    // Netflix's menu works this way: travel only highlights,
+                    // OK switches, and leaving without OK leaves nothing
+                    // changed. Still handled here rather than left to the
+                    // focus search, which would drop the viewer into whatever
+                    // lies geometrically below the highlight.
                     Key.DirectionDown -> {
-                        commit(focusedIndex); true
+                        onSelect(selected); true
                     }
                     else -> false
                 }
@@ -435,16 +478,16 @@ private fun TopNavItem(
                     accent -> NuxColors.Secondary
                     else -> NuxColors.OnSurfaceDim
                 },
-                // Gold survives focus, because BACK puts focus on the tab you
-                // are already on and the header would otherwise stop saying
-                // where you were until you moved off it.
+                // The accent survives focus, because BACK puts focus on the tab
+                // you are already on and the header would otherwise stop
+                // saying where you were until you moved off it.
                 //
-                // PrimaryDim, not Primary, and only here. Gold #D99A2E on the
-                // white fill is about 2.0:1 — a smudge at ten feet rather than
-                // a colour. PrimaryDim #9C6D1C is the palette's own darkened
-                // gold, reads about 3.7:1 on that fill, and still reads as
-                // GOLD rather than as grey. Resting-selected keeps full
-                // Primary, where it sits on near-black at about 7.4:1.
+                // PrimaryDim, not Primary, and only here. Orange #E07A3C on
+                // the white fill is about 3.0:1 — a smudge at ten feet rather
+                // than a colour. PrimaryDim #A0552A is the palette's own
+                // darkened orange, about 5.5:1 on white, and still reads as
+                // ORANGE rather than as brown-grey. Resting-selected keeps
+                // full Primary, on near-black at about 6.6:1.
                 //
                 // The update control does NOT keep its teal: #4FD1C5 on white
                 // is about 1.5:1, and unlike selection it has nothing to

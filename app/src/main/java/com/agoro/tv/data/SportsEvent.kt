@@ -748,12 +748,46 @@ object SportsParser {
      */
     private val anyBilledComp = Regex(
         """(?i)\b(LaLiga|La Liga|Serie A|Bundesliga|Ligue 1|Champions League|UCL""" +
-            """|Europa League|Conference League|Carabao Cup|EFL Cup|League Cup|FA Cup)\b|^\s*UEFA\b"""
+            """|Europa League|Conference League|Carabao Cup|EFL Cup|League Cup|FA Cup)\b|^\s*UEFA\b""" +
+            "|" + INTERNATIONALS
     )
+
+    /**
+     * Men's senior national-team football, as a slot bills it.
+     *
+     * Every one of these names a NATIONAL competition outright, which is what
+     * lets it stand without a roster: a roster of nations would put "Australia
+     * v South Africa" on screen as football when the STAN pack is showing the
+     * cricket ("Flight Centre Series/Men`s International"), and "South",
+     * "North", "Republic" and "United" in the sieve's word list would send
+     * thousands more slots through the full parse on a 2GB box. So the word
+     * "International" alone is NOT here, and neither is a bare "Friendly" —
+     * pre-season is full of "Friendly: Arsenal vs Athletic Club", which is a
+     * club match and not this row. "International Friendly" is how DAZN and
+     * ESPN both bill the national-team kind.
+     *
+     * The age-group and women's editions are billed the same way and share the
+     * words — "International Friendly - Men's U17", "UEFA Women's Nations
+     * League" — and [notOurCompetition] takes them out before this is asked.
+     *
+     * Every other sport has a World Cup and qualifies for it, which is why the
+     * abbreviations "WC Qualifier" and "WCQ" are not here and why the other
+     * governing bodies are in [notOurCompetition]: "FIBA Men's WC Qualifier:
+     * Panama vs. Canada" was on the TSN+ pack on 2026-08-27, and the first
+     * draft of this read it as football.
+     */
+    private const val INTERNATIONALS =
+        """(?i)\b(Nations League|International Friendl(?:y|ies)|Int'?l\.? Friendl(?:y|ies)""" +
+            """|World Cup Qualif\w*|Africa Cup of Nations Qualif\w*|AFCON Qualif\w*)\b"""
 
     /** Words that make a major-sounding competition somebody else's. */
     private val notOurCompetition = Regex(
         """(?i)\b(Caribbean|DFA|Dominica|Cricket|Rugby|Netball|Women'?s?|Ladies|Youth|U\d{2}|Reserves?""" +
+            // Other games with a Nations League or a World Cup to qualify
+            // for: volleyball's VNL, futsal's, beach soccer's, basketball's
+            // (FIBA), ice hockey's (IIHF), cricket's (ICC, T20) and
+            // handball's. Only [INTERNATIONALS] could have read them as ours.
+            """|Volleyball|VNL|Futsal|Beach Soccer|FIBA|IIHF|ICC|T20|Handball""" +
             // The same competition, in the language the pack happens to bill
             // it in. "Frauen Bundesliga" was reaching the screen as
             // Bundesliga, which is the men's fixture under the women's name —
@@ -837,6 +871,10 @@ object SportsParser {
         "Conference League" to Regex("""(?i)\bConference League\b"""),
         "Carabao Cup" to Regex("""(?i)\bCarabao Cup\b|\bEFL Cup\b|\bLeague Cup\b"""),
         "FA Cup" to Regex("""(?i)\bFA Cup\b"""),
+        // Ahead of the UEFA shelf, so "UEFA Nations League: Germany vs
+        // Netherlands" is the national-team row and not the shelf's. See
+        // [INTERNATIONALS].
+        "Internationals" to Regex(INTERNATIONALS),
         // The provider's own UEFA shelf, which bills the confederation and not
         // the competition: "UEFA  | 01 - Freiburg vs Motherwell". A row of its
         // own rather than a guess at which UEFA competition it is.
@@ -1659,7 +1697,8 @@ object SportsParser {
         // while this only fed [isWrongSport], where a null simply meant "no
         // opinion" — but [crestFor] reads it as well, and a competition with no
         // sport can be handed any badge in the index.
-        "Europa League", "Conference League", "UEFA", "Carabao Cup", "FA Cup" -> "soccer"
+        "Europa League", "Conference League", "UEFA", "Carabao Cup", "FA Cup",
+        "Internationals" -> "soccer"
         else -> null
     }
 
@@ -1690,7 +1729,7 @@ object SportsParser {
      */
     private val ENTERED_COMPETITIONS = setOf(
         "Champions League", "Europa League", "Conference League", "UEFA",
-        "Carabao Cup", "FA Cup",
+        "Carabao Cup", "FA Cup", "Internationals",
     )
 
     /**

@@ -1158,7 +1158,8 @@ private fun HomeHeroSlot(hero: State<HomeHero?>) {
         },
         label = "homeHero",
     ) { current ->
-        Column {
+        // The corner is [TabMark]'s while the bar is retracted.
+        Column(Modifier.padding(end = com.agoro.tv.ui.theme.TAB_MARK_RESERVE)) {
             Text(
                 text = current.info.title,
                 style = MaterialTheme.typography.headlineMedium,

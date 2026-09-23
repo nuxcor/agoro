@@ -2513,4 +2513,140 @@ class SportsParserTest {
         assertTrue("admitted on the word", parsed.single().live)
         assertEquals(1, SportsParser.upcoming(parsed, now, 60).size)
     }
+
+    // --- Internationals ------------------------------------------------------
+    //
+    // Men's senior national-team football, read off the slot's own billing.
+    // No roster: nothing here names a club any list carries.
+
+    /** The club rosters, plus the empty billed-only key the manifest ships. */
+    private val withInternationals = leagues + ("Internationals" to emptyList<String>())
+
+    @Test
+    fun `DAZN's piped pack bills the Nations League`() {
+        val now = ms(2026, 9, 24, 18, 0, "UTC")
+        val e = SportsParser.parse(
+            1, "Next | Germany vs. Netherlands | UEFA Nations League | 2026-09-24 | " +
+                "18:45 (GMT) | 8K EXCLUSIVE | US: DAZN PPV 2",
+            now, withInternationals,
+        )!!
+        assertEquals("Internationals", e.league)
+        assertEquals("Germany", e.home)
+        assertEquals("Netherlands", e.away)
+        assertEquals(ms(2026, 9, 24, 18, 45, "UTC"), e.startMs)
+    }
+
+    @Test
+    fun `an international friendly is the same row`() {
+        val now = ms(2026, 10, 10, 15, 0, "UTC")
+        val e = SportsParser.parse(
+            2, "Next | Ghana vs. Nigeria | International Friendly | 2026-10-10 | " +
+                "16:00 (GMT) | 8K EXCLUSIVE | GB: DAZN PPV 4",
+            now, withInternationals,
+        )!!
+        assertEquals("Internationals", e.league)
+        assertEquals("Ghana", e.home)
+        assertEquals("Nigeria", e.away)
+    }
+
+    @Test
+    fun `the Paramount pack's colon billing reads as Internationals`() {
+        val now = ms(2026, 9, 24, 13, 0, "America/New_York")
+        val e = SportsParser.parse(
+            3, "UEFA Nations League: Austria vs Israel @ Sep 24 2:45 PM :Paramount+  03",
+            now, withInternationals,
+        )!!
+        // "UEFA" leads the name, and the national competition still wins
+        // over the shelf's own row.
+        assertEquals("Internationals", e.league)
+        assertEquals("Austria", e.home)
+        assertEquals("Israel", e.away)
+        assertEquals(ms(2026, 9, 24, 14, 45, "America/New_York"), e.startMs)
+    }
+
+    @Test
+    fun `qualifiers are billed the same way`() {
+        val now = ms(2026, 9, 24, 15, 0, "UTC")
+        for (name in listOf(
+            "Next | Cameroon vs. Comoros | Africa Cup of Nations Qualifying | 2026-09-24 | " +
+                "16:00 (GMT) | 8K EXCLUSIVE | US: DAZN PPV 3",
+            "Next | Spain vs. Italy | World Cup Qualifier | 2026-09-24 | 16:00 (GMT) | " +
+                "8K EXCLUSIVE | US: DAZN PPV 5",
+        )) {
+            assertEquals(name, "Internationals",
+                SportsParser.parse(4, name, now, withInternationals)?.league)
+        }
+    }
+
+    @Test
+    fun `age-group, women's, cricket and club friendlies are not this row`() {
+        val now = ms(2026, 8, 27, 15, 0, "UTC")
+        for (name in listOf(
+            // Real slot, 2026-08-27, with Next for End so it is not dropped
+            // as finished before the competition is ever read.
+            "Next | Slovenia vs. Montenegro | International Friendly - Men's U17 | " +
+                "2026-08-27 | 16:00 (GMT) | 8K EXCLUSIVE | US: DAZN PPV 9",
+            "Next | Mozambique U20 vs. Mauritius U20 | TotalEnergies CAF U20 Africa Cup " +
+                "of Nations | COSAFA Qualifier | 2026-08-27 | 16:00 (GMT) | 8K EXCLUSIVE | " +
+                "US: DAZN PPV 2",
+            "UEFA Women's Nations League: England vs Spain @ Aug 27 12:00 PM :Paramount+  01",
+            // The STAN pack's cricket, which names no sport at all.
+            "AU (STAN 50) | Australia v South Africa  Flight Centre Series/Men`s " +
+                "International 2026 (2026-08-27 18:30:29)",
+            "Next | Brazil vs. Italy | Volleyball Nations League | 2026-08-27 | " +
+                "16:00 (GMT) | 8K EXCLUSIVE | US: DAZN PPV 6",
+            // Real slot, 2026-08-27: basketball's World Cup qualifying, which
+            // the first draft of the rule read as football.
+            "FIBA Men's WC Qualifier: Panama vs. Canada @ Aug 27 21:30 :TSN+  74",
+            "Next | India vs. Nepal | ICC T20 World Cup Qualifier | 2026-08-27 | " +
+                "16:00 (GMT) | 8K EXCLUSIVE | US: DAZN PPV 8",
+            // Pre-season is a club friendly, and a bare "Friendly" says no more.
+            "Friendly: Wrexham vs Sunderland @ Aug 27 2:00 PM :Paramount+  07",
+        )) {
+            assertNull(name, SportsParser.parse(5, name, now, withInternationals))
+        }
+    }
+
+    @Test
+    fun `a national match on the UEFA shelf moves to Internationals on the schedule`() {
+        // The shelf writes a bare "8:45 pm" and bills only the confederation.
+        // The schedule dates it and names the competition.
+        val now = ms(2026, 9, 24, 18, 0, "UTC")
+        val slots = listOf(7 to "UEFA | 03 - Germany vs Netherlands 8:45 pm")
+        val parsed = SportsParser.parseAll(slots, now, withInternationals)
+        assertEquals("UEFA", parsed.single().league)
+        assertTrue("clockless, waiting on the schedule", parsed.single().needsSchedule)
+
+        val fixtures = listOf(ScheduleFixture(
+            league = "Internationals", home = "Netherlands", away = "Germany",
+            start = "2026-09-24T18:45Z",
+            homeLogo = "https://a.espncdn.com/i/teamlogos/countries/500/ned.png",
+            awayLogo = "https://a.espncdn.com/i/teamlogos/countries/500/ger.png",
+        ))
+        val fixed = SportsParser.applySchedule(parsed, fixtures, now).single()
+        assertEquals("Internationals", fixed.league)
+        assertEquals(ms(2026, 9, 24, 18, 45, "UTC"), fixed.startMs)
+        // The slot lists Germany first; the badge follows the side, not the order.
+        assertEquals("https://a.espncdn.com/i/teamlogos/countries/500/ger.png", fixed.homeCrest)
+    }
+
+    @Test
+    fun `ESPN's spelling of a nation still pairs through its alias`() {
+        val now = ms(2026, 9, 27, 17, 0, "UTC")
+        val slots = listOf(8 to "UEFA | 05 - Turkey vs Wales 7:45 pm")
+        val parsed = SportsParser.parseAll(slots, now, withInternationals)
+        val fixtures = listOf(ScheduleFixture(
+            league = "Internationals", home = "Türkiye", away = "Wales",
+            homeAlt = listOf("Turkey"), start = "2026-09-27T18:45Z",
+        ))
+        val fixed = SportsParser.applySchedule(parsed, fixtures, now).single()
+        assertEquals("Internationals", fixed.league)
+        assertEquals(ms(2026, 9, 27, 18, 45, "UTC"), fixed.startMs)
+    }
+
+    @Test
+    fun `Internationals is football, and one side proves nothing`() {
+        assertEquals("soccer", SportsParser.sportOf("Internationals"))
+        assertFalse(SportsParser.inferableFromOneSide("Internationals"))
+    }
 }
