@@ -347,10 +347,11 @@ fun HomeScreen(
             // did not carry it left UP to the geometric search, which picks a
             // header control by POSITION: from Settings' first row that is the
             // Home mark, from Sports' empty pane it is Series. The landing was
-            // only half of it. DOWN on the header COMMITS (see [TopNav]), so
-            // the very next press — the natural "put me back where I was" —
-            // opened a destination the viewer never chose. Two presses from
-            // Settings and you are on Home.
+            // only half of it. DOWN on the header used to COMMIT, so the very
+            // next press — the natural "put me back where I was" — opened a
+            // destination the viewer never chose. It returns to the current
+            // tab now (see [TopNav]), but the landing still has to be right:
+            // it is where LEFT and RIGHT start counting from.
             //
             // An exit redirect rather than a key handler, because a key
             // handler here would sit ABOVE every tab in the preview phase and
@@ -556,6 +557,14 @@ fun HomeScreen(
                 .height(HEADER_BAND_HEIGHT)
                 .background(HeaderWash)
         )
+    } else if (tab in TAB_MARK_TABS) {
+        // Where the bar went, the tab it was showing stays. See [TAB_MARK_TABS].
+        TabMark(
+            tab,
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = HEADER_RETRACTED_INSET + TAB_MARK_DROP, end = Space.gutter),
+        )
     }
     // NEVER composed out, only displaced.
     //
@@ -574,7 +583,7 @@ fun HomeScreen(
     ) {
     TopNav(
         selected = tab,
-        // OK or DOWN commits: switch the tab and hand focus to the
+        // OK commits: switch the tab and hand focus to the
         // content, which is the same order the drawer used and for the
         // same reason — the content refuses focus while the header holds
         // it (LocalArrivalFocusAllowed), so the gate has to drop first.

@@ -320,6 +320,16 @@ val HEADER_BAND_HEIGHT = 78.dp
 val HEADER_RETRACTED_INSET = 18.dp
 
 /**
+ * The top-right corner the heroes keep clear for [TabMark].
+ *
+ * Kept clear always, not only while the mark is drawn: a hero that reflowed
+ * whenever the bar came and went would be the content moving under a press
+ * that only asked for the navigation. The cost is a very long title
+ * ellipsising a word earlier.
+ */
+val TAB_MARK_RESERVE = 150.dp
+
+/**
  * A short wash under the top navigation.
  *
  * The header sits over the page's own artwork — a Home backdrop can be a
