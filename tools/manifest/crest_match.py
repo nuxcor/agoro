@@ -389,7 +389,7 @@ def main():
         'Serie A': 'soccer', 'Bundesliga': 'soccer', 'Ligue 1': 'soccer',
         'Champions League': 'soccer', 'Europa League': 'soccer',
         'Conference League': 'soccer', 'UEFA': 'soccer',
-        'Carabao Cup': 'soccer', 'FA Cup': 'soccer',
+        'Carabao Cup': 'soccer', 'FA Cup': 'soccer', 'Internationals': 'soccer',
     }
 
     crest, missing, from_espn = {}, [], 0

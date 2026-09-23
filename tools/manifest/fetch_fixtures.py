@@ -38,6 +38,14 @@ LEAGUES = {
     "Conference League": "soccer/uefa.europa.conf",
     "Carabao Cup": "soccer/eng.league_cup",
     "FA Cup": "soccer/eng.fa",
+    # Men's senior national-team football, one row fed by several scoreboards.
+    # A tuple because ESPN files each competition separately and the app bills
+    # them as one. The World Cup qualifiers are NOT here: the 2030 cycle has
+    # not started, all five confederation paths answer 200 with no events, and
+    # each would cost eleven requests a run to say so. Add them when it does —
+    # "soccer/fifa.worldq.<afc|caf|concacaf|conmebol|ofc|uefa>".
+    "Internationals": ("soccer/uefa.nations", "soccer/fifa.friendly",
+                       "soccer/caf.nations_qual", "soccer/concacaf.nations.league"),
 }
 
 BASE = "https://site.api.espn.com/apis/site/v2/sports"
@@ -149,6 +157,26 @@ def fetch_window(league, path, today):
 ALIAS_FIELDS = ("shortDisplayName", "name")
 
 
+# The other name a nation goes by, where ESPN's and the packs' do not share a
+# word. The app pairs a slot with a fixture on name tokens, so "Turkey" never
+# found "Türkiye" and "USA" never found "United States" — and a national match
+# on the UEFA shelf has no clock of its own, so an unpaired one is dropped.
+# Only pairs with NO common word are worth listing: "Ireland" already pairs
+# "Republic of Ireland", "Bosnia" pairs "Bosnia-Herzegovina".
+NATION_ALIASES = {
+    "Türkiye": ["Turkey"],
+    "Czechia": ["Czech Republic"],
+    "United States": ["USA"],
+    "Ivory Coast": ["Côte d'Ivoire", "Cote d'Ivoire"],
+    "Cape Verde": ["Cabo Verde"],
+    "South Korea": ["Korea Republic"],
+    "Kyrgyz Republic": ["Kyrgyzstan"],
+    "Netherlands": ["Holland"],
+    "Congo DR": ["DR Congo"],
+    "Iran": ["IR Iran"],
+}
+
+
 def side(competitor):
     """One club: how ESPN bills it, what else it answers to, and its badge."""
     team = competitor.get("team") or {}
@@ -156,8 +184,7 @@ def side(competitor):
     if not name:
         return None
     alts, seen = [], {name.casefold()}
-    for field in ALIAS_FIELDS:
-        alt = team.get(field)
+    for alt in [team.get(f) for f in ALIAS_FIELDS] + NATION_ALIASES.get(name, []):
         if alt and alt.casefold() not in seen:
             seen.add(alt.casefold())
             alts.append(alt)
@@ -201,7 +228,15 @@ def main():
             # The run can only end in the refusal below now; every further
             # league would just spend its retries finding that out again.
             break
-        events = fetch_window(league, path, today)
+        events = []
+        for one in (path if isinstance(path, tuple) else (path,)):
+            got = fetch_window(league, one, today)
+            if got is None:
+                # One scoreboard missing is a hole in the row that looks like
+                # a quiet week, so it fails the whole league — carried below.
+                events = None
+                break
+            events.extend(got)
         if events is None:
             # A request that FAILED, which is not the same as a league with no
             # fixtures this week. Counted, because a run where most of them

@@ -3440,8 +3440,15 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kept_live.js
 # instead; see the note there.
 #
 # Order matters: this is the order the rows appear in.
+#
+# "Internationals" is men's senior national-team football — Nations League,
+# international friendlies, qualifiers. Billed-only for the same reason as the
+# cups, and more so: a roster of nations would read the STAN pack's "Australia
+# v South Africa ... Men`s International" (cricket) as football. See
+# SportsParser.INTERNATIONALS. fetch_fixtures.py dates these from ESPN, which
+# is also what moves a national-team match off the UEFA shelf and onto this row.
 BILLED_ONLY_COMPETITIONS = ["Europa League", "Conference League", "UEFA",
-                            "Carabao Cup", "FA Cup"]
+                            "Carabao Cup", "FA Cup", "Internationals"]
 
 SPORT_LEAGUES = {
  "NFL": ["Cardinals","Falcons","Ravens","Bills","Panthers","Bears","Bengals","Browns",

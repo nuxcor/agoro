@@ -1,6 +1,6 @@
 {
  "manifest_version": 1,
- "generated": "2026-09-22T22:01:10+00:00",
+ "generated": "2026-09-23T15:27:00+00:00",
  "provider": {
   "host": "cf.dzidzi.online",
   "protocol": "xtream"
@@ -92139,7 +92139,8 @@
    "Conference League": [],
    "UEFA": [],
    "Carabao Cup": [],
-   "FA Cup": []
+   "FA Cup": [],
+   "Internationals": []
   },
   "cue_minutes": 60,
   "club_alias": {
