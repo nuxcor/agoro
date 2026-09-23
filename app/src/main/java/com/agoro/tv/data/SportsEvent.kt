@@ -123,6 +123,14 @@ data class SportsEvent(
     /** The same match on other slots, best first, for the player to fall back to. */
     val alternates: List<Int> = emptyList(),
     /**
+     * The league is not a one-club guess: the slot named the competition, or
+     * BOTH clubs belong to it. Such a row is never taken off by a
+     * not-our-competition fixture — see SportsParser.dropNotOurs, where a men's
+     * Barcelona v Real Madrid must survive the women's clásico kicking off the
+     * same evening under the same two names.
+     */
+    val leagueConfirmed: Boolean = false,
+    /**
      * What this slot was actually measured to be. See [SlotQuality].
      *
      * The comparator had no picture signal at all before these: three slots
@@ -644,8 +652,8 @@ object SportsParser {
             // Billing drops the nickname flag on purpose: when the slot names
             // the competition itself, the league is no longer a guess made out
             // of two shared nicknames.
-            ?.let { if (billed != null) it.copy(league = billed, nicknamePair = false) else it }
-            ?: billed?.let { Sides(it, billedSide(rawHome), billedSide(rawAway)) }
+            ?.let { if (billed != null) it.copy(league = billed, nicknamePair = false, confirmed = true) else it }
+            ?: billed?.let { Sides(it, billedSide(rawHome), billedSide(rawAway), confirmed = true) }
             ?: return null
         val (league, home, away) = sides
         // A pack that NAMES the sport it is showing has not guessed, whatever
@@ -677,6 +685,7 @@ object SportsParser {
                     tierRank = tierOf(name), sourceRank = sourceOf(name),
                     wrongSport = isWrongSport(name, league),
                     nicknamePair = nicknameGuess,
+                    leagueConfirmed = sides.confirmed,
                     sideFeed = isSideFeed(name), languageFeed = isLanguageFeed(name),
                 )
             }
@@ -687,6 +696,7 @@ object SportsParser {
                     tierRank = tierOf(name), sourceRank = sourceOf(name),
                     wrongSport = isWrongSport(name, league),
                     nicknamePair = nicknameGuess,
+                    leagueConfirmed = sides.confirmed,
                     sideFeed = isSideFeed(name), languageFeed = isLanguageFeed(name),
                 )
             } else {
@@ -699,6 +709,7 @@ object SportsParser {
             live = start <= nowMs, tierRank = tierOf(name), sourceRank = sourceOf(name),
             wrongSport = isWrongSport(name, league),
             nicknamePair = nicknameGuess,
+            leagueConfirmed = sides.confirmed,
             sideFeed = isSideFeed(name), languageFeed = isLanguageFeed(name),
         )
     }
@@ -710,6 +721,8 @@ object SportsParser {
         val away: String,
         /** See [SportsEvent.nicknamePair]. */
         val nicknamePair: Boolean = false,
+        /** See [SportsEvent.leagueConfirmed]. */
+        val confirmed: Boolean = false,
     )
 
     /**
@@ -793,7 +806,15 @@ object SportsParser {
             // Bundesliga, which is the men's fixture under the women's name —
             // the report was "there is a bundesliga hoffenheim vs bayern but
             // it's the women". NWSL and the WSL are named for nothing else.
-            """|Frauen|Damen|Femenin[ao]|Feminin[ae]|Feminil|Feminile|Feminina|Kvinner|Kvinnor|NWSL|WSL)\b""" +
+            """|Frauen|Damen|Femenin[ao]|Feminin[ae]|Feminil|Feminile|Feminina|Kvinner|Kvinnor|NWSL|WSL|UWCL|Liga F)\b""" +
+            // The women's side marked on the CLUB rather than the competition:
+            // "Barcelona (W) vs Paris FC (W)". Bracketed only — a bare W is a
+            // word too many other things are.
+            """|\(W\)""" +
+            // Catalan, "Barcelona Femení". Outside the group because its
+            // closing \b cannot follow an accented letter: Java's \b is ASCII
+            // unless told otherwise, so "í " is no boundary at all.
+            """|\bFemen[ií](?!\p{L})""" +
             // A competition somewhere else that BORROWS one of our league's
             // names. "Niger Super Ligue 1 - Niger" contains "Ligue 1", so the
             // billing read it as the French top flight and put JS Tahoua v AS
@@ -974,7 +995,16 @@ object SportsParser {
                 val hs = sportOf(hHit.first)
                 val As = sportOf(aHit.first)
                 if (hs != null && As != null && hs != As) return null
-                hHit.first
+                // Two clubs from two DIFFERENT competitions are not playing in
+                // either of them. It used to take the home side's, and
+                // "Barcelona vs Paris FC" stood on the Sport tab as La Liga on
+                // 2026-09-23 — it was the Women's Champions League, and no
+                // Ligue 1 club ever plays a La Liga match. Blank, as for the
+                // one-sided cup entrant below: the row keeps both names and
+                // the schedule fills the competition in if it can pair the
+                // tie, which is exactly how a real Barcelona v PSG still reads
+                // as the Champions League.
+                if (hHit.first == aHit.first) hHit.first else ""
             }
             isBareAmbiguous(hit, ambiguous) -> return null
             // One club, and only for a competition that club plays in every
@@ -1011,6 +1041,7 @@ object SportsParser {
             // See [SportsEvent.nicknamePair] for what the guess costs.
             nicknamePair = hHit != null && aHit != null &&
                 isBareAmbiguous(hHit, ambiguous) && isBareAmbiguous(aHit, ambiguous),
+            confirmed = hHit != null && aHit != null && hHit.first == aHit.first,
         )
     }
 
@@ -1261,7 +1292,7 @@ object SportsParser {
      */
     private val clubAffix = setOf(
         "FC", "CF", "SC", "SK", "SV", "AC", "AS", "SS", "CD", "CA", "AFC", "RC", "RCD",
-        "BK", "IF", "IK", "FK", "NK", "HK", "GKS", "KS", "VFL", "VFB", "TSG", "TSV",
+        "BK", "IF", "IK", "FF", "FK", "NK", "HK", "GKS", "KS", "VFL", "VFB", "TSG", "TSV",
         "FSV", "MSV", "BSC", "SPVGG", "CFR", "UD", "SD", "AD", "CS", "OGC",
     )
 
@@ -2066,7 +2097,69 @@ object SportsParser {
         nowMs: Long,
         /** The manifest's name-keyed crest index. See [dressCrests]. */
         crests: Map<String, String> = emptyMap(),
-    ): List<SportsEvent> = dressCrests(matchSchedule(events, fixtures, nowMs), crests)
+    ): List<SportsEvent> {
+        val (notOurs, ours) = fixtures.partition { it.league in NOT_OUR_FIXTURES }
+        return dressCrests(dropNotOurs(matchSchedule(events, ours, nowMs), notOurs, nowMs), crests)
+    }
+
+    /**
+     * Competitions the schedule carries only so the app can recognise them and
+     * leave them OFF the screen. See [dropNotOurs].
+     */
+    private val NOT_OUR_FIXTURES = setOf("Women")
+
+    /**
+     * A row nothing could bill, taken off when the schedule shows its two
+     * clubs meeting in a competition this app does not carry.
+     *
+     * Reported from the box on 2026-09-23: "US (ESPN+ 108) | Soccer: Barcelona
+     * vs. Paris FC (ESP)" was the Women's Champions League, and nothing in the
+     * slot says so — no "Women", no "(W)", nothing [notOurCompetition] could
+     * read. ESPN's women's scoreboard is the only thing that knows.
+     *
+     * Deliberately narrow, because ESPN names the women's sides exactly as it
+     * names the men's. Fed to [matchSchedule] these fixtures would pair a
+     * men's Barcelona v Real Madrid with the women's clásico the same weekend,
+     * and "a club already spoken for" would read Manchester City's women
+     * playing Arsenal as proof the men's match against Villa does not exist.
+     * So they never enter it. They are asked only about a row the men's
+     * schedule could NOT pair and whose league is a one-club guess or blank
+     * ([SportsEvent.leagueConfirmed] is false), and only on an EXACT pair near the row's own
+     * clock (or one already played). A real men's match between the same two
+     * clubs is paired by [matchSchedule] first and never reaches this
+     * question; and one the men's schedule misses over a spelling — Inter for
+     * Internazionale — cannot exact-pair the women's fixture either, because
+     * ESPN spells both sides the same way. Measured on the 2026-09-22 dump:
+     * five Women's Champions League slots came off (billed La Liga, Serie A
+     * and Premier League by one club's roster) and nothing else moved.
+     */
+    private fun dropNotOurs(
+        events: List<SportsEvent>,
+        notOurs: List<ScheduleFixture>,
+        nowMs: Long,
+    ): List<SportsEvent> {
+        if (notOurs.isEmpty()) return events
+        val indexed = notOurs.mapNotNull { f ->
+            val start = f.startMs ?: return@mapNotNull null
+            Indexed(spellings(f.home, f.homeAlt), spellings(f.away, f.awayAlt), f, start)
+        }
+        return events.filterNot { e ->
+            if (e.scheduleKey != null || e.leagueConfirmed) return@filterNot false
+            val home = tokens(e.home)
+            val away = tokens(e.away)
+            val anchor = e.startMs ?: nowMs
+            // Near the row's own clock, or already PLAYED: the packs leave a
+            // clockless "Live | Real Madrid CF vs. Paris Saint-Germain FC |
+            // all" up for a day after the women's match, anchored on now and
+            // so a day away from it. [matchSchedule] ends a men's leftover the
+            // same way.
+            indexed.any {
+                exactPair(home, away, it) && (
+                    kotlin.math.abs(it.start - anchor) <= SCHEDULE_MAX_SHIFT_MS || isOver(it, nowMs)
+                )
+            }
+        }
+    }
 
     /**
      * The badge a row still has when the schedule could not place it.

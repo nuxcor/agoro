@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-23T15:26:39Z",
+ "generated": "2026-09-23T18:06:11Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -16,7 +16,8 @@
   "Conference League": 0,
   "Carabao Cup": 0,
   "FA Cup": 0,
-  "Internationals": 195
+  "Internationals": 195,
+  "Women": 18
  },
  "fixtures": [
   {
@@ -62,13 +63,70 @@
    "state": "post"
   },
   {
+   "league": "Women",
+   "home": "Bayern Munich",
+   "away": "Manchester City",
+   "start": "2026-09-22T16:45Z",
+   "homeAlt": [
+    "Bayern"
+   ],
+   "awayAlt": [
+    "Man City"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20103.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19257.png",
+   "state": "post"
+  },
+  {
+   "league": "Women",
+   "home": "Internazionale",
+   "away": "BK H\u00e4cken",
+   "start": "2026-09-22T16:45Z",
+   "homeAlt": [
+    "Inter Milan"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131635.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21124.png",
+   "state": "post"
+  },
+  {
+   "league": "Women",
+   "home": "Arsenal",
+   "away": "HB K\u00f8ge",
+   "start": "2026-09-22T19:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19973.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21127.png",
+   "state": "post"
+  },
+  {
+   "league": "Women",
+   "home": "Juventus",
+   "away": "Benfica",
+   "start": "2026-09-22T19:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20092.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20830.png",
+   "state": "post"
+  },
+  {
+   "league": "Women",
+   "home": "Real Madrid",
+   "away": "Paris Saint-Germain",
+   "start": "2026-09-22T19:00Z",
+   "awayAlt": [
+    "PSG"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21128.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19258.png",
+   "state": "post"
+  },
+  {
    "league": "Internationals",
    "home": "Azerbaijan",
    "away": "Tajikistan",
    "start": "2026-09-23T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/aze.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tjk.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -80,7 +138,31 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gib.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/11808.png",
-   "state": "pre"
+   "state": "post"
+  },
+  {
+   "league": "Women",
+   "home": "OH Leuven",
+   "away": "Roma",
+   "start": "2026-09-23T16:45Z",
+   "homeAlt": [
+    "Oud-Heverlee Leuven"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131423.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21685.png",
+   "state": "in"
+  },
+  {
+   "league": "Women",
+   "home": "Servette",
+   "away": "OL Lyonnes",
+   "start": "2026-09-23T16:45Z",
+   "awayAlt": [
+    "Lyonnes"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20835.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19256.png",
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -92,6 +174,30 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tca.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/msr.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Barcelona",
+   "away": "Paris FC",
+   "start": "2026-09-23T19:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20091.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21640.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Chelsea",
+   "away": "Austria Vienna",
+   "start": "2026-09-23T19:00Z",
+   "homeAlt": [
+    "Chelsea "
+   ],
+   "awayAlt": [
+    "Vienna"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19970.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131643.png",
    "state": "pre"
   },
   {
@@ -2213,6 +2319,33 @@
    "state": "pre"
   },
   {
+   "league": "Women",
+   "home": "BK H\u00e4cken",
+   "away": "Juventus",
+   "start": "2026-09-30T16:45Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21124.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20092.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Paris FC",
+   "away": "Arsenal",
+   "start": "2026-09-30T16:45Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21640.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19973.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Roma",
+   "away": "Barcelona",
+   "start": "2026-09-30T16:45Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21685.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20091.png",
+   "state": "pre"
+  },
+  {
    "league": "Internationals",
    "home": "Argentina",
    "away": "Bolivia",
@@ -2228,6 +2361,33 @@
    "start": "2026-09-30T18:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mri.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/dji.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Benfica",
+   "away": "Bayern Munich",
+   "start": "2026-09-30T19:00Z",
+   "awayAlt": [
+    "Bayern"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20830.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20103.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "OL Lyonnes",
+   "away": "Chelsea",
+   "start": "2026-09-30T19:00Z",
+   "homeAlt": [
+    "Lyonnes"
+   ],
+   "awayAlt": [
+    "Chelsea "
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19256.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19970.png",
    "state": "pre"
   },
   {
@@ -2255,6 +2415,30 @@
    "start": "2026-10-01T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gui.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ken.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Austria Vienna",
+   "away": "Internazionale",
+   "start": "2026-10-01T16:45Z",
+   "homeAlt": [
+    "Vienna"
+   ],
+   "awayAlt": [
+    "Inter Milan"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131643.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131635.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "HB K\u00f8ge",
+   "away": "Servette",
+   "start": "2026-10-01T16:45Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21127.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20835.png",
    "state": "pre"
   },
   {
@@ -2354,6 +2538,33 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bvr.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/msr.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Manchester City",
+   "away": "Real Madrid",
+   "start": "2026-10-01T19:00Z",
+   "homeAlt": [
+    "Man City"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19257.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21128.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Paris Saint-Germain",
+   "away": "OH Leuven",
+   "start": "2026-10-01T19:00Z",
+   "homeAlt": [
+    "PSG"
+   ],
+   "awayAlt": [
+    "Oud-Heverlee Leuven"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19258.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131423.png",
    "state": "pre"
   },
   {

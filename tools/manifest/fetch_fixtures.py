@@ -46,6 +46,12 @@ LEAGUES = {
     # "soccer/fifa.worldq.<afc|caf|concacaf|conmebol|ofc|uefa>".
     "Internationals": ("soccer/uefa.nations", "soccer/fifa.friendly",
                        "soccer/caf.nations_qual", "soccer/concacaf.nations.league"),
+    # NOT a row. The app carries no women's football; these are here so it can
+    # recognise a women's match whose slot does not say so ("Soccer: Barcelona
+    # vs. Paris FC (ESP)" was the Women's Champions League) and leave it off.
+    # The app keeps them apart from every other fixture — see
+    # SportsParser.dropNotOurs for why they must never pair a men's row.
+    "Women": "soccer/uefa.wchampions",
 }
 
 BASE = "https://site.api.espn.com/apis/site/v2/sports"
