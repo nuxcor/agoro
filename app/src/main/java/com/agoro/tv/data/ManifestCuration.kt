@@ -79,6 +79,10 @@ object ManifestCuration {
                 // UK's 337 channels used to sit across News, Sports,
                 // Entertainment and Locals, so "the British channels" was the
                 // one thing this strip could not be asked for.
+                // Except the genres it shares: those join the shared row, as a
+                // merged territory's would. See [CatalogueManifest.soloSharedSections].
+                region != null && region in manifest.soloRegionSet &&
+                    section != null && section in manifest.soloSharedSet -> section
                 region != null && region in manifest.soloRegionSet -> region
                 section == null -> null
                 // The merged territories share one shelf per genre. Four of

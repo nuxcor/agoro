@@ -149,6 +149,15 @@ data class CatalogueManifest(
      */
     @SerialName("solo_regions") val soloRegions: List<String> = emptyList(),
     /**
+     * Genres a [soloRegions] territory still pours into the shared rows.
+     *
+     * NEWS since 2026-09-24: the headlines are picked by genre, not by place,
+     * so BBC News and Sky News belong on the News row beside CNN rather than
+     * only on the UK row. Empty — every genre stays on the territory's row —
+     * for a manifest that predates it.
+     */
+    @SerialName("solo_shared_sections") val soloSharedSections: List<String> = emptyList(),
+    /**
      * Sections folded into another wherever they appear — Kids, Documentary and
      * Music all read as Entertainment. Applied to whatever section a channel
      * resolves to, because the per-channel [mergedSection] table can only cover
@@ -306,6 +315,7 @@ data class CatalogueManifest(
     val seriesDropped: Set<Int> by lazy { seriesDrop.toSet() }
     val keptRegionSet: Set<String> by lazy { keptRegions.toSet() }
     val soloRegionSet: Set<String> by lazy { soloRegions.toSet() }
+    val soloSharedSet: Set<String> by lazy { soloSharedSections.toSet() }
     val hiddenSections: Set<String> by lazy {
         sections.live.filter { it.hidden }.map { it.key }.toSet()
     }

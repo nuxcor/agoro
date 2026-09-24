@@ -1255,6 +1255,14 @@ SHELF_MERGED_REGIONS = ('US',)
 # both would still shelve whole — but nothing is, and nothing should be: the
 # two lists say opposite things about the same territory.
 SHELF_SOLO_REGIONS = ('UK', 'AFR')
+
+# Genres a solo territory still gives to the shared rows. Asked for on
+# 2026-09-24 as "add bbc news in uk and other news channels there to news":
+# News is picked by GENRE, not by place — a viewer after the headlines opens
+# News and should find BBC News and Sky News beside CNN, not have to know
+# they are filed under the UK. The rest of the UK row is untouched; a channel
+# still sits on exactly one row, so these eight leave it.
+SHELF_SOLO_SHARED_SECTIONS = ('NEWS',)
 # One stream, by id, where a name rule would be too broad.
 #
 # 1536959 is "PRIME: BBC NEWS", a US-shelf restream — and the only source in
@@ -3987,6 +3995,7 @@ manifest = {
     # These take one shelf each, holding every genre they carry. Read before
     # merged_regions by the app.
     "solo_regions": list(SHELF_SOLO_REGIONS),
+    "solo_shared_sections": list(SHELF_SOLO_SHARED_SECTIONS),
     "sport": {"leagues": SPORT_LEAGUES, "cue_minutes": SPORT_CUE_MINUTES,
               "club_alias": SPORT_CLUB_ALIAS,
               "ambiguous": SPORT_AMBIGUOUS, "club_crest": _crest_map,

@@ -522,6 +522,22 @@ class ManifestCurationTest {
     }
 
     @Test
+    fun `a solo territory's shared genre joins the shared row`() {
+        // "add bbc news in uk and other news channels there to news",
+        // 2026-09-24: the headlines are picked by genre, so British news sits
+        // on News beside the US channels, and the rest of the UK stays put.
+        val m = soloManifest().copy(soloSharedSections = listOf("NEWS"))
+        val bundle = ContentBundle(
+            channels = listOf(channel(1, "10"), channel(3, "20"), channel(4, "21")),
+        )
+        val out = ManifestCuration.apply(bundle, m)
+        assertEquals("NEWS", out.channels.first { it.xtreamId == 3 }.categoryId)
+        assertEquals("UK", out.channels.first { it.xtreamId == 4 }.categoryId)
+        // One News row, not a "News · UK" beside it.
+        assertEquals(listOf("News", "UK"), out.liveCategories.map { it.name })
+    }
+
+    @Test
     fun `a solo territory keeps a channel no genre pass could place`() {
         // The genre rows drop such a channel back to its provider category,
         // where only search finds it. A place row does not need the genre:
