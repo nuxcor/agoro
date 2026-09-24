@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-24T04:46:48Z",
+ "generated": "2026-09-24T11:42:34Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -201,7 +201,7 @@
    "start": "2026-09-24T04:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sol.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/van.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -219,7 +219,7 @@
    "start": "2026-09-24T09:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/pal.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nzl.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -228,7 +228,7 @@
    "start": "2026-09-24T10:05Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/jpn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/uru.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -240,7 +240,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/kors.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ecu.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -249,7 +249,7 @@
    "start": "2026-09-24T11:35Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/chn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mdv.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
