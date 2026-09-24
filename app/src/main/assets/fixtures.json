@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-24T11:42:34Z",
+ "generated": "2026-09-24T17:08:37Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -16,7 +16,7 @@
   "Conference League": 0,
   "Carabao Cup": 0,
   "FA Cup": 0,
-  "Internationals": 214,
+  "Internationals": 216,
   "Women": 18
  },
  "fixtures": [
@@ -210,7 +210,7 @@
    "start": "2026-09-24T07:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/png.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ncd.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -228,7 +228,7 @@
    "start": "2026-09-24T10:05Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/jpn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/uru.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -240,7 +240,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/kors.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ecu.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -249,7 +249,7 @@
    "start": "2026-09-24T11:35Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/chn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mdv.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -258,7 +258,7 @@
    "start": "2026-09-24T13:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nam.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/cgo.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -270,7 +270,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/uzb.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/irn.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -279,7 +279,7 @@
    "start": "2026-09-24T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/and.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mlt.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -294,7 +294,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rdc.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/eqg.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -303,7 +303,7 @@
    "start": "2026-09-24T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/lby.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bot.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -315,7 +315,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mtn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/10528.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -1186,6 +1186,18 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/9727.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/193.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
+   "home": "Cook Islands",
+   "away": "Tahiti",
+   "start": "2026-09-27T04:00Z",
+   "homeAlt": [
+    "Cook Isl"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/cok.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tah.png",
    "state": "pre"
   },
   {
@@ -2346,6 +2358,18 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19256.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19970.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
+   "home": "Cook Islands",
+   "away": "Tahiti",
+   "start": "2026-10-01T02:00Z",
+   "homeAlt": [
+    "Cook Isl"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/cok.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tah.png",
    "state": "pre"
   },
   {
