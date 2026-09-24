@@ -2733,6 +2733,106 @@ class SportsParserTest {
         assertEquals(ms(2026, 9, 27, 18, 45, "UTC"), fixed.startMs)
     }
 
+    // An unbilled national match: the slot names no competition, and only
+    // ESPN's fixture list can vouch for it. Real slots, 2026-09-24.
+
+    private fun nationFixture(
+        home: String, away: String, start: String,
+        homeAlt: List<String> = emptyList(), awayAlt: List<String> = emptyList(),
+    ) =
+        ScheduleFixture(
+            league = "Internationals", home = home, away = away, start = start,
+            homeAlt = homeAlt, awayAlt = awayAlt,
+            homeLogo = "https://a.espncdn.com/i/teamlogos/countries/500/${home.take(3).lowercase()}.png",
+        )
+
+    private fun unbilled(slots: List<Pair<Int, String>>, fixtures: List<ScheduleFixture>, now: Long): List<SportsEvent> {
+        val parsed = SportsParser.parseAll(slots, now, withInternationals)
+        val nations = SportsParser.unbilledInternationals(
+            slots, fixtures, now, parsed.mapTo(HashSet()) { it.streamId },
+        )
+        return SportsParser.applySchedule(parsed + nations, fixtures, now)
+    }
+
+    @Test
+    fun `an unbilled national match joins the row when ESPN has it`() {
+        val now = ms(2026, 9, 24, 12, 30, "UTC")
+        val slots = listOf(
+            33 to "Next | Namibia vs. Congo | all | 24-09-2026 | 14:50 (GMT) | 8K EXCLUSIVE | US: SOCCER PPV 33",
+        )
+        val row = unbilled(slots, listOf(nationFixture("Namibia", "Congo", "2026-09-24T13:00Z")), now).single()
+        assertEquals("Internationals", row.league)
+        // ESPN's clock, not the pack's.
+        assertEquals(ms(2026, 9, 24, 13, 0, "UTC"), row.startMs)
+        assertFalse(row.needsPairing)
+        assertEquals("https://a.espncdn.com/i/teamlogos/countries/500/nam.png", row.homeCrest)
+    }
+
+    @Test
+    fun `an unbilled slot wears ESPN's names, not the pack's`() {
+        val now = ms(2026, 9, 24, 17, 0, "UTC")
+        val slots = listOf(
+            1 to "Live Football 01 : Andorra vs malta 17:00 pm",
+            6 to "Live Football 06 : Kosovo vs Rep. Ireland 19:45 pm",
+        )
+        val rows = unbilled(slots, listOf(
+            nationFixture("Andorra", "Malta", "2026-09-24T16:00Z"),
+            // ESPN's own short form, as fixtures.json carries it.
+            nationFixture("Kosovo", "Republic of Ireland", "2026-09-24T18:45Z", awayAlt = listOf("Rep Ireland")),
+        ), now)
+        assertEquals(setOf("Andorra v Malta", "Kosovo v Republic of Ireland"), rows.mapTo(HashSet()) { it.title })
+    }
+
+    @Test
+    fun `two nations with no fixture between them stay off the row`() {
+        val now = ms(2026, 9, 24, 12, 30, "UTC")
+        val slots = listOf(
+            // The cricket, which says nothing about being cricket.
+            48 to "Live | South Africa vs. Australia | all | 8K EXCLUSIVE | US: SOCCER PPV 48",
+        )
+        // ESPN has Australia playing football — against Brazil.
+        assertTrue(unbilled(slots, listOf(nationFixture("Australia", "Brazil", "2026-09-25T10:00Z")), now).isEmpty())
+    }
+
+    @Test
+    fun `a slot that names another sport never pairs, even with the right two nations`() {
+        val now = ms(2026, 9, 24, 12, 30, "UTC")
+        val fixtures = listOf(nationFixture("South Africa", "Australia", "2026-09-24T14:00Z"))
+        for (name in listOf(
+            "Live | Australia tour of South Africa 2026 - 1st ODI - South Africa vs Australia | all | " +
+                "8K EXCLUSIVE | US: SOCCER PPV 14",
+            "(FLSP 001) | live:  Australia vs South Africa _ Cricket (Australia vs South Africa) " +
+                "(2026-09-24 04:00:00)",
+            "Rugby 4: Australia vs South Africa 5:30pm",
+            "South Africa vs Australia @ Sep 24 10:00 AM - Billie Jean King Cup :Tennis  01",
+            "Next | South Africa U20 vs. Australia U20 | all | 24-09-2026 | 14:00 (GMT) | 8K EXCLUSIVE | " +
+                "US: SOCCER PPV 2",
+        )) {
+            assertTrue(name, unbilled(listOf(9 to name), fixtures, now).isEmpty())
+        }
+    }
+
+    @Test
+    fun `an unbilled slot far from its fixture is a different meeting`() {
+        val now = ms(2026, 9, 24, 12, 30, "UTC")
+        // Korea play Uruguay on the 28th; a slot saying LIVE today is not it.
+        val slots = listOf(5 to "Live | South Korea vs. Uruguay | all | 8K EXCLUSIVE | US: SOCCER PPV 5")
+        val fixtures = listOf(nationFixture("South Korea", "Uruguay", "2026-09-28T11:00Z"))
+        assertTrue(unbilled(slots, fixtures, now).isEmpty())
+    }
+
+    @Test
+    fun `an unbilled slot pairs through ESPN's alias`() {
+        val now = ms(2026, 9, 24, 17, 0, "UTC")
+        val slots = listOf(
+            16 to "Next | Cote d'Ivoire vs. Ghana | all | 24-09-2026 | 19:00 (GMT) | 8K EXCLUSIVE | CA: SOCCER PPV 16",
+        )
+        val fixtures = listOf(nationFixture(
+            "Ivory Coast", "Ghana", "2026-09-24T19:00Z", homeAlt = listOf("Côte d'Ivoire", "Cote d'Ivoire"),
+        ))
+        assertEquals("Ivory Coast v Ghana", unbilled(slots, fixtures, now).single().title)
+    }
+
     @Test
     fun `Internationals is football, and one side proves nothing`() {
         assertEquals("soccer", SportsParser.sportOf("Internationals"))
