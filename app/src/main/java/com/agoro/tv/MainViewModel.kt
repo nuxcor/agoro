@@ -1071,8 +1071,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     sportCache = it
                 }
             }
+            val fixtures = sched?.fixtures.orEmpty()
+            // National-team slots that bill no competition. Read here and not
+            // in the cached parse, because only the schedule can vouch for
+            // them and it refreshes under that parse.
+            val nations = com.agoro.tv.data.SportsParser.unbilledInternationals(
+                bundle.events.mapNotNull { ch -> ch.xtreamId?.let { it to ch.name } },
+                fixtures, now, parsed.mapTo(HashSet()) { it.streamId },
+            )
             com.agoro.tv.data.SportsParser.applySchedule(
-                parsed, sched?.fixtures.orEmpty(), now, s?.clubCrest.orEmpty(),
+                parsed + nations, fixtures, now, s?.clubCrest.orEmpty(),
             )
         }
             .flowOn(kotlinx.coroutines.Dispatchers.Default)

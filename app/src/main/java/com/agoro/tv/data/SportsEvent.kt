@@ -112,6 +112,14 @@ data class SportsEvent(
      * stay off tonight's tab, because ESPN dates them three days out.
      */
     val needsSchedule: Boolean = false,
+    /**
+     * A national-team slot that bills no competition at all — "Next | Andorra
+     * vs. Malta | all" — admitted only because ESPN has the two nations
+     * meeting. Kept by [SportsParser.applySchedule] only if it pairs an
+     * Internationals fixture there, and dropped by every bail-out that does
+     * not. See [SportsParser.unbilledInternationals].
+     */
+    val needsPairing: Boolean = false,
     /** A studio or tactical-camera companion feed rather than the match itself. */
     val sideFeed: Boolean = false,
     /**
@@ -798,9 +806,9 @@ object SportsParser {
         """(?i)\b(Caribbean|DFA|Dominica|Cricket|Rugby|Netball|Women'?s?|Ladies|Youth|U\d{2}|Reserves?""" +
             // Other games with a Nations League or a World Cup to qualify
             // for: volleyball's VNL, futsal's, beach soccer's, basketball's
-            // (FIBA), ice hockey's (IIHF), cricket's (ICC, T20) and
+            // (FIBA), ice hockey's (IIHF), cricket's (ICC, T20, ODI) and
             // handball's. Only [INTERNATIONALS] could have read them as ours.
-            """|Volleyball|VNL|Futsal|Beach Soccer|FIBA|IIHF|ICC|T20|Handball""" +
+            """|Volleyball|VNL|Futsal|Beach Soccer|FIBA|IIHF|ICC|T20|ODI|Handball""" +
             // The same competition, in the language the pack happens to bill
             // it in. "Frauen Bundesliga" was reaching the screen as
             // Bundesliga, which is the men's fixture under the women's name —
@@ -2102,6 +2110,80 @@ object SportsParser {
         return dressCrests(dropNotOurs(matchSchedule(events, ours, nowMs), notOurs, nowMs), crests)
     }
 
+    private const val INTERNATIONALS_LEAGUE = "Internationals"
+
+    /**
+     * National-team slots that name no competition, admitted on ESPN's word.
+     *
+     * [INTERNATIONALS] reads only a slot's own billing, and on 2026-09-24 that
+     * was one pack of eight. The same evening's Nations League was also on
+     * "Next | Andorra vs. Malta | all | … | CA: SOCCER PPV 33" and "Live
+     * Football 04 : Liechtenstein vs Lithuania 19:45 pm", and outside Europe
+     * only the unbilled shape existed — "Namibia vs. Congo | all" was the one
+     * slot carrying that game, and no row could show it.
+     *
+     * A nation roster was refused when the row was built, because "Australia
+     * v South Africa … Men`s International" on STAN is cricket, and a roster
+     * would say yes to it every time the two countries play anything. ESPN's
+     * fixture list is a much narrower claim: these two nations, at football,
+     * around this hour. So a slot is admitted only when its two sides are the
+     * two nations of an Internationals fixture, and it is marked
+     * [SportsEvent.needsPairing] so that [matchSchedule] drops it unless it
+     * really pairs, near the slot's own clock. [notOurCompetition] and
+     * [unservedSports] still run first, so the cricket, rugby, age-group and
+     * women's slots that do say what they are never get this far.
+     *
+     * Separate from [parseAll] because the schedule is not there: the parse is
+     * cached for an hour and the schedule refreshes under it. This is cheap —
+     * a separator test and a hash lookup per slot, over the few dozen nations
+     * playing this week — so it runs on every emission instead.
+     */
+    fun unbilledInternationals(
+        slots: List<Pair<Int, String>>,
+        fixtures: List<ScheduleFixture>,
+        nowMs: Long,
+        /** Slots [parseAll] already read; they keep the reading they have. */
+        parsedIds: Set<Int>,
+    ): List<SportsEvent> {
+        val nations = fixtures.mapNotNull { f ->
+            if (f.league != INTERNATIONALS_LEAGUE) return@mapNotNull null
+            val start = f.startMs ?: return@mapNotNull null
+            if (kotlin.math.abs(start - nowMs) > SANE_WINDOW_MS) return@mapNotNull null
+            Indexed(spellings(f.home, f.homeAlt), spellings(f.away, f.awayAlt), f, start)
+        }
+        if (nations.isEmpty()) return emptyList()
+        val words = nations.flatMapTo(HashSet()) { (it.home + it.away).flatten() }
+        val out = ArrayList<SportsEvent>()
+        for ((id, raw) in slots) {
+            if (id in parsedIds) continue
+            val name = raw.trim()
+            if (!fixtureSeparator.containsMatchIn(name)) continue
+            if (norm(name).split(' ', '.', ',', ':', '|').none { it in words }) continue
+            if (name.contains("NO EVENT", ignoreCase = true)) continue
+            if (ended.containsMatchIn(name) || otherLeague.containsMatchIn(name)) continue
+            if (notOurCompetition.containsMatchIn(name)) continue
+            if (namedSport(name).let { it != null && it != "soccer" }) continue
+            val (rawHome, rawAway) = readFixture(name) ?: continue
+            if (isReserveSide(rawHome) || isReserveSide(rawAway)) continue
+            val home = billedSide(rawHome)
+            val away = billedSide(rawAway)
+            val h = tokens(home)
+            val a = tokens(away)
+            if (nations.none { pairs(h, a, it) }) continue
+            val start = readStart(name, nowMs)
+            val live = start?.let { it <= nowMs } ?: liveWord.containsMatchIn(name)
+            out += SportsEvent(
+                streamId = id, league = INTERNATIONALS_LEAGUE, home = home, away = away,
+                startMs = start?.takeIf { kotlin.math.abs(it - nowMs) <= SANE_WINDOW_MS },
+                live = live,
+                tierRank = tierOf(name), sourceRank = sourceOf(name),
+                sideFeed = isSideFeed(name), languageFeed = isLanguageFeed(name),
+                needsPairing = true,
+            )
+        }
+        return out
+    }
+
     /**
      * Competitions the schedule carries only so the app can recognise them and
      * leave them OFF the screen. See [dropNotOurs].
@@ -2203,7 +2285,7 @@ object SportsParser {
         // this with a schedule flow that begins null, so the first emission
         // put "Cardinals at Giants" back on the Sport tab as an NFL fixture
         // every launch, and permanently on a box whose schedule never lands.
-        if (fixtures.isEmpty()) return events.filterNot { it.nicknamePair || it.needsSchedule }
+        if (fixtures.isEmpty()) return events.filterNot { it.nicknamePair || it.needsSchedule || it.needsPairing }
         // Indexed by token, not scanned. A few hundred events against a few
         // hundred fixtures is 10^5 set comparisons an emission otherwise, on a
         // box where [worthParsing] exists because that order of work is felt.
@@ -2217,7 +2299,7 @@ object SportsParser {
                 byToken.getOrPut(t) { ArrayList() }.add(entry)
             }
         }
-        if (byToken.isEmpty()) return events.filterNot { it.nicknamePair || it.needsSchedule }
+        if (byToken.isEmpty()) return events.filterNot { it.nicknamePair || it.needsSchedule || it.needsPairing }
         // When each competition is actually playing. A club roster can only
         // say which competition a club BELONGS to, so two Champions League
         // entrants meeting in their own domestic league are billed Champions
@@ -2342,8 +2424,20 @@ object SportsParser {
             // Which way round the schedule lists them, because the packs do
             // not agree on which side leads and a badge on the wrong club is
             // worse than no badge at all.
+            // A nation slot is only ever vouched for by a NATIONAL fixture.
+            if (event.needsPairing && best.fixture.league != INTERNATIONALS_LEAGUE) {
+                return@mapNotNull null
+            }
             val swapped = !straight(home, away, best)
             paired.copy(
+                needsPairing = false,
+                // ESPN's names on a slot nothing else vouched for: the slot's
+                // own are "Andorra vs malta" and "Rep. Ireland", and one match
+                // must not wear three spellings across its packs.
+                home = if (!event.needsPairing) event.home
+                    else if (swapped) best.fixture.away else best.fixture.home,
+                away = if (!event.needsPairing) event.away
+                    else if (swapped) best.fixture.home else best.fixture.away,
                 league = best.fixture.league.ifBlank { event.league },
                 scheduleKey = sideKey(best.fixture.home) + "|" + sideKey(best.fixture.away),
                 startMs = best.start,
@@ -2413,6 +2507,9 @@ object SportsParser {
         // day wide. Every bail-out in matchSchedule comes through here, which
         // is why the guard sits here rather than at four call sites.
         if (event.needsSchedule) return null
+        // Nothing but the pairing ever vouched for this slot, so a slot the
+        // schedule could not pair has nothing left. See [unbilledInternationals].
+        if (event.needsPairing) return null
         val days = playingDays[event.league] ?: return event
         val anchor = event.startMs ?: nowMs
         val near = days.any { kotlin.math.abs(it - anchor) <= MATCHDAY_WINDOW_MS }
