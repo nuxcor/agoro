@@ -154,8 +154,14 @@ private const val FINISHED_SECONDS = 10
  * crops would clip the card's lower edge. Modern panels crop nothing, and the
  * card is a notice rather than a control, but that is the trade being made —
  * put it back to [Space.gutterVertical] if a TV ever eats it.
+ *
+ * The horizontal inset was 88dp until 2026-09-24, when a photo from the box
+ * showed the card standing a tenth of the screen in from the edge, over the
+ * subtitles, and it was asked to sit further right. 32dp is the same trade as
+ * the vertical one: inside the nominal crop, outside anything a modern panel
+ * does.
  */
-private val CornerCardInsetHorizontal = 88.dp
+private val CornerCardInsetHorizontal = 32.dp
 private val CornerCardInsetVertical = 16.dp
 
 /**
