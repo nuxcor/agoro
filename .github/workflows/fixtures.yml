@@ -19,8 +19,8 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    # A run is a hundred-odd requests now, one ESPN day at a time. Healthy it
-    # takes about a minute; this is the ceiling on a slow ESPN, so a stuck run
+    # A run is about two hundred and fifty requests now, one ESPN day at a
+    # time. Healthy it takes about two minutes; this is the ceiling on a slow ESPN, so a stuck run
     # cannot hold the concurrency group while the next six-hourly one queues.
     timeout-minutes: 20
     steps:

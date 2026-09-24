@@ -40,12 +40,25 @@ LEAGUES = {
     "FA Cup": "soccer/eng.fa",
     # Men's senior national-team football, one row fed by several scoreboards.
     # A tuple because ESPN files each competition separately and the app bills
-    # them as one. The World Cup qualifiers are NOT here: the 2030 cycle has
-    # not started, all five confederation paths answer 200 with no events, and
-    # each would cost eleven requests a run to say so. Add them when it does —
-    # "soccer/fifa.worldq.<afc|caf|concacaf|conmebol|ofc|uefa>".
-    "Internationals": ("soccer/uefa.nations", "soccer/fifa.friendly",
-                       "soccer/caf.nations_qual", "soccer/concacaf.nations.league"),
+    # them as one.
+    #
+    # The tournaments and the World Cup qualifiers are here BEFORE they have
+    # games, on purpose (2026-09-24): every path below answered 200 that day,
+    # the finals and the 2030 qualifying all with no events, and a feed already
+    # in the list fills itself the day ESPN schedules it — nobody has to notice
+    # a missing match first. Eleven requests a path a run is the cost. A path
+    # that fails carries the league's last good copy, so a new one cannot
+    # empty the row. There is no AFC Asian Cup qualifying path (400).
+    "Internationals": (
+        "soccer/uefa.nations", "soccer/fifa.friendly",
+        "soccer/caf.nations_qual", "soccer/concacaf.nations.league",
+        # Finals.
+        "soccer/caf.nations", "soccer/afc.asian.cup", "soccer/conmebol.america",
+        # World Cup qualifying, one path per confederation.
+        "soccer/fifa.worldq.afc", "soccer/fifa.worldq.caf",
+        "soccer/fifa.worldq.concacaf", "soccer/fifa.worldq.conmebol",
+        "soccer/fifa.worldq.ofc", "soccer/fifa.worldq.uefa",
+    ),
     # NOT a row. The app carries no women's football; these are here so it can
     # recognise a women's match whose slot does not say so ("Soccer: Barcelona
     # vs. Paris FC (ESP)" was the Women's Champions League) and leave it off.
