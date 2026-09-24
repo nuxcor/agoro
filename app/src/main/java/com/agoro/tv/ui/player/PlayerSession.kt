@@ -884,6 +884,14 @@ class PlayerSession internal constructor(
         upNextIndex = null
         upNextPeekDismissed = false
         if (layer == PlayerLayer.UpNext) layer = PlayerLayer.None
+        // The playhead belongs to the item it was read from. Taking the peek
+        // moves currentIndex on while these still hold the LAST episode's
+        // closing minute, and the peek reads exactly that pair: for up to a
+        // poll the new episode looked like it was running out, and the card
+        // came back offering the one after it — "Episode 4" flashing over the
+        // start of Episode 3. The poll fills them in from the new item.
+        positionMs = 0L
+        durationMs = 0L
         // Something is playing again, so nothing has finished: a catch-up
         // recording that ended and a channel tuned from the guide behind it
         // would otherwise carry the end card's state into a live stream.
