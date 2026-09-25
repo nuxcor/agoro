@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-25T11:48:53Z",
+ "generated": "2026-09-25T17:09:39Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -445,7 +445,7 @@
    "start": "2026-09-25T10:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/aus.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bra.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -454,7 +454,7 @@
    "start": "2026-09-25T13:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/moz.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sen.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -463,7 +463,7 @@
    "start": "2026-09-25T13:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sud.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/eth.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -472,7 +472,7 @@
    "start": "2026-09-25T13:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tan.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gnb.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -481,7 +481,7 @@
    "start": "2026-09-25T14:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ind.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/pan.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -490,7 +490,7 @@
    "start": "2026-09-25T15:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nig.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/les.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -499,7 +499,7 @@
    "start": "2026-09-25T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/fifa.armenia.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/lva.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -508,7 +508,7 @@
    "start": "2026-09-25T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gam.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/som.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -520,7 +520,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/geo.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nir.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -529,7 +529,7 @@
    "start": "2026-09-25T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mwi.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/14075.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -538,7 +538,7 @@
    "start": "2026-09-25T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nga.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mad.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -547,7 +547,7 @@
    "start": "2026-09-25T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rwa.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/lbr.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -556,7 +556,7 @@
    "start": "2026-09-25T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tog.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bdi.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
