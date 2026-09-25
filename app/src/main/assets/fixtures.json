@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-25T04:55:52Z",
+ "generated": "2026-09-25T11:48:53Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -445,7 +445,7 @@
    "start": "2026-09-25T10:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/aus.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bra.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -454,6 +454,15 @@
    "start": "2026-09-25T13:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/moz.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sen.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
+   "home": "Sudan",
+   "away": "Ethiopia",
+   "start": "2026-09-25T13:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sud.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/eth.png",
    "state": "pre"
   },
   {
@@ -538,15 +547,6 @@
    "start": "2026-09-25T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rwa.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/lbr.png",
-   "state": "pre"
-  },
-  {
-   "league": "Internationals",
-   "home": "Sudan",
-   "away": "Ethiopia",
-   "start": "2026-09-25T16:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sud.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/eth.png",
    "state": "pre"
   },
   {
@@ -2158,15 +2158,6 @@
   },
   {
    "league": "Internationals",
-   "home": "Mexico",
-   "away": "Peru",
-   "start": "2026-09-30T01:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mex.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/per.png",
-   "state": "pre"
-  },
-  {
-   "league": "Internationals",
    "home": "Belize",
    "away": "St. Vincent and the Grenadines",
    "start": "2026-09-30T02:00Z",
@@ -2175,6 +2166,15 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/blz.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/vin.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
+   "home": "Mexico",
+   "away": "Peru",
+   "start": "2026-09-30T02:30Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mex.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/per.png",
    "state": "pre"
   },
   {
