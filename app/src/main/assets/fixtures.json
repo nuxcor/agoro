@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-26T04:56:05Z",
+ "generated": "2026-09-26T11:22:40Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -1830,6 +1830,18 @@
   },
   {
    "league": "Internationals",
+   "home": "Russia",
+   "away": "Iran",
+   "start": "2026-09-29T16:00Z",
+   "awayAlt": [
+    "IR Iran"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rus.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/irn.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
    "home": "Uganda",
    "away": "Libya",
    "start": "2026-09-29T16:00Z",
@@ -1844,18 +1856,6 @@
    "start": "2026-09-29T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/zam.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tog.png",
-   "state": "pre"
-  },
-  {
-   "league": "Internationals",
-   "home": "Russia",
-   "away": "Iran",
-   "start": "2026-09-29T16:30Z",
-   "awayAlt": [
-    "IR Iran"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rus.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/irn.png",
    "state": "pre"
   },
   {
@@ -2498,10 +2498,10 @@
   {
    "league": "Internationals",
    "home": "China",
-   "away": "Turkmenistan",
+   "away": "Palestine",
    "start": "2026-10-02T11:35Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/chn.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tkm.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/pal.png",
    "state": "pre"
   },
   {
