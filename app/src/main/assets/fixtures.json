@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-26T11:22:40Z",
+ "generated": "2026-09-26T16:22:14Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -625,7 +625,7 @@
    "start": "2026-09-26T13:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ken.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/eri.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -634,7 +634,7 @@
    "start": "2026-09-26T13:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/svn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sco.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -643,7 +643,7 @@
    "start": "2026-09-26T13:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rsa.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gui.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -652,7 +652,7 @@
    "start": "2026-09-26T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bul.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/lux.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -661,7 +661,7 @@
    "start": "2026-09-26T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/fro.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/kaz.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -670,7 +670,7 @@
    "start": "2026-09-26T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/isl.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/est.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -679,7 +679,7 @@
    "start": "2026-09-26T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/smr.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/fin.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
