@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-27T16:57:36Z",
+ "generated": "2026-09-27T21:20:11Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -762,7 +762,7 @@
    "start": "2026-09-27T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/aut.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/kosovo.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -771,7 +771,7 @@
    "start": "2026-09-27T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/den.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/wal.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -780,7 +780,7 @@
    "start": "2026-09-27T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gib.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/and.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -792,7 +792,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sba.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ned.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -801,7 +801,7 @@
    "start": "2026-09-27T16:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mlt.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/lie.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -810,7 +810,7 @@
    "start": "2026-09-27T17:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/jor.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/syr.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -825,7 +825,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/buf.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lac.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -840,7 +840,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/cle.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/car.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -855,7 +855,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/det.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/nyj.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -870,7 +870,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ind.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/hou.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -885,7 +885,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/jax.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ne.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -900,7 +900,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/mia.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/kc.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -915,7 +915,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/nyg.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ten.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -930,7 +930,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/pit.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/cin.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -945,7 +945,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/wsh.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/sea.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -954,7 +954,7 @@
    "start": "2026-09-27T18:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ger.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gre.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -966,7 +966,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/isr.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/irl.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -975,7 +975,7 @@
    "start": "2026-09-27T18:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nor.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/por.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -987,7 +987,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/guy.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/cay.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -1002,7 +1002,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/sf.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ari.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NFL",
@@ -1017,7 +1017,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/tb.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/min.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NFL",
@@ -1032,7 +1032,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/dal.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/bal.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NFL",
@@ -1047,7 +1047,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/no.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lv.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -1056,7 +1056,7 @@
    "start": "2026-09-27T20:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bol.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/par.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
