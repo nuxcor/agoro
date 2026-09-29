@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-29T05:41:57Z",
+ "generated": "2026-09-29T12:50:03Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -721,7 +721,7 @@
    "start": "2026-09-29T10:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/aus.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bra.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -730,7 +730,7 @@
    "start": "2026-09-29T12:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/com.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nam.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
