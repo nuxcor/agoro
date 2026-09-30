@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-30T05:30:48Z",
+ "generated": "2026-09-30T12:31:57Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -16,7 +16,7 @@
   "Conference League": 0,
   "Carabao Cup": 0,
   "FA Cup": 0,
-  "Internationals": 194,
+  "Internationals": 195,
   "Women": 9
  },
  "fixtures": [
@@ -641,7 +641,7 @@
    "start": "2026-09-30T04:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/png.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sol.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -650,13 +650,13 @@
    "start": "2026-09-30T07:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/fij.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ncd.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
    "home": "Seychelles",
    "away": "Sri Lanka",
-   "start": "2026-09-30T13:00Z",
+   "start": "2026-09-30T12:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sey.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sri.png",
    "state": "pre"
@@ -1289,6 +1289,15 @@
    "start": "2026-10-03T02:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/slv.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/jam.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
+   "home": "Vanuatu",
+   "away": "Fiji",
+   "start": "2026-10-03T04:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/van.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/fij.png",
    "state": "pre"
   },
   {
