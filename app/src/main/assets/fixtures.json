@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-01T05:49:26Z",
+ "generated": "2026-10-01T13:09:40Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -1284,15 +1284,6 @@
    "state": "pre"
   },
   {
-   "league": "Internationals",
-   "home": "Morocco",
-   "away": "Mali",
-   "start": "2026-10-04T16:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mar.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mli.png",
-   "state": "pre"
-  },
-  {
    "league": "NFL",
    "home": "Baltimore Ravens",
    "away": "Tennessee Titans",
@@ -1419,6 +1410,15 @@
    "start": "2026-10-04T18:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/egy.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rsa.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
+   "home": "Morocco",
+   "away": "Ghana",
+   "start": "2026-10-04T18:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mar.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gha.png",
    "state": "pre"
   },
   {
