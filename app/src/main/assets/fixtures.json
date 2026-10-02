@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-02T05:34:18Z",
+ "generated": "2026-10-02T12:31:01Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -451,18 +451,6 @@
   },
   {
    "league": "Internationals",
-   "home": "Congo DR",
-   "away": "Uganda",
-   "start": "2026-10-02T11:00Z",
-   "homeAlt": [
-    "DR Congo"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rdc.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/uga.png",
-   "state": "pre"
-  },
-  {
-   "league": "Internationals",
    "home": "South Korea",
    "away": "Venezuela",
    "start": "2026-10-02T11:00Z",
@@ -471,7 +459,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/kors.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ven.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -480,6 +468,18 @@
    "start": "2026-10-02T11:35Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/chn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/pal.png",
+   "state": "in"
+  },
+  {
+   "league": "Internationals",
+   "home": "Congo DR",
+   "away": "Uganda",
+   "start": "2026-10-02T13:00Z",
+   "homeAlt": [
+    "DR Congo"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rdc.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/uga.png",
    "state": "pre"
   },
   {
@@ -1063,10 +1063,10 @@
   {
    "league": "Internationals",
    "home": "Morocco",
-   "away": "Ghana",
+   "away": "Mali",
    "start": "2026-10-04T18:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mar.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gha.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mli.png",
    "state": "pre"
   },
   {
@@ -1326,6 +1326,18 @@
   },
   {
    "league": "Internationals",
+   "home": "Uganda",
+   "away": "Congo DR",
+   "start": "2026-10-05T13:00Z",
+   "awayAlt": [
+    "DR Congo"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/uga.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rdc.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
    "home": "Mauritius",
    "away": "Sri Lanka",
    "start": "2026-10-05T15:00Z",
@@ -1349,18 +1361,6 @@
    "start": "2026-10-05T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rwa.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ken.png",
-   "state": "pre"
-  },
-  {
-   "league": "Internationals",
-   "home": "Uganda",
-   "away": "Congo DR",
-   "start": "2026-10-05T18:00Z",
-   "awayAlt": [
-    "DR Congo"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/uga.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rdc.png",
    "state": "pre"
   },
   {
