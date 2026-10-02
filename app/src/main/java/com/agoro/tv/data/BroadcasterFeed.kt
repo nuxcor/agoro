@@ -255,15 +255,26 @@ private val skySports = Regex("""(?i)\bSKY\s*SPORTS?\b""")
 private val foreignSky = Regex("""(?i)^\s*(DE|IT|NZ|AT|CH)\s*[:|]""")
 
 /**
- * The Sky Sports sources alone when there are any, every source otherwise.
+ * The Sky Sports sources alone when Sky has the game, every source otherwise.
  *
- * Only Sky, not Sky first: a viewer who asked for Sky on a Sunday does not
- * want the player's failover to walk them back onto the US pack it was asked
- * to avoid. And everything when Sky has nothing, because Sky does not show
- * every game and a row that opens nothing is worse than one that opens the
- * pack.
+ * Only Sky, not Sky first: a viewer who asked for Sky does not want the
+ * player's failover to walk them back onto the US pack it was asked to avoid.
+ * And everything when Sky has nothing, because Sky does not show every game
+ * and a row that opens nothing is worse than one that opens the pack.
+ *
+ * Whether Sky HAS it is asked of [trusted] alone — a channel on its own guide,
+ * or a slot named for the fixture. A Sky channel in [doubted] wears a
+ * relative's schedule ([Broadcasters.family]), which is no claim about that
+ * pipe at all: letting it count would strip every working feed and leave the
+ * viewer on one that may be showing anything, with nothing to fall back to.
+ * It still rides behind a trusted Sky source, since it is Sky.
  */
-internal fun <T> skyWhenCarried(sources: List<T>, nameOf: (T) -> String): List<T> {
-    val sky = sources.filter { isUkSkySports(nameOf(it)) }
-    return sky.ifEmpty { sources }
+internal fun <T> skyWhenCarried(
+    trusted: List<T>,
+    doubted: List<T>,
+    nameOf: (T) -> String,
+): List<T> {
+    val sky = trusted.filter { isUkSkySports(nameOf(it)) }
+    if (sky.isEmpty()) return trusted + doubted
+    return sky + doubted.filter { isUkSkySports(nameOf(it)) }
 }

@@ -272,20 +272,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // the slots named for the fixture, then a channel wearing a relative's
         // schedule.
         fun named(channel: LiveChannel) = channel to channel.displayName
-        val ordered = com.agoro.tv.data.fixtureSources(
-            own = broadcasters.own.map(::named),
-            slots = ppv.map {
-                it to (com.agoro.tv.data.SportsParser.packLabel(it.name) ?: it.displayName)
-            },
-            family = broadcasters.family.map(::named),
-        )
-        // Sunday, Monday or Thursday Night Football: Sky Sports alone where Sky has the
-        // game, in the order above. Applied before the viewer's own choice
-        // below, so a pick made among the US pack does not drag it back.
+        val own = broadcasters.own.map(::named)
+        val slots = ppv.map {
+            it to (com.agoro.tv.data.SportsParser.packLabel(it.name) ?: it.displayName)
+        }
+        val family = broadcasters.family.map(::named)
+        // Sunday, Monday or Thursday Night Football: Sky Sports alone where Sky
+        // has the game, judged on the own-guide channels and the slots only —
+        // see skyWhenCarried. Applied before the viewer's own choice below, so
+        // a pick made among the US pack does not drag it back.
         val named = if (skyOnly) {
-            com.agoro.tv.data.skyWhenCarried(ordered) { it.first.name }
+            com.agoro.tv.data.skyWhenCarried(
+                trusted = own + slots,
+                doubted = family,
+            ) { it.first.name }
         } else {
-            ordered
+            com.agoro.tv.data.fixtureSources(own = own, slots = slots, family = family)
         }
         // The viewer's own answer to "this is the wrong game" outranks every
         // ranking this app can do from a name. Sorted rather than moved to the

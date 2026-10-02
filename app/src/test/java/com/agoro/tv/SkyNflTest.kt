@@ -65,10 +65,26 @@ class SkyNflTest {
             "US: ESPN+ PPV 12", "VIP: SKY SPORTS MIX ᴿᴬᵂ")
         assertEquals(
             listOf("UK: SKY SPORTS MAIN EVENT ᴿᴬᵂ", "VIP: SKY SPORTS MIX ᴿᴬᵂ"),
-            skyWhenCarried(withSky) { it },
+            skyWhenCarried(withSky, emptyList()) { it },
         )
         val noSky = listOf("NFL  | 03 - Chiefs at Bills", "US: ESPN+ PPV 12")
-        assertEquals(noSky, skyWhenCarried(noSky) { it })
+        assertEquals(noSky, skyWhenCarried(noSky, emptyList()) { it })
+    }
+
+    @Test
+    fun `a Sky channel on a borrowed guide cannot make the row Sky-only`() {
+        // It wears a relative's schedule, so it says nothing about what that
+        // pipe is showing. Counting it stripped NBC's own channel and every
+        // slot, and left the viewer on a pipe with nothing behind it.
+        val trusted = listOf("US: NBC", "NFL  | 01 - Bears at Packers")
+        val doubted = listOf("VIP: SKY SPORTS MAIN EVENT ᴿᴬᵂ")
+        assertEquals(trusted + doubted, skyWhenCarried(trusted, doubted) { it })
+        // Behind a trusted Sky source it still rides along, as Sky.
+        val withSky = trusted + "UK: SKY SPORTS MIX ᴿᴬᵂ"
+        assertEquals(
+            listOf("UK: SKY SPORTS MIX ᴿᴬᵂ", "VIP: SKY SPORTS MAIN EVENT ᴿᴬᵂ"),
+            skyWhenCarried(withSky, doubted) { it },
+        )
     }
 
     @Test
