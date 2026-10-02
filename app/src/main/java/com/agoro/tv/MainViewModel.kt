@@ -161,8 +161,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * The slot's own name is the raw provider string — "Carabao Cup: Chelsea
      * vs Luton Town @ Aug 27 2:20 PM :Paramount+  01" — which is what the
      * player used to show, and it is not what the viewer pressed.
+     *
+     * [skyOnly] is Sunday, Monday or Thursday Night Football — see
+     * [com.agoro.tv.data.isNflPrimeTime]: Sky Sports alone wherever Sky has it.
      */
-    fun playEvent(streamId: Int, alternates: List<Int> = emptyList(), title: String? = null) {
+    fun playEvent(
+        streamId: Int,
+        alternates: List<Int> = emptyList(),
+        title: String? = null,
+        skyOnly: Boolean = false,
+    ) {
         val slots = content.value.let { it as? ContentState.Ready }?.bundle?.events ?: return
         val slot = slots.firstOrNull { it.xtreamId == streamId } ?: return
         val fallbacks = alternates.mapNotNull { alt -> slots.firstOrNull { it.xtreamId == alt } }
@@ -227,7 +235,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
         val ppv = listOf(slot) + fallbacks
-        val request = fixtureRequest(shown, broadcasters, ppv)
+        val request = fixtureRequest(shown, broadcasters, ppv, skyOnly)
         playback = request
         // And then ask the panel what those pipes are called RIGHT NOW.
         //
@@ -235,7 +243,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // line and the press has to feel instant. If the pipes have moved the
         // player is re-tuned under the tune card, which is the same second and
         // the same screen the viewer is already looking at.
-        recheckSlots(request, shown, sides, broadcasters, ppv)
+        recheckSlots(request, shown, sides, broadcasters, ppv, skyOnly)
     }
 
     /**
@@ -249,6 +257,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         shown: String,
         broadcasters: com.agoro.tv.data.Broadcasters,
         ppv: List<LiveChannel>,
+        skyOnly: Boolean,
     ): PlaybackRequest {
         // Everything that did not lead stays behind it, the slot included: the
         // guide can be wrong, and a viewer who lands on the wrong channel must
@@ -263,13 +272,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // the slots named for the fixture, then a channel wearing a relative's
         // schedule.
         fun named(channel: LiveChannel) = channel to channel.displayName
-        val named = com.agoro.tv.data.fixtureSources(
-            own = broadcasters.own.map(::named),
-            slots = ppv.map {
-                it to (com.agoro.tv.data.SportsParser.packLabel(it.name) ?: it.displayName)
-            },
-            family = broadcasters.family.map(::named),
-        )
+        val own = broadcasters.own.map(::named)
+        val slots = ppv.map {
+            it to (com.agoro.tv.data.SportsParser.packLabel(it.name) ?: it.displayName)
+        }
+        val family = broadcasters.family.map(::named)
+        // Sunday, Monday or Thursday Night Football: Sky Sports alone where Sky
+        // has the game, judged on the own-guide channels and the slots only —
+        // see skyWhenCarried. Applied before the viewer's own choice below, so
+        // a pick made among the US pack does not drag it back.
+        val named = if (skyOnly) {
+            com.agoro.tv.data.skyWhenCarried(
+                trusted = own + slots,
+                doubted = family,
+            ) { it.first.name }
+        } else {
+            com.agoro.tv.data.fixtureSources(own = own, slots = slots, family = family)
+        }
         // The viewer's own answer to "this is the wrong game" outranks every
         // ranking this app can do from a name. Sorted rather than moved to the
         // front so the order behind it is untouched — sortedByDescending is
@@ -338,6 +357,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         sides: Pair<String, String>?,
         broadcasters: com.agoro.tv.data.Broadcasters,
         ppv: List<LiveChannel>,
+        skyOnly: Boolean,
     ) {
         if (sides == null || ppv.isEmpty()) return
         viewModelScope.launch {
@@ -395,7 +415,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // When the head does change, the pipe on screen is the one that
             // no longer names this fixture — the wrong match, playing under
             // the right title, which is the entire reason this path exists.
-            val fixed = fixtureRequest(shown, broadcasters, slots)
+            val fixed = fixtureRequest(shown, broadcasters, slots, skyOnly)
             val wasPlaying = published.items.firstOrNull()?.url
             if (fixed.items.firstOrNull()?.url == wasPlaying) {
                 android.util.Log.i(

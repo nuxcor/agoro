@@ -112,6 +112,20 @@ class SportsParserTest {
         )
     }
 
+    @Test
+    fun `a match ESPN calls finished leaves the list inside the window`() {
+        // Home and the Live Games tab read this one list. A finished match
+        // used to leave Home (isOnNow) and stay on the tab, badged LIVE, for
+        // the rest of the three-hour window.
+        val now = 1_700_000_000_000L
+        val e = SportsEvent(
+            streamId = 1, league = "Premier League", home = "Arsenal", away = "Chelsea",
+            startMs = now - 110 * 60_000, live = false,
+        )
+        assertEquals(1, SportsParser.upcoming(listOf(e), now, 60).size)
+        assertTrue(SportsParser.upcoming(listOf(e.copy(state = "post")), now, 60).isEmpty())
+    }
+
     /**
      * Arsenal v Coventry arrived on four slots at the same tier: studio
      * coverage, a player camera, a multi camera and the match. The studio show

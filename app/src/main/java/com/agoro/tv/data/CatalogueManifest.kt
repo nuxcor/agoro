@@ -155,6 +155,14 @@ data class CatalogueManifest(
      * so BBC News and Sky News belong on the News row beside CNN rather than
      * only on the UK row. Empty — every genre stays on the territory's row —
      * for a manifest that predates it.
+     *
+     * An entry may name its territory as `REGION:SECTION` to share that genre
+     * for one place only. `UK:SPORTS` since 2026-10-02: Sky Sports and TNT
+     * belong on the Sports row, where the viewer looks for sport channels —
+     * while Africa's SuperSport stays on the Africa tile, which is what a
+     * viewer picking Africa by place came for. A build that predates the form
+     * matches nothing against it, so an older app simply leaves UK sport where
+     * it was.
      */
     @SerialName("solo_shared_sections") val soloSharedSections: List<String> = emptyList(),
     /**
@@ -316,6 +324,10 @@ data class CatalogueManifest(
     val keptRegionSet: Set<String> by lazy { keptRegions.toSet() }
     val soloRegionSet: Set<String> by lazy { soloRegions.toSet() }
     val soloSharedSet: Set<String> by lazy { soloSharedSections.toSet() }
+
+    /** Whether [region]'s [section] joins the shared row — see [soloSharedSections]. */
+    fun sharesSoloSection(region: String, section: String): Boolean =
+        section in soloSharedSet || "$region:$section" in soloSharedSet
     val hiddenSections: Set<String> by lazy {
         sections.live.filter { it.hidden }.map { it.key }.toSet()
     }

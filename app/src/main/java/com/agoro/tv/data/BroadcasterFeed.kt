@@ -39,9 +39,18 @@ internal fun broadcasterIndex(
     nowTitle: (LiveChannel) -> String?,
 ): List<BroadcasterFeed> = channels.mapNotNull { channel ->
     val title = nowTitle(channel)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-    val sides = SportsParser.readFixture(title) ?: return@mapNotNull null
+    val sides = SportsParser.readFixture(guideAt.replace(title, " at "))
+        ?: return@mapNotNull null
     BroadcasterFeed(channel, sides.first, sides.second)
 }
+
+/**
+ * "Chiefs @ Bills" — how a guide writes an American fixture, Sky's NFL
+ * listings among them. Read as "at" here and only here: in a slot NAME the
+ * same sign introduces a date ("Chelsea vs Luton Town @ Aug 27 2:20 PM"), and
+ * teaching [SportsParser.readFixture] it would make "@ Aug 27" a team.
+ */
+private val guideAt = Regex("""\s+@\s+""")
 
 /**
  * The channels showing this fixture right now, split by whether the guide
@@ -195,4 +204,77 @@ internal fun reReadSlots(
     // it has never seen has no url, no logo and no place in the bundle.
     val found = alsoConsider.filter { it !in kept && namesFixture(fresh[it].orEmpty(), home, away) }
     return kept + found
+}
+
+/**
+ * Whether this fixture is one of the NFL's prime-time games — Sunday Night,
+ * Monday Night or Thursday Night Football — when the row plays Sky Sports and
+ * only Sky Sports wherever Sky carries it.
+ *
+ * Asked for on 2026-10-02, and narrowed the same day: "only talking about
+ * sunday night football and monday night or thursday, use sky if they have
+ * the feed". The Sunday afternoon slate is untouched. The US packs' NFL slots
+ * are the ones this app has the worst record with — black filler, a slot named
+ * for one game playing another — and Sky's coverage is a broadcaster's own
+ * channel. Where Sky does not have the game the row keeps its usual feeds; see
+ * [skyWhenCarried].
+ *
+ * Read on the NFL's own clock, US Eastern: all three kick off after midnight
+ * in London, so a Monday game read on British time would be a Tuesday. Prime
+ * time is a 7pm Eastern kick-off or later, which takes in the early game of a
+ * Monday doubleheader (7:15) and leaves out the 4:25 Sunday window. A row with
+ * no trusted kick-off cannot be placed in prime time and is left alone.
+ */
+internal fun isNflPrimeTime(league: String, startMs: Long?): Boolean {
+    if (league != "NFL" || startMs == null) return false
+    val kickOff = java.time.Instant.ofEpochMilli(startMs).atZone(NFL_ZONE)
+    return kickOff.dayOfWeek in PRIME_TIME_DAYS && kickOff.hour >= PRIME_TIME_HOUR
+}
+
+private val PRIME_TIME_DAYS = setOf(
+    java.time.DayOfWeek.SUNDAY, java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.THURSDAY,
+)
+
+/** 7pm Eastern — see [isNflPrimeTime]. */
+private const val PRIME_TIME_HOUR = 19
+
+private val NFL_ZONE = java.time.ZoneId.of("America/New_York")
+
+/**
+ * Whether a channel or slot name is the UK's Sky Sports — Main Event, Mix,
+ * the Sky Sports+ event pipes, every tier the panel files them under.
+ *
+ * Sky Deutschland, Sky Italia and Sky New Zealand are named "SKY SPORT" too,
+ * and none of them is what the viewer meant; their country prefix rules them
+ * out.
+ */
+internal fun isUkSkySports(name: String): Boolean =
+    skySports.containsMatchIn(name) && !foreignSky.containsMatchIn(name)
+
+private val skySports = Regex("""(?i)\bSKY\s*SPORTS?\b""")
+private val foreignSky = Regex("""(?i)^\s*(DE|IT|NZ|AT|CH)\s*[:|]""")
+
+/**
+ * The Sky Sports sources alone when Sky has the game, every source otherwise.
+ *
+ * Only Sky, not Sky first: a viewer who asked for Sky does not want the
+ * player's failover to walk them back onto the US pack it was asked to avoid.
+ * And everything when Sky has nothing, because Sky does not show every game
+ * and a row that opens nothing is worse than one that opens the pack.
+ *
+ * Whether Sky HAS it is asked of [trusted] alone — a channel on its own guide,
+ * or a slot named for the fixture. A Sky channel in [doubted] wears a
+ * relative's schedule ([Broadcasters.family]), which is no claim about that
+ * pipe at all: letting it count would strip every working feed and leave the
+ * viewer on one that may be showing anything, with nothing to fall back to.
+ * It still rides behind a trusted Sky source, since it is Sky.
+ */
+internal fun <T> skyWhenCarried(
+    trusted: List<T>,
+    doubted: List<T>,
+    nameOf: (T) -> String,
+): List<T> {
+    val sky = trusted.filter { isUkSkySports(nameOf(it)) }
+    if (sky.isEmpty()) return trusted + doubted
+    return sky + doubted.filter { isUkSkySports(nameOf(it)) }
 }

@@ -538,6 +538,20 @@ class ManifestCurationTest {
     }
 
     @Test
+    fun `a shared genre can be scoped to one territory`() {
+        // "move sports channels in uk to sports under tv", 2026-10-02: the
+        // UK's sport joins the Sports row, Africa's stays on the Africa tile.
+        val m = soloManifest().copy(soloSharedSections = listOf("NEWS", "UK:SPORTS"))
+        val bundle = ContentBundle(
+            channels = listOf(channel(2, "11"), channel(4, "21"), channel(5, "30")),
+        )
+        val out = ManifestCuration.apply(bundle, m)
+        assertEquals("SPORTS", out.channels.first { it.xtreamId == 4 }.categoryId)
+        assertEquals("AFR", out.channels.first { it.xtreamId == 5 }.categoryId)
+        assertEquals(listOf("Sports", "Africa"), out.liveCategories.map { it.name })
+    }
+
+    @Test
     fun `a solo territory keeps a channel no genre pass could place`() {
         // The genre rows drop such a channel back to its provider category,
         // where only search finds it. A place row does not need the genre:

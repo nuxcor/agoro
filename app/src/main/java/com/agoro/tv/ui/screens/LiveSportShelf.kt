@@ -53,9 +53,6 @@ internal class LiveFixture(
 /** How long a fixture is assumed to run, for the progress bar only. */
 private const val FIXTURE_WINDOW_MS = 2 * 60 * 60 * 1000L
 
-/** At most this many cards; a shelf is a glance, not a schedule. */
-private const val SHELF_LIMIT = 20
-
 /**
  * The Home shelf's contents: fixtures under way, each with the slot that
  * carries it.
@@ -102,11 +99,14 @@ internal fun liveSportShelf(
     if (fixtures.isNullOrEmpty() || events.isEmpty()) return emptyList()
     val slots = slotIndex ?: events.associateBy { it.xtreamId }
     return fixtures.asSequence()
-        // isOnNow, not isLive: isLive has no upper bound, so a match that
-        // kicked off stays 'live' until the schedule forgets it. That is a
-        // mis-styled badge on the Sport tab and a finished match sitting on
-        // this shelf for hours.
-        .filter { it.isOnNow(nowMs) }
+        // isLive, the same test that draws the Live Games tab's LIVE badge.
+        // This used isOnNow, which differs from it at the edges — ESPN's
+        // "in" for a slot whose clock says later, a fallback window of its
+        // own — and the viewer saw games badged LIVE on the tab that Home
+        // did not have. Its upper bound is upcoming()'s window, and finished
+        // matches ("post") are dropped there, for both screens — and here
+        // too, so a shelf handed anything else still never shows one.
+        .filter { it.state != "post" && it.isLive(nowMs) }
         // The slot is what actually plays, so a fixture whose slot is not in
         // this bundle has nothing behind it and must not draw a card.
         .mapNotNull { event -> slots[event.streamId]?.let { LiveFixture(event, it) } }
@@ -121,14 +121,13 @@ internal fun liveSportShelf(
         // schedule's identity, which is what makes two spellings one match.
         .distinctBy { SportsParser.fixtureKey(it.event) }
         .toList()
-        // A kick-off first, when the shelf has to choose. upcoming() sorts
-        // the live group by `startMs ?: 0L`, which puts the rows that have no
-        // clock at ALL at the head of it — a slot whose only claim to being
-        // on is the word LIVE in its name. On the Sport tab that costs them a
-        // position under a league heading; here it decides who is inside
-        // SHELF_LIMIT, and twenty unverifiable rows could fill the shelf on a
-        // busy evening and push out every match with a confirmed time.
+        // A kick-off first. upcoming() sorts the live group by `startMs ?: 0L`,
+        // which puts the rows that have no clock at ALL at the head of it — a
+        // slot whose only claim to being on is the word LIVE in its name.
         // Stable, so within each group upcoming's own order survives.
+        //
+        // No cap. It was twenty, and on a busy Saturday the Live Games tab
+        // listed more games on now than Home did — "I see more in Live Games
+        // than on Home" (2026-10-02). Every live game the tab has, Home has.
         .sortedBy { it.event.startMs == null }
-        .take(SHELF_LIMIT)
 }
