@@ -74,13 +74,20 @@ class LiveSportShelfTest {
     }
 
     @Test
-    fun `without a verdict it falls back to a bounded window`() {
-        // Slots the schedule never placed, and fixtures published before the
-        // state field existed.
-        val recent = fixture(1, startMs = now - 30 * 60_000)
-        assertEquals(1, liveSportShelf(listOf(recent), listOf(slot(1)), now).size)
-        val stale = fixture(2, startMs = now - 5 * 60 * 60_000)
-        assertTrue(liveSportShelf(listOf(stale), listOf(slot(2)), now).isEmpty())
+    fun `every fixture the tab badges LIVE is on the shelf`() {
+        // The shelf answers to the same test as the Live Games tab's badge,
+        // isLive. The upper bound is upcoming()'s window, which has already
+        // run on everything this is handed — so a long-running match the tab
+        // still lists is on Home too.
+        val rows = listOf(
+            fixture(1, startMs = now - 30 * 60_000),
+            fixture(2, home = "Liverpool", away = "Everton", startMs = now - 170 * 60_000),
+            fixture(3, home = "Leeds", away = "Hull", startMs = null).copy(live = true),
+            fixture(4, home = "Spurs", away = "Fulham", startMs = now + 10 * 60_000),
+        )
+        val slots = (1..4).map { slot(it) }
+        val tabLive = rows.filter { it.isLive(now) }.map { it.streamId }.toSet()
+        assertEquals(tabLive, liveSportShelf(rows, slots, now).map { it.event.streamId }.toSet())
     }
 
     @Test
@@ -114,14 +121,12 @@ class LiveSportShelfTest {
     }
 
     @Test
-    fun `the shelf is capped`() {
-        // Forty DIFFERENT matches. They used to be forty copies of Arsenal v
-        // Chelsea, which measured the cap against a list the shelf now folds
-        // to one card — the fixture-level dedupe is the right answer to that
-        // input, so the cap has to be asked with the input it is about.
+    fun `the shelf is not capped`() {
+        // It was twenty, and on a busy evening the Live Games tab listed more
+        // games on now than Home did. Forty DIFFERENT matches, forty cards.
         val many = (1..40).map { fixture(it, home = "Club $it", away = "Town $it") }
         val slots = (1..40).map { slot(it) }
-        assertEquals(20, liveSportShelf(many, slots, now).size)
+        assertEquals(40, liveSportShelf(many, slots, now).size)
     }
 
     @Test
@@ -337,22 +342,18 @@ class LiveSportShelfTest {
     }
 
     @Test
-    fun `a clockless LIVE row cannot crowd out the matches that have a time`() {
+    fun `a clockless LIVE row does not lead the matches that have a time`() {
         // upcoming() sorts the live group by `startMs ?: 0L`, so rows with no
-        // kick-off at all lead it. On the Sport tab that costs them a position
-        // under a heading; here it decides who is inside the cap, and a busy
-        // evening could fill the shelf with rows whose only claim to being on
-        // is the word LIVE in a slot name.
+        // kick-off at all lead it. The shelf has no cap now, so nothing is
+        // crowded OUT — but the first cards a viewer sees should still be
+        // matches with a confirmed time, not slot names that say LIVE.
         val timeless = (1..25).map {
             fixture(it, "Home $it", "Away $it", startMs = null).copy(live = true)
         }
         val played = fixture(99, "Arsenal", "Chelsea", startMs = now - 30 * 60_000)
         val slots = (1..25).map { slot(it) } + slot(99)
         val out = homeShelf(timeless + played, slots)
-        assertEquals(SHELF_CAP, out.size)
+        assertEquals(26, out.size)
         assertEquals("Arsenal v Chelsea", out.first().event.title)
     }
 }
-
-/** [liveSportShelf]'s own cap, mirrored so a change to it fails this file. */
-private const val SHELF_CAP = 20

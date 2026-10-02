@@ -456,7 +456,7 @@ internal fun HomeLoungeTab(
             title = "Welcome to Agorɔ",
             message = "Things you watch and star will gather here.",
             icon = Icons.Default.Home,
-            primaryAction = StatusAction("Browse live TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
             secondaryAction = StatusAction("Search") { onBrowse(HomeTab.Search) },
         )
         return
@@ -917,7 +917,7 @@ internal fun HomeLoungeTab(
                     // suffix at all. The cards already carry a programme line
                     // and a progress bar; that is what says "on now", and the
                     // heading only has to say what these are.
-                    SectionTitle("Sport on now")
+                    SectionTitle("Live games")
                     LazyRow(
                         modifier = shelf.focusRestorer().shelfRingRoom(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -951,6 +951,10 @@ internal fun HomeLoungeTab(
                                             fixture.event.streamId,
                                             fixture.event.alternates,
                                             fixture.event.title,
+                                            skyOnly = com.agoro.tv.data.isNflPrimeTime(
+                                                fixture.event.league,
+                                                fixture.event.startMs,
+                                            ),
                                         )
                                         onPlay()
                                     },

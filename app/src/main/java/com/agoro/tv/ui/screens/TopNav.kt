@@ -247,22 +247,20 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
     // no word — see [TopNavItem.labelled] for why its position earns that.
     Home("Home", Icons.Default.Home),
     Search("Search", Icons.Default.Search),
-    // "Live", not "TV". The other three destinations name a kind of thing to
-    // watch, and "TV" names the medium that contains all three — the one label
-    // in the row that was not parallel with its neighbours. This enum has
-    // called it Live all along.
-    Live("Live", Icons.Default.LiveTv),
+    // "TV" since 2026-10-02, by the viewer's own call. It read "Live" on the
+    // argument that "TV" names the medium rather than a kind of thing to
+    // watch — but beside a fixture tab that is ALSO live, "Live" and "Sports"
+    // were two names for overlapping places and the viewer could not tell
+    // which one held the games. The enum keeps its old name.
+    Live("TV", Icons.Default.LiveTv),
     // Beside TV because that is what it is — live, just organised by fixture
     // instead of by channel.
     //
-    // "Sports", plural, by the viewer's own call. This read "Sport" on the
-    // reasoning that the TV strip already has a Sports SHELF of channels, and
-    // two things in the app wearing the same word would look like one place.
-    // That collision is real but it is not what a viewer trips over: they
-    // never see the two side by side, and the singular reads as a category
-    // label where every other tab is a plain name for a place. Recorded here
-    // because the argument still stands and someone will make it again.
-    Sport("Sports", Icons.Default.SportsSoccer),
+    // "Live Games", by the viewer's own call (2026-10-02). It was "Sports",
+    // and the TV tab has a Sports SHELF of channels: two places wearing one
+    // word read as one place, and the viewer went looking for games among the
+    // channels. This tab lists fixtures, so it is named for fixtures.
+    Sport("Live Games", Icons.Default.SportsSoccer),
     Movies("Movies", Icons.Default.Movie),
     Series("Series", Icons.Default.VideoLibrary),
     Settings("Settings", Icons.Default.Settings),

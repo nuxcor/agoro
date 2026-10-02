@@ -1262,7 +1262,12 @@ SHELF_SOLO_REGIONS = ('UK', 'AFR')
 # News and should find BBC News and Sky News beside CNN, not have to know
 # they are filed under the UK. The rest of the UK row is untouched; a channel
 # still sits on exactly one row, so these eight leave it.
-SHELF_SOLO_SHARED_SECTIONS = ('NEWS',)
+#
+# 'REGION:SECTION' shares a genre for one territory only. 'UK:SPORTS' asked
+# for on 2026-10-02 as "move sports channels in uk to sports under tv": Sky
+# Sports, TNT and the rest join the Sports row, while Africa's SuperSport stays
+# on the Africa tile a viewer picks by place.
+SHELF_SOLO_SHARED_SECTIONS = ('NEWS', 'UK:SPORTS')
 # One stream, by id, where a name rule would be too broad.
 #
 # 1536959 is "PRIME: BBC NEWS", a US-shelf restream — and the only source in

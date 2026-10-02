@@ -113,10 +113,10 @@ fun SportTab(
             // Matches the tab it belongs to. An empty state that names the
             // destination differently from the header reads as a message
             // about something else.
-            title = "Sports isn't set up",
+            title = "Live games aren't set up",
             message = "This playlist carries no fixture listings.",
             icon = Icons.Default.SportsSoccer,
-            primaryAction = StatusAction("Browse live TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
         )
         return
     }
@@ -390,7 +390,7 @@ private fun Fixtures(
                 else -> "Fixtures appear here $cue minutes before kick-off."
             },
             icon = Icons.Default.SportsSoccer,
-            primaryAction = StatusAction("Browse live TV") { onBrowse(HomeTab.Live) },
+            primaryAction = StatusAction("Browse TV") { onBrowse(HomeTab.Live) },
         )
         return
     }
@@ -441,7 +441,10 @@ private fun Fixtures(
     }
 
     fun play(event: SportsEvent) {
-        vm.playEvent(event.streamId, event.alternates, event.title)
+        vm.playEvent(
+            event.streamId, event.alternates, event.title,
+            skyOnly = com.agoro.tv.data.isNflPrimeTime(event.league, event.startMs),
+        )
         onPlay()
     }
 

@@ -82,7 +82,7 @@ object ManifestCuration {
                 // Except the genres it shares: those join the shared row, as a
                 // merged territory's would. See [CatalogueManifest.soloSharedSections].
                 region != null && region in manifest.soloRegionSet &&
-                    section != null && section in manifest.soloSharedSet -> section
+                    section != null && manifest.sharesSoloSection(region, section) -> section
                 region != null && region in manifest.soloRegionSet -> region
                 section == null -> null
                 // The merged territories share one shelf per genre. Four of

@@ -2664,6 +2664,12 @@ object SportsParser {
         val trusted = lendClocks(agreeClocks(trustedRaw))
         val misshelved = lendClocks(agreeClocks(misshelvedRaw))
         fun inWindow(e: SportsEvent): Boolean {
+            // ESPN saying the match is over takes it off both screens. It
+            // used to come off Home only (isOnNow) and stay on the Live Games
+            // tab, badged LIVE, for the rest of the three-hour window — the
+            // same list disagreeing with itself. "post" can only REMOVE: the
+            // schedule is never re-read often enough to hold a row open.
+            if (e.state == "post") return false
             val s = e.startMs ?: return e.live
             return s <= nowMs + cue && nowMs <= s + FIXTURE_LENGTH_MS
         }
