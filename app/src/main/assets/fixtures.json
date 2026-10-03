@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-03T05:16:23Z",
+ "generated": "2026-10-03T11:37:36Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -522,7 +522,7 @@
    "start": "2026-10-03T04:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/fij.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/van.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -1680,6 +1680,15 @@
   },
   {
    "league": "Internationals",
+   "home": "Colombia",
+   "away": "Peru",
+   "start": "2026-10-06T23:45Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/col.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/per.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
    "home": "United States",
    "away": "Canada",
    "start": "2026-10-07T00:00Z",
@@ -1766,15 +1775,6 @@
    "start": "2026-10-07T02:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mex.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/chi.png",
-   "state": "pre"
-  },
-  {
-   "league": "Internationals",
-   "home": "Colombia",
-   "away": "Peru",
-   "start": "2026-10-07T03:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/col.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/per.png",
    "state": "pre"
   },
   {
