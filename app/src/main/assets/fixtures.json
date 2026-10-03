@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-03T11:37:36Z",
+ "generated": "2026-10-03T16:17:42Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -540,7 +540,7 @@
    "start": "2026-10-03T13:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/fin.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/alb.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -549,16 +549,16 @@
    "start": "2026-10-03T14:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ind.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bra.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
    "home": "Russia",
    "away": "Namibia",
-   "start": "2026-10-03T15:00Z",
+   "start": "2026-10-03T15:40Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/rus.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nam.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -567,7 +567,7 @@
    "start": "2026-10-03T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/blr.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/smr.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -576,7 +576,7 @@
    "start": "2026-10-03T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/cro.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/eng.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -585,7 +585,7 @@
    "start": "2026-10-03T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/est.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/lux.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
@@ -594,7 +594,7 @@
    "start": "2026-10-03T16:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/isl.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bul.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
