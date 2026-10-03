@@ -98,6 +98,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     val content: StateFlow<ContentState> = repo.content
 
+    /** https (true) or http (false) to the panel; null before the first load. */
+    val panelEncrypted: StateFlow<Boolean?> = repo.panelEncrypted
+
 
     /**
      * Queries this viewer has searched before, newest first. Typing on a

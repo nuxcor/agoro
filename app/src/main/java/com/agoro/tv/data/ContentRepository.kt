@@ -1764,6 +1764,22 @@ class ContentRepository(context: Context) {
     private val schemeProbeLock = kotlinx.coroutines.sync.Mutex()
 
     /**
+     * Whether the panel is being spoken to over TLS: true for https, false
+     * for http, null until a catalogue load has decided it.
+     *
+     * The probe's verdict was a log line, and the box cannot be reached over
+     * adb — so whether the login was travelling in clear could only be
+     * guessed at. Settings reads this and says it.
+     */
+    private val _panelEncrypted = MutableStateFlow<Boolean?>(null)
+    val panelEncrypted: StateFlow<Boolean?> = _panelEncrypted
+
+    private fun recordScheme(url: String): String {
+        _panelEncrypted.value = url.startsWith("https://", ignoreCase = true)
+        return url
+    }
+
+    /**
      * Probes the https form of a stored http url and returns whichever the
      * panel answers on.
      *
@@ -1775,8 +1791,9 @@ class ContentRepository(context: Context) {
      * of being wrong here is the whole catalogue and every stream.
      */
     private suspend fun effectiveServerUrl(stored: String): String {
-        schemeChoice?.let { (forUrl, chosen) -> if (forUrl == stored) return chosen }
-        val candidate = httpsCandidate(XtreamClient.normalize(stored)) ?: return stored
+        schemeChoice?.let { (forUrl, chosen) -> if (forUrl == stored) return recordScheme(chosen) }
+        val candidate = httpsCandidate(XtreamClient.normalize(stored))
+            ?: return recordScheme(XtreamClient.normalize(stored))
         return schemeProbeLock.withLock {
             schemeChoice?.let { (forUrl, chosen) -> if (forUrl == stored) return@withLock chosen }
             val ok = runCatching {
@@ -1802,7 +1819,7 @@ class ContentRepository(context: Context) {
                 else "Panel did not answer over TLS; staying on http (credentials in clear)",
             )
             schemeChoice = stored to chosen
-            chosen
+            recordScheme(chosen)
         }
     }
 

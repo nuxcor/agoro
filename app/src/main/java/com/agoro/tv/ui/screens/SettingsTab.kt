@@ -523,6 +523,32 @@ internal fun SettingsTab(
                 // heading on a TV settings pane invites a viewer to go looking
                 // for something to fix. Absent entirely when the app has only
                 // ever closed normally, which is the case this should be in.
+                // How this box signs in to the panel. Xtream puts the login in
+                // every URL, so on http the ISP and anyone on the Wi-Fi can
+                // read the password; on https they see only the hostname.
+                //
+                // "Sign-in", not "connection": measured 2026-10-03, the panel
+                // answers a stream request over https with a redirect to a
+                // plain-http edge carrying a token and the stream id. The
+                // password stays private; the video and which channel it is
+                // do not, and a line that said "encrypted" would claim both.
+                // Always shown, unlike the fault lines below: the viewer
+                // asked to be able to check it.
+                val encrypted by vm.panelEncrypted.collectAsState()
+                encrypted?.let { tls ->
+                    Spacer(Modifier.height(Space.xs))
+                    Text(
+                        text = if (tls) {
+                            "Sign-in: encrypted (HTTPS)"
+                        } else {
+                            "Sign-in: not encrypted (HTTP) — your password " +
+                                "is visible on the network"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        softWrap = true,
+                        color = NuxColors.OnSurfaceDim,
+                    )
+                }
                 val exitContext = LocalContext.current
                 val lastExit = remember { ExitReasons.lastAbnormal(exitContext) }
                 if (lastExit != null) {
