@@ -523,6 +523,26 @@ internal fun SettingsTab(
                 // heading on a TV settings pane invites a viewer to go looking
                 // for something to fix. Absent entirely when the app has only
                 // ever closed normally, which is the case this should be in.
+                // How this box talks to the panel. Xtream puts the login in
+                // every URL, so on http the ISP and anyone on the Wi-Fi can
+                // read it and the channel being watched; on https they see
+                // only the provider's hostname. Always shown, unlike the fault
+                // lines below: the viewer asked to be able to check it.
+                val encrypted by vm.panelEncrypted.collectAsState()
+                encrypted?.let { tls ->
+                    Spacer(Modifier.height(Space.xs))
+                    Text(
+                        text = if (tls) {
+                            "Connection: encrypted (HTTPS)"
+                        } else {
+                            "Connection: not encrypted (HTTP) — your sign-in " +
+                                "and channels are visible on the network"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        softWrap = true,
+                        color = NuxColors.OnSurfaceDim,
+                    )
+                }
                 val exitContext = LocalContext.current
                 val lastExit = remember { ExitReasons.lastAbnormal(exitContext) }
                 if (lastExit != null) {
