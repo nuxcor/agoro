@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-04T05:49:59Z",
+ "generated": "2026-10-04T12:19:35Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -634,10 +634,10 @@
   {
    "league": "Internationals",
    "home": "Morocco",
-   "away": "Mali",
+   "away": "Ghana",
    "start": "2026-10-04T18:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mar.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mli.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/gha.png",
    "state": "pre"
   },
   {
