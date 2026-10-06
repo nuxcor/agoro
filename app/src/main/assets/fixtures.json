@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-06T06:17:38Z",
+ "generated": "2026-10-06T13:23:20Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -766,7 +766,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/kors.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/uzb.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -775,7 +775,7 @@
    "start": "2026-10-06T11:35Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/chn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tjk.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
