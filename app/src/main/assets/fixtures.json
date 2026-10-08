@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-08T06:00:50Z",
+ "generated": "2026-10-08T23:20:25Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -435,7 +435,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/cle.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/bos.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NBA",
