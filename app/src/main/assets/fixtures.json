@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-09T06:06:18Z",
+ "generated": "2026-10-09T13:14:01Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -213,7 +213,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/dal.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/hou.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Bundesliga",
