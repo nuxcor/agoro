@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-11T05:44:16Z",
+ "generated": "2026-10-11T12:46:19Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -684,7 +684,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/hou.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/dal.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -693,7 +693,7 @@
    "start": "2026-10-11T10:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "La Liga",
@@ -702,7 +702,7 @@
    "start": "2026-10-11T12:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3751.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/85.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Ligue 1",
