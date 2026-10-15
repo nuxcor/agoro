@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-15T04:35:47Z",
+ "generated": "2026-10-15T11:25:34Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -103,7 +103,7 @@
   },
   {
    "league": "Champions League",
-   "home": "Viking FK",
+   "home": "VIKING FK",
    "away": "Bayern Munich",
    "start": "2026-10-13T19:00Z",
    "awayAlt": [
@@ -603,7 +603,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/22529.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/6077.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -618,7 +618,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lac.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/den.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Conference League",
@@ -2384,7 +2384,7 @@
   {
    "league": "Champions League",
    "home": "Aston Villa",
-   "away": "Viking FK",
+   "away": "VIKING FK",
    "start": "2026-10-21T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/362.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/510.png",
