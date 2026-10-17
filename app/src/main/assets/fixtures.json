@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-17T04:23:01Z",
+ "generated": "2026-10-17T10:40:46Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -651,7 +651,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/gs.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/por.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -666,7 +666,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/phx.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/utah.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -681,7 +681,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lal.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/den.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Premier League",
