@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-18T15:50:48Z",
+ "generated": "2026-10-18T20:39:44Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -795,7 +795,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/jax.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/hou.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "La Liga",
@@ -804,7 +804,7 @@
    "start": "2026-10-18T14:15Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/85.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/96.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Ligue 1",
@@ -816,7 +816,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3236.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/172.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Ligue 1",
@@ -828,7 +828,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/273.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/174.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Ligue 1",
@@ -840,7 +840,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/6851.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/169.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Bundesliga",
@@ -855,7 +855,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/268.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/7911.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Premier League",
@@ -867,7 +867,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/393.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -879,7 +879,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/103.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/105.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "La Liga",
@@ -888,7 +888,7 @@
    "start": "2026-10-18T16:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/99.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/89.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -903,7 +903,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/atl.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/chi.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -918,7 +918,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/cle.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/bal.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -933,7 +933,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ind.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ten.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -948,7 +948,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ne.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/nyj.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -963,7 +963,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/nyg.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/no.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -978,7 +978,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/phi.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/car.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -993,7 +993,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/tb.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/pit.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Ligue 1",
@@ -1002,7 +1002,7 @@
    "start": "2026-10-18T18:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/167.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2502.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Serie A",
@@ -1011,7 +1011,7 @@
    "start": "2026-10-18T18:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/111.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/112.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "La Liga",
@@ -1020,7 +1020,7 @@
    "start": "2026-10-18T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/243.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NFL",
@@ -1035,7 +1035,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lar.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ari.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NFL",
@@ -1050,7 +1050,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/kc.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lac.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NFL",
@@ -1065,7 +1065,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lv.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/buf.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "MLS",
@@ -1343,7 +1343,7 @@
   {
    "league": "Champions League",
    "home": "Aston Villa",
-   "away": "VIKING FK",
+   "away": "Viking FK",
    "start": "2026-10-21T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/362.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/510.png",
