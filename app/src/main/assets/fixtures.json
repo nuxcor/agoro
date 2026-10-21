@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-21T11:45:38Z",
+ "generated": "2026-10-21T17:10:33Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -240,7 +240,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/360.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -249,7 +249,7 @@
    "start": "2026-10-21T16:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/166.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/432.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "La Liga",
