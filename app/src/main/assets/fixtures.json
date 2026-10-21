@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-21T04:43:12Z",
+ "generated": "2026-10-21T11:45:38Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -1344,15 +1344,6 @@
    "state": "pre"
   },
   {
-   "league": "Ligue 1",
-   "home": "Toulouse",
-   "away": "Troyes",
-   "start": "2026-10-24T15:15Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/179.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/170.png",
-   "state": "pre"
-  },
-  {
    "league": "Serie A",
    "home": "Napoli",
    "away": "AS Roma",
@@ -1941,6 +1932,15 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/169.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/180.png",
+   "state": "pre"
+  },
+  {
+   "league": "Ligue 1",
+   "home": "Toulouse",
+   "away": "Troyes",
+   "start": "2026-10-25T16:15Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/179.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/170.png",
    "state": "pre"
   },
   {
