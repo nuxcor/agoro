@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-21T17:10:33Z",
+ "generated": "2026-10-21T21:41:05Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -240,7 +240,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/360.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -249,7 +249,7 @@
    "start": "2026-10-21T16:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/166.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/432.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "La Liga",
@@ -261,7 +261,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/1538.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/93.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -270,7 +270,7 @@
    "start": "2026-10-21T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/362.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/510.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -282,7 +282,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/132.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -291,7 +291,7 @@
    "start": "2026-10-21T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/570.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/175.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -306,7 +306,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/110.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/493.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -321,7 +321,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/244.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/142.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -330,7 +330,7 @@
    "start": "2026-10-21T19:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/11420.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -342,7 +342,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2250.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/4411.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "MLS",
