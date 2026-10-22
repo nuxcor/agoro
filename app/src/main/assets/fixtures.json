@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-22T04:40:47Z",
+ "generated": "2026-10-22T11:48:19Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -429,7 +429,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lal.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/gs.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -459,7 +459,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lac.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/sac.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Conference League",
