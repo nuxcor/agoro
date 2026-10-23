@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-23T04:46:31Z",
+ "generated": "2026-10-23T17:04:56Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -1884,18 +1884,6 @@
    "state": "pre"
   },
   {
-   "league": "Ligue 1",
-   "home": "Paris Saint-Germain",
-   "away": "Lyon",
-   "start": "2026-10-25T19:45Z",
-   "homeAlt": [
-    "PSG"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/160.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/167.png",
-   "state": "pre"
-  },
-  {
    "league": "Serie A",
    "home": "Udinese",
    "away": "AC Milan",
@@ -2088,6 +2076,18 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/sac.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/mem.png",
+   "state": "pre"
+  },
+  {
+   "league": "Ligue 1",
+   "home": "Paris Saint-Germain",
+   "away": "Lyon",
+   "start": "2026-10-26T19:30Z",
+   "homeAlt": [
+    "PSG"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/160.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/167.png",
    "state": "pre"
   },
   {
