@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-25T04:38:24Z",
+ "generated": "2026-10-25T11:22:41Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -783,7 +783,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/9723.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21300.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "MLS",
@@ -798,7 +798,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/22529.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/9726.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Serie A",
