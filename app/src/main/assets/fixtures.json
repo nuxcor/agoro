@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-26T04:43:31Z",
+ "generated": "2026-10-26T22:39:01Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -1119,7 +1119,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/160.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/167.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "La Liga",
@@ -1128,7 +1128,7 @@
    "start": "2026-10-26T20:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/243.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/97.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -2022,7 +2022,7 @@
    "league": "NBA",
    "home": "Atlanta Hawks",
    "away": "Cleveland Cavaliers",
-   "start": "2026-10-29T23:00Z",
+   "start": "2026-10-30T00:00Z",
    "homeAlt": [
     "Hawks"
    ],
