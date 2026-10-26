@@ -262,6 +262,10 @@ internal fun LiveTab(
     //   to land geometrically on the rail, where the dwell then switched the
     //   whole screen to another tab.
     var entryFocusTick by remember { mutableStateOf(0) }
+    // An arrival from the bar goes to the category strip instead — see
+    // [com.agoro.tv.ui.components.LocalNavArrival].
+    var stripEntryTick by remember { mutableStateOf(0) }
+    val navArrival = com.agoro.tv.ui.components.LocalNavArrival.current
     // Focus-entry detection via the subtree's focus state, not
     // focusProperties.onEnter: Compose's directional (2D) search treats
     // group boundaries as transparent and never calls onEnter, so that hook
@@ -287,7 +291,10 @@ internal fun LiveTab(
                     guideLossJob = null
                     if (!guideHasFocus) {
                         guideHasFocus = true
-                        entryFocusTick++
+                        if (navArrival?.get(0) == true) {
+                            navArrival[0] = false
+                            stripEntryTick++
+                        } else entryFocusTick++
                     }
                 } else if (guideHasFocus) {
                     guideLossJob = focusScope.launch {
@@ -341,6 +348,7 @@ internal fun LiveTab(
     }
     GuideTab(
         entryFocusTick = entryFocusTick,
+        stripEntryTick = stripEntryTick,
         vm = vm,
         // No bundle: it was the key of the two derivations that moved up here,
         // and nothing in the guide read it afterwards. ContentBundle is

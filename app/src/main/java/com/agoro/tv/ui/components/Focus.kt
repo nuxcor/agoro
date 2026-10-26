@@ -107,6 +107,20 @@ val LocalNavChromeStrip = androidx.compose.runtime.compositionLocalOf { true }
 val LocalShowTopEdge = androidx.compose.runtime.compositionLocalOf<(() -> Unit)?> { null }
 
 /**
+ * Raised by the shell when the viewer commits the TV tab from the bar, and
+ * cleared by the tab as it takes focus.
+ *
+ * The guide arrives two ways that want different landings. Back from the
+ * player, or on launch, the channel you were watching is the point — one OK
+ * from watching again. Chosen from the bar, the viewer is picking WHAT to
+ * watch, and the first question is which shelf: Recent, News, Entertainment.
+ * Landing on a programme cell skipped that row entirely, and the strip was a
+ * climb back up from the grid. A plain holder: nothing in composition reads
+ * it, so flipping it must not invalidate anything.
+ */
+val LocalNavArrival = androidx.compose.runtime.compositionLocalOf<BooleanArray?> { null }
+
+/**
  * The common "focus this on arrival" case: a requester whose target is focused
  * once per [keys] change, with the standard retry loop.
  *

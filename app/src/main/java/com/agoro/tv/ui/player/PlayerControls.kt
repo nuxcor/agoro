@@ -120,7 +120,23 @@ internal fun PlayerControls(
     // unfocused. Whatever is prominent is what OK should already be pointing
     // at.
     val playFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { playFocus.requestFocusRetrying() }
+    // Keyed on the live pause, not on Unit. The requester rides Play while a
+    // live stream is paused and Channels (or Guide) otherwise, so the node it
+    // names changes under the open bar. A one-shot request left two holes: a
+    // sleep-timer pause grew a Play the ring was not on, and a resume
+    // REMOVED Play with the ring on it — focus went with the node, and the
+    // next presses reached nothing. Re-aimed on the first opening, when Play
+    // appears, and when it leaves holding focus; never otherwise, so a viewer
+    // on Options is not pulled away by a resume.
+    val livePaused = isLive && !playing
+    val opened = remember { booleanArrayOf(false) }
+    val rowHasFocus = remember { booleanArrayOf(false) }
+    LaunchedEffect(livePaused) {
+        if (!opened[0] || livePaused || !rowHasFocus[0]) {
+            opened[0] = true
+            playFocus.requestFocusRetrying()
+        }
+    }
 
     // No background of its own: the scaffold's bottom column paints one
     // gradient behind the banner + transport stack.
@@ -140,6 +156,7 @@ internal fun PlayerControls(
             )
         }
         Row(
+            modifier = Modifier.onFocusChanged { rowHasFocus[0] = it.hasFocus },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -174,7 +191,6 @@ internal fun PlayerControls(
             // PLAY_PAUSE made OK's behaviour look random. But a live stream
             // that IS paused — the sleep timer, a CEC pause — needs a way
             // back, so the bar leads with Play exactly then.
-            val livePaused = isLive && !playing
             if (livePaused) {
                 ControlButton(
                     icon = Icons.Default.PlayArrow,

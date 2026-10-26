@@ -226,6 +226,15 @@ fun SearchTab(
         // query field takes focus on arrival instead of stranding it wherever
         // the drawer's dismissal dropped it.
         val fieldFocus = com.agoro.tv.ui.components.rememberInitialFocus(Unit)
+        // DOWN from the field lands on the FIRST thing below it — the first
+        // recent search, the first starter film, the first result of the top
+        // shelf. Left to the geometric search it took whichever card sat
+        // nearest the field's centre, which on a 960dp bar over a row of
+        // posters is the fourth or fifth: the best match skipped on arrival.
+        // Rides the first card of whichever section is on top; a refusal (the
+        // row scrolled so that card is gone) falls back to the search.
+        val firstBelow = remember { FocusRequester() }
+        val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
         // Voice is the only humane way to type on a remote: the alternative is
         // walking a D-pad around a grid of letters. Handed to the system
@@ -311,7 +320,13 @@ fun SearchTab(
                 modifier = Modifier
                     .weight(1f)
                     .focusRequester(fieldFocus)
-                    .dpadFieldNavigation(),
+                    .dpadFieldNavigation(onDown = {
+                        val landed = runCatching { firstBelow.requestFocus() }
+                            .getOrDefault(false)
+                        if (!landed) {
+                            focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)
+                        }
+                    }),
                 // Its own colours rather than NuxFieldDefaults, which the
                 // dialogs share and which is right for them: a form field in
                 // a dialog wants a visible outline at rest. This one wants
@@ -404,6 +419,7 @@ fun SearchTab(
                             // app's clock-based one — many remotes send no key
                             // repeat for tv-material's version to count.
                             modifier = Modifier
+                                .then(if (index == 0) Modifier.focusRequester(firstBelow) else Modifier)
                                 .focusRequester(
                                     chipFocus.getOrPut(past) { FocusRequester() }
                                 )
@@ -455,6 +471,7 @@ fun SearchTab(
                 movies = starter,
                 onOpenMovie = onOpenMovie,
                 onHero = { shownHero.value = it },
+                firstFocus = firstBelow,
             )
 
             query.trim().length < 2 -> StatusPane(
@@ -471,7 +488,17 @@ fun SearchTab(
                 icon = androidx.compose.material.icons.Icons.Default.Search,
             )
 
-            else -> LazyColumn(
+            else -> {
+            // Which shelf is on top, so exactly one card carries [firstBelow].
+            val firstShelf = when {
+                results.movies.isNotEmpty() -> "movies"
+                results.series.isNotEmpty() -> "series"
+                results.channels.isNotEmpty() -> "channels"
+                else -> "programs"
+            }
+            fun Modifier.firstOf(shelf: String, index: Int): Modifier =
+                if (shelf == firstShelf && index == 0) focusRequester(firstBelow) else this
+            LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 contentPadding = PaddingValues(bottom = 32.dp),
             ) {
@@ -484,14 +511,16 @@ fun SearchTab(
                                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                                 contentPadding = PaddingValues(horizontal = ShelfRingRoom),
                             ) {
-                                itemsIndexed(results.movies, key = { _, m -> m.id }) { _, movie ->
+                                itemsIndexed(results.movies, key = { _, m -> m.id }) { index, movie ->
                                     PosterCard(
                                         title = movie.name,
                                         imageUrl = borrowedArt(vm, movie.artRef(), movie.poster),
                                         year = movie.year,
                                         modifier = if (movie.id == menuOrigin) {
                                             Modifier.focusRequester(menuOriginFocus)
-                                        } else Modifier,
+                                        } else {
+                                            Modifier
+                                        }.firstOf("movies", index),
                                         onClick = { onOpenMovie(movie) },
                                         onLongClick = {
                                             menuOrigin = movie.id
@@ -513,11 +542,12 @@ fun SearchTab(
                                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                                 contentPadding = PaddingValues(horizontal = ShelfRingRoom),
                             ) {
-                                itemsIndexed(results.series, key = { _, s -> s.id }) { _, series ->
+                                itemsIndexed(results.series, key = { _, s -> s.id }) { index, series ->
                                     PosterCard(
                                         title = series.name,
                                         imageUrl = borrowedArt(vm, series.artRef(), series.poster),
                                         year = series.year,
+                                        modifier = Modifier.firstOf("series", index),
                                         onClick = { onOpenSeries(series) },
                                         onFocus = {
                                             shownHero.value = series.toHero()
@@ -552,7 +582,9 @@ fun SearchTab(
                                         now = nowNext[channel.id]?.now,
                                         modifier = if (channel.id == menuOrigin) {
                                             Modifier.focusRequester(menuOriginFocus)
-                                        } else Modifier,
+                                        } else {
+                                            Modifier
+                                        }.firstOf("channels", index),
                                         onClick = {
                                             vm.playChannels(results.channels, index)
                                             onPlay()
@@ -576,7 +608,7 @@ fun SearchTab(
                     itemsIndexed(
                         results.programs,
                         key = { _, hit -> "${hit.channel.id}:${hit.program.startMs}" },
-                    ) { _, hit ->
+                    ) { index, hit ->
                         val airing = System.currentTimeMillis() in
                             hit.program.startMs until hit.program.endMs
                         WideItem(
@@ -604,6 +636,7 @@ fun SearchTab(
                                 )
                             },
                             imageUrl = hit.channel.logo,
+                            modifier = Modifier.firstOf("programs", index),
                             onFocus = { shownHero.value = null },
                             onClick = {
                                 // The guide's rule: a programme on now plays,
@@ -622,6 +655,7 @@ fun SearchTab(
                         )
                     }
                 }
+            }
             }
         }
     }
@@ -689,6 +723,8 @@ private fun SearchStarterRow(
     movies: List<Movie>,
     onOpenMovie: (Movie) -> Unit,
     onHero: (HeroInfo?) -> Unit,
+    /** Where DOWN from the query field lands — see the field's onDown. */
+    firstFocus: FocusRequester,
 ) {
     Column {
         SectionTitle("Highly rated films")
@@ -697,11 +733,12 @@ private fun SearchStarterRow(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(horizontal = ShelfRingRoom),
         ) {
-            itemsIndexed(movies, key = { _, m -> m.id }) { _, movie ->
+            itemsIndexed(movies, key = { _, m -> m.id }) { index, movie ->
                 PosterCard(
                     title = movie.name,
                     imageUrl = borrowedArt(vm, movie.artRef(), movie.poster),
                     year = movie.year,
+                    modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
                     onClick = { onOpenMovie(movie) },
                     onFocus = { onHero(movie.toHero()) },
                 )

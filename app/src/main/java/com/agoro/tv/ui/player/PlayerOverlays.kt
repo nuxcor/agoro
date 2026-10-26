@@ -274,7 +274,13 @@ internal fun TracksOverlay(
     var audio by remember { mutableStateOf(engine.audioTracks()) }
     var text by remember { mutableStateOf(engine.textTracks()) }
     val firstFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { firstFocus.requestFocusRetrying() }
+    // Keyed on there being a row to land on, not on Unit. Opened in the beat
+    // before the stream reports its tracks, both columns are notes, nothing
+    // is focusable, and a one-shot request spent its retries on an empty
+    // panel — the rows then arrived under a sheet that never took focus and
+    // heard nothing but BACK.
+    val hasRows = audio.isNotEmpty() || text.isNotEmpty()
+    LaunchedEffect(hasRows) { if (hasRows) firstFocus.requestFocusRetrying() }
 
     // Tracks appear a beat after the stream opens, so keep looking while the
     // sheet is up rather than settling on "no subtitles" forever.
