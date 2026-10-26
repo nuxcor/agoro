@@ -157,6 +157,11 @@ internal val STRIP_GAP = 6.dp
 @Composable
 fun GuideTab(
     entryFocusTick: Int,
+    /**
+     * Bumped when the viewer arrives from the bar: focus the SELECTED chip on
+     * the category strip rather than a programme cell. 0 means never.
+     */
+    stripEntryTick: Int = 0,
     vm: MainViewModel,
     onPlay: () -> Unit,
     categoryId: String,
@@ -457,11 +462,26 @@ fun GuideTab(
     // the grid goes through it: geometric search from the strip or the day
     // chip finds no candidate on device and the unconsumed DOWN falls back to
     // the first chip, ping-ponging focus above a grid it can never enter.
+    //
+    // The press is consumed before the grid can answer, so a refusal (a row
+    // still composing, a stale remembered row) used to spend it on nothing:
+    // DOWN looked dead. A refused landing falls back to an ordinary DOWN
+    // search instead — called directly, it either finds something below or
+    // returns false, and never reaches the first-chip fallback the
+    // interception exists to avoid.
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    fun enterGrid() {
+        scope.launch {
+            if (!gridHandle.focusAnchor()) {
+                focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)
+            }
+        }
+    }
     fun Modifier.downIntoGrid(): Modifier = onPreviewKeyEvent { event ->
         if (event.type == KeyEventType.KeyDown &&
             event.key.nativeKeyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
         ) {
-            scope.launch { gridHandle.focusAnchor() }
+            enterGrid()
             true
         } else false
     }
@@ -526,6 +546,22 @@ fun GuideTab(
         // repeating four words nineteen times, where the eye is trying to find
         // a section. Named once per run, the chips carry only what differs.
         val strip = remember(categories) { groupByRegion(categories) }
+        // One requester per chip, so none ever moves between nodes when the
+        // selection does. Read only by the arrival below.
+        val chipFocus = remember(categories) { categories.associate { it.id to androidx.compose.ui.focus.FocusRequester() } }
+        val stripState = androidx.compose.foundation.lazy.rememberLazyListState()
+        LaunchedEffect(stripEntryTick) {
+            if (stripEntryTick == 0) return@LaunchedEffect
+            // Raised first: while the chrome is retracted the strip is not
+            // composed and none of its requesters are attached.
+            showTopEdge?.invoke()
+            val at = strip.indexOfFirst { it is StripEntry.Chip && it.category.id == categoryId }
+            if (at >= 0) {
+                stripState.scrollToItem(at)
+                if (chipFocus[categoryId]?.requestFocusRetrying() == true) return@LaunchedEffect
+            }
+            chipsFocus.requestFocusRetrying()
+        }
         // Composed out, not displaced — and the difference from the bar is
         // deliberate. The bar's space is reclaimed by the shell stepping the
         // content lane's top padding, so it can stay composed (its requesters
@@ -541,6 +577,7 @@ fun GuideTab(
         // riskiest line in this change.
         if (chromeStripVisible) {
         androidx.compose.foundation.lazy.LazyRow(
+            state = stripState,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
             // DOWN goes strip → day chip when one is showing, else straight
@@ -610,7 +647,11 @@ fun GuideTab(
                             if (event.type == KeyEventType.KeyDown &&
                                 event.key.nativeKeyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
                             ) {
-                                scope.launch { dayFocus.requestFocusRetrying() }
+                                // A day chip that will not take focus is not
+                                // a reason to go nowhere: the grid is next.
+                                scope.launch {
+                                    if (!dayFocus.requestFocusRetrying()) enterGrid()
+                                }
                                 true
                             } else false
                         }
@@ -629,6 +670,9 @@ fun GuideTab(
                     // surface that reads the list. See [liveCategoryList].
                     name = entry.label,
                     selected = category.id == categoryId,
+                    modifier = chipFocus[category.id]
+                        ?.let { Modifier.fillMaxWidth().focusRequester(it) }
+                        ?: Modifier.fillMaxWidth(),
                     onClick = {
                         if (locked) {
                             pinPendingCategory = category.id
@@ -696,7 +740,7 @@ fun GuideTab(
             dayFocus = dayFocus,
             dayUp = chipsFocus,
             topEdge = topEdgeFocus,
-            onDayDown = { scope.launch { gridHandle.focusAnchor() } },
+            onDayDown = { enterGrid() },
         )
 
         GuideGrid(

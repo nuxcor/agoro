@@ -215,6 +215,8 @@ fun HomeScreen(
     // Hoisted above the Ready branch so a refresh cycle doesn't wipe tab state.
     val tabStateHolder = rememberSaveableStateHolder()
 
+    // See [LocalNavArrival].
+    val navArrival = remember { booleanArrayOf(false) }
     val contentFocus = remember { FocusRequester() }
     // Whether anything in the content lane holds focus right now. The
     // parking loops below check it before every attempt: a tab that has
@@ -480,6 +482,7 @@ fun HomeScreen(
                 // and how it asks for it back. See [LocalShowTopEdge].
                 com.agoro.tv.ui.components.LocalNavChromeStrip provides chrome.stripVisible,
                 com.agoro.tv.ui.components.LocalShowTopEdge provides { stripRequested = true },
+                com.agoro.tv.ui.components.LocalNavArrival provides navArrival,
             ) {
             tabStateHolder.SaveableStateProvider(current.name) {
                 if (current == HomeTab.Settings) {
@@ -594,6 +597,7 @@ fun HomeScreen(
             // were already on.
             val sameTab = it == tab
             if (it == HomeTab.Search) openSearch() else tab = it
+            navArrival[0] = it == HomeTab.Live
             // The gate first: the content refuses focus while the header
             // holds it (LocalArrivalFocusAllowed), so the hand-off can only
             // land after this drops.
