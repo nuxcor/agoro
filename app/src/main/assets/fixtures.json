@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-27T17:59:17Z",
+ "generated": "2026-10-27T22:11:46Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -744,7 +744,7 @@
    "start": "2026-10-27T17:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3997.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/112.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -759,7 +759,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/387.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/342.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -768,7 +768,7 @@
    "start": "2026-10-27T19:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2925.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -777,7 +777,7 @@
    "start": "2026-10-27T19:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/239.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -786,7 +786,7 @@
    "start": "2026-10-27T20:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3891.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NBA",
