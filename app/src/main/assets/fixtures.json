@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-27T12:08:09Z",
+ "generated": "2026-10-27T17:59:17Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -744,7 +744,7 @@
    "start": "2026-10-27T17:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3997.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/112.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Carabao Cup",
@@ -2077,15 +2077,6 @@
   },
   {
    "league": "Ligue 1",
-   "home": "Lyon",
-   "away": "Angers",
-   "start": "2026-10-31T19:45Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/167.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/7868.png",
-   "state": "pre"
-  },
-  {
-   "league": "Ligue 1",
    "home": "Troyes",
    "away": "Le Mans",
    "start": "2026-10-31T19:45Z",
@@ -2331,6 +2322,15 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/87.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",
+   "state": "pre"
+  },
+  {
+   "league": "Ligue 1",
+   "home": "Lyon",
+   "away": "Angers",
+   "start": "2026-11-01T16:15Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/167.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/7868.png",
    "state": "pre"
   },
   {
