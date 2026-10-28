@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-28T05:38:39Z",
+ "generated": "2026-10-28T12:49:59Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -300,7 +300,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lal.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/por.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Serie A",
