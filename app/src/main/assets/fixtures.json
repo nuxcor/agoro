@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-28T12:49:59Z",
+ "generated": "2026-10-28T22:33:38Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -312,7 +312,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/103.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/107.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -321,7 +321,7 @@
    "start": "2026-10-28T17:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/115.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/118.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -333,7 +333,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/17530.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/110.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -345,7 +345,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20103.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21128.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -357,7 +357,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19970.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21685.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -369,7 +369,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20835.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131423.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -384,7 +384,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/382.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/331.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -396,7 +396,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/349.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/362.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -408,7 +408,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/370.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/384.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -417,7 +417,7 @@
    "start": "2026-10-28T19:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/366.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/337.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -426,7 +426,7 @@
    "start": "2026-10-28T19:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3263.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/111.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -435,7 +435,7 @@
    "start": "2026-10-28T19:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/4007.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/114.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Carabao Cup",
@@ -444,7 +444,7 @@
    "start": "2026-10-28T20:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/364.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/363.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -453,7 +453,7 @@
    "start": "2026-10-28T20:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19973.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20830.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -468,7 +468,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19256.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131635.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -2598,6 +2598,18 @@
    "state": "pre"
   },
   {
+   "league": "Europa League",
+   "home": "Stade Rennais",
+   "away": "Olympiacos",
+   "start": "2026-11-04T15:30Z",
+   "homeAlt": [
+    "Rennes"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/169.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/435.png",
+   "state": "pre"
+  },
+  {
    "league": "Champions League",
    "home": "AEK Athens",
    "away": "Real Madrid",
@@ -3102,18 +3114,6 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/433.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/349.png",
-   "state": "pre"
-  },
-  {
-   "league": "Europa League",
-   "home": "Stade Rennais",
-   "away": "Olympiacos",
-   "start": "2026-11-05T17:45Z",
-   "homeAlt": [
-    "Rennes"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/169.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/435.png",
    "state": "pre"
   },
   {
