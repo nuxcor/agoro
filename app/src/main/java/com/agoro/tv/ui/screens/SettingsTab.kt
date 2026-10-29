@@ -532,6 +532,10 @@ internal fun SettingsTab(
                 // plain-http edge carrying a token and the stream id. The
                 // password stays private; the video and which channel it is
                 // do not, and a line that said "encrypted" would claim both.
+                // Since 2026-10-29 the host is nzulezo.xyz (My Host): no
+                // Cloudflare in front, nothing on 443, so this reads "not
+                // encrypted" on the shipping build — that is the truth, not a
+                // fault.
                 // Always shown, unlike the fault lines below: the viewer
                 // asked to be able to check it.
                 val encrypted by vm.panelEncrypted.collectAsState()
