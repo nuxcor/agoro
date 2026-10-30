@@ -9,6 +9,9 @@ import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URLDecoder
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
 import kotlin.concurrent.thread
 
 /**
@@ -20,6 +23,11 @@ import kotlin.concurrent.thread
  * Scope and safety, in order of importance:
  * - LAN only, ephemeral port, and the path carries a random token — a request
  *   without it gets 404. Nothing is ever sent off-device by this class.
+ * - The token is 128 bits from SecureRandom. It used to be six digits from
+ *   kotlin.random with no limit on misses: anyone on the same Wi-Fi could
+ *   walk all 900,000 while the QR was up and push their own login to the TV.
+ *   At 128 bits guessing is out of reach, so there is deliberately no
+ *   miss counter — one would only hand a neighbour a way to kill the QR.
  * - Runs on a daemon thread; [stop] closes the socket and the accept loop
  *   dies with it. The chooser's DisposableEffect owns that lifecycle.
  * - No TLS: this is a same-room, same-network, seconds-long exchange, the
@@ -39,7 +47,7 @@ class PairingServer(
 
     @Volatile
     private var running = false
-    private val token = (100_000..999_999).random().toString()
+    private val token = newToken()
 
     // Lazy so the class constructs on the JVM: unit tests exercise the form
     // HTML, and an eager Handler needs an Android Looper they don't have.
@@ -102,7 +110,7 @@ class PairingServer(
             out.flush()
         }
 
-        if (!path.startsWith("/t/$token")) {
+        if (!pathAllowed(path)) {
             respond("404 Not Found", "<html><body>Not found</body></html>")
             return
         }
@@ -153,6 +161,22 @@ class PairingServer(
         }
     }
 
+    /**
+     * Exactly `/t/<token>`, optionally followed by a query. A prefix match
+     * would also admit `/t/<token>anything`; the comparison is constant-time
+     * so response timing cannot leak the token a character at a time.
+     */
+    internal fun pathAllowed(path: String): Boolean {
+        val candidate = path.substringBefore('?').removePrefix("/t/")
+        if (candidate.length == path.substringBefore('?').length) return false
+        return MessageDigest.isEqual(
+            candidate.toByteArray(Charsets.UTF_8),
+            token.toByteArray(Charsets.UTF_8),
+        )
+    }
+
+    internal fun tokenForTest() = token
+
     private fun localIpv4(): String? =
         runCatching {
             NetworkInterface.getNetworkInterfaces().asSequence()
@@ -199,6 +223,14 @@ class PairingServer(
         <button type="submit">Send to TV</button>
         </form></div></body></html>
     """.trimIndent()
+
+    private companion object {
+        /** 16 random bytes, URL-safe base64: 22 characters, short enough for a clean QR. */
+        fun newToken(): String {
+            val bytes = ByteArray(16).also { SecureRandom().nextBytes(it) }
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+        }
+    }
 
     private fun sentHtml() = """
         <!doctype html><html><head><meta charset="utf-8">
