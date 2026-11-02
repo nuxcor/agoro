@@ -1,229 +1,25 @@
 {
- "generated": "2026-11-01T22:00:16Z",
+ "generated": "2026-11-02T05:58:52Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
   "NFL": 28,
-  "NBA": 83,
+  "NBA": 79,
   "MLS": 30,
   "Premier League": 20,
-  "La Liga": 20,
+  "La Liga": 19,
   "Serie A": 20,
-  "Bundesliga": 18,
-  "Ligue 1": 18,
+  "Bundesliga": 17,
+  "Ligue 1": 15,
   "Champions League": 18,
   "Europa League": 18,
   "Conference League": 18,
   "Carabao Cup": 0,
   "FA Cup": 40,
   "Internationals": 0,
-  "Women": 0
+  "Women": 5
  },
  "fixtures": [
-  {
-   "league": "Ligue 1",
-   "home": "Le Havre AC",
-   "away": "Paris Saint-Germain",
-   "start": "2026-10-30T18:00Z",
-   "awayAlt": [
-    "PSG"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3236.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/160.png",
-   "state": "post"
-  },
-  {
-   "league": "Ligue 1",
-   "home": "Nice",
-   "away": "Stade Rennais",
-   "start": "2026-10-30T18:00Z",
-   "awayAlt": [
-    "Rennes"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2502.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/169.png",
-   "state": "post"
-  },
-  {
-   "league": "Bundesliga",
-   "home": "SV Elversberg",
-   "away": "Mainz",
-   "start": "2026-10-30T19:30Z",
-   "homeAlt": [
-    "Elversberg"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/10388.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2950.png",
-   "state": "post"
-  },
-  {
-   "league": "La Liga",
-   "home": "Villarreal",
-   "away": "Espanyol",
-   "start": "2026-10-30T20:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/102.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/88.png",
-   "state": "post"
-  },
-  {
-   "league": "Ligue 1",
-   "home": "Lille",
-   "away": "Lens",
-   "start": "2026-10-30T20:05Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/166.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/175.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Washington Wizards",
-   "away": "Charlotte Hornets",
-   "start": "2026-10-30T23:00Z",
-   "homeAlt": [
-    "Wizards"
-   ],
-   "awayAlt": [
-    "Hornets"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/wsh.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/cha.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Boston Celtics",
-   "away": "Chicago Bulls",
-   "start": "2026-10-30T23:30Z",
-   "homeAlt": [
-    "Celtics"
-   ],
-   "awayAlt": [
-    "Bulls"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/bos.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/chi.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Brooklyn Nets",
-   "away": "Detroit Pistons",
-   "start": "2026-10-30T23:30Z",
-   "homeAlt": [
-    "Nets"
-   ],
-   "awayAlt": [
-    "Pistons"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/bkn.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/det.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Philadelphia 76ers",
-   "away": "New York Knicks",
-   "start": "2026-10-30T23:30Z",
-   "homeAlt": [
-    "76ers"
-   ],
-   "awayAlt": [
-    "Knicks"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/phi.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/ny.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Toronto Raptors",
-   "away": "Orlando Magic",
-   "start": "2026-10-30T23:30Z",
-   "homeAlt": [
-    "Raptors"
-   ],
-   "awayAlt": [
-    "Magic"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/tor.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/orl.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Dallas Mavericks",
-   "away": "Houston Rockets",
-   "start": "2026-10-31T00:00Z",
-   "homeAlt": [
-    "Mavericks"
-   ],
-   "awayAlt": [
-    "Rockets"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/dal.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/hou.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Miami Heat",
-   "away": "Indiana Pacers",
-   "start": "2026-10-31T00:00Z",
-   "homeAlt": [
-    "Heat"
-   ],
-   "awayAlt": [
-    "Pacers"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/mia.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/ind.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Minnesota Timberwolves",
-   "away": "LA Clippers",
-   "start": "2026-10-31T00:00Z",
-   "homeAlt": [
-    "Timberwolves"
-   ],
-   "awayAlt": [
-    "Clippers"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/min.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lac.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Golden State Warriors",
-   "away": "Los Angeles Lakers",
-   "start": "2026-10-31T02:00Z",
-   "homeAlt": [
-    "Warriors"
-   ],
-   "awayAlt": [
-    "Lakers"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/gs.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lal.png",
-   "state": "post"
-  },
-  {
-   "league": "NBA",
-   "home": "Phoenix Suns",
-   "away": "Denver Nuggets",
-   "start": "2026-10-31T02:00Z",
-   "homeAlt": [
-    "Suns"
-   ],
-   "awayAlt": [
-    "Nuggets"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/phx.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/den.png",
-   "state": "post"
-  },
   {
    "league": "Premier League",
    "home": "Chelsea",
@@ -1020,7 +816,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/93.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/89.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "MLS",
@@ -1035,7 +831,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/9727.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/9726.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -1050,7 +846,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/orl.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/bos.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -1065,7 +861,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lar.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/lac.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -1080,7 +876,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/den.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/kc.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -1095,7 +891,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/mia.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/ne.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "MLS",
@@ -1110,7 +906,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/18418.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/7318.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "MLS",
@@ -1125,7 +921,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/18986.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -1140,7 +936,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/ind.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/bkn.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "MLS",
@@ -1155,7 +951,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20232.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NFL",
@@ -1170,7 +966,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/wsh.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/phi.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "MLS",
@@ -1182,7 +978,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/17362.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -1197,7 +993,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/gs.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lac.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -1212,7 +1008,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lal.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/tor.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "MLS",
@@ -1227,7 +1023,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/9723.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/6077.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Serie A",
@@ -4305,6 +4101,156 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/gs.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/no.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "BK H\u00e4cken",
+   "away": "Chelsea",
+   "start": "2026-11-10T17:45Z",
+   "awayAlt": [
+    "Chelsea "
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21124.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19970.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Real Madrid",
+   "away": "Paris FC",
+   "start": "2026-11-10T17:45Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21128.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21640.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Internazionale",
+   "away": "Manchester City",
+   "start": "2026-11-10T20:00Z",
+   "homeAlt": [
+    "Inter Milan"
+   ],
+   "awayAlt": [
+    "Man City"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131635.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19257.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Paris Saint-Germain",
+   "away": "Bayern Munich",
+   "start": "2026-11-10T20:00Z",
+   "homeAlt": [
+    "PSG"
+   ],
+   "awayAlt": [
+    "Bayern"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19258.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20103.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Roma",
+   "away": "Servette",
+   "start": "2026-11-10T20:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21685.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20835.png",
+   "state": "pre"
+  },
+  {
+   "league": "NBA",
+   "home": "New York Knicks",
+   "away": "Milwaukee Bucks",
+   "start": "2026-11-11T00:30Z",
+   "homeAlt": [
+    "Knicks"
+   ],
+   "awayAlt": [
+    "Bucks"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/ny.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/mil.png",
+   "state": "pre"
+  },
+  {
+   "league": "NBA",
+   "home": "Philadelphia 76ers",
+   "away": "Boston Celtics",
+   "start": "2026-11-11T01:00Z",
+   "homeAlt": [
+    "76ers"
+   ],
+   "awayAlt": [
+    "Celtics"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/phi.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/bos.png",
+   "state": "pre"
+  },
+  {
+   "league": "NBA",
+   "home": "Phoenix Suns",
+   "away": "LA Clippers",
+   "start": "2026-11-11T02:00Z",
+   "homeAlt": [
+    "Suns"
+   ],
+   "awayAlt": [
+    "Clippers"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/phx.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lac.png",
+   "state": "pre"
+  },
+  {
+   "league": "NBA",
+   "home": "Utah Jazz",
+   "away": "Miami Heat",
+   "start": "2026-11-11T02:00Z",
+   "homeAlt": [
+    "Jazz"
+   ],
+   "awayAlt": [
+    "Heat"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/utah.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/mia.png",
+   "state": "pre"
+  },
+  {
+   "league": "NBA",
+   "home": "Sacramento Kings",
+   "away": "Orlando Magic",
+   "start": "2026-11-11T03:00Z",
+   "homeAlt": [
+    "Kings"
+   ],
+   "awayAlt": [
+    "Magic"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/sac.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/orl.png",
+   "state": "pre"
+  },
+  {
+   "league": "NBA",
+   "home": "Portland Trail Blazers",
+   "away": "Oklahoma City Thunder",
+   "start": "2026-11-11T04:00Z",
+   "homeAlt": [
+    "Trail Blazers"
+   ],
+   "awayAlt": [
+    "Thunder"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/por.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/okc.png",
    "state": "pre"
   }
  ]
