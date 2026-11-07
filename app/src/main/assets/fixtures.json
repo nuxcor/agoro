@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-07T05:55:27Z",
+ "generated": "2026-11-07T12:57:28Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -644,7 +644,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/lal.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/por.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -674,7 +674,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/357.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/367.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "La Liga",
@@ -3230,6 +3230,15 @@
   },
   {
    "league": "Internationals",
+   "home": "Egypt",
+   "away": "Malawi",
+   "start": "2026-11-13T19:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/egy.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mwi.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
    "home": "Mali",
    "away": "Rwanda",
    "start": "2026-11-13T19:00Z",
@@ -3328,15 +3337,6 @@
    "start": "2026-11-13T19:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/svn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sui.png",
-   "state": "pre"
-  },
-  {
-   "league": "Internationals",
-   "home": "Egypt",
-   "away": "Malawi",
-   "start": "2026-11-13T20:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/egy.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mwi.png",
    "state": "pre"
   },
   {
