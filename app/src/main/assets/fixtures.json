@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-08T05:58:14Z",
+ "generated": "2026-11-08T13:20:08Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -1187,7 +1187,7 @@
    "start": "2026-11-08T11:30Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/114.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/112.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "FA Cup",
@@ -1201,7 +1201,7 @@
     "Grimsby"
    ],
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/386.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "La Liga",
@@ -1213,7 +1213,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/3751.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/244.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Ligue 1",
