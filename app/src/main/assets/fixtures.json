@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-10T07:13:34Z",
+ "generated": "2026-11-10T19:42:36Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -16,7 +16,7 @@
   "Conference League": 0,
   "Carabao Cup": 0,
   "FA Cup": 5,
-  "Internationals": 172,
+  "Internationals": 175,
   "Women": 13
  },
  "fixtures": [
@@ -802,7 +802,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21124.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19970.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -811,7 +811,7 @@
    "start": "2026-11-10T17:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21128.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21640.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -1144,7 +1144,7 @@
    "league": "Internationals",
    "home": "New Zealand",
    "away": "India",
-   "start": "2026-11-12T06:00Z",
+   "start": "2026-11-12T06:10Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nzl.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ind.png",
    "state": "pre"
@@ -2001,6 +2001,18 @@
   },
   {
    "league": "Internationals",
+   "home": "Tahiti",
+   "away": "Cook Islands",
+   "start": "2026-11-14T04:00Z",
+   "awayAlt": [
+    "Cook Isl"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tah.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/cok.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
    "home": "Bahrain",
    "away": "Yemen",
    "start": "2026-11-14T06:00Z",
@@ -2283,7 +2295,7 @@
    "league": "Internationals",
    "home": "New Zealand",
    "away": "India",
-   "start": "2026-11-15T03:00Z",
+   "start": "2026-11-15T03:10Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/nzl.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/ind.png",
    "state": "pre"
@@ -2337,6 +2349,15 @@
    "start": "2026-11-15T17:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/fin.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/smr.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
+   "home": "Suriname",
+   "away": "Eswatini",
+   "start": "2026-11-15T17:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/sur.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/swz.png",
    "state": "pre"
   },
   {
@@ -3049,6 +3070,18 @@
   },
   {
    "league": "Internationals",
+   "home": "Tahiti",
+   "away": "Cook Islands",
+   "start": "2026-11-17T04:00Z",
+   "awayAlt": [
+    "Cook Isl"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tah.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/cok.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
    "home": "Malaysia",
    "away": "Yemen",
    "start": "2026-11-17T06:00Z",
@@ -3447,15 +3480,6 @@
   },
   {
    "league": "Internationals",
-   "home": "Argentina",
-   "away": "Costa Rica",
-   "start": "2026-11-17T20:00Z",
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/arg.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/crc.png",
-   "state": "pre"
-  },
-  {
-   "league": "Internationals",
    "home": "Kuwait",
    "away": "Honduras",
    "start": "2026-11-17T20:00Z",
@@ -3482,6 +3506,15 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/skn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/boe.png",
+   "state": "pre"
+  },
+  {
+   "league": "Internationals",
+   "home": "Argentina",
+   "away": "Costa Rica",
+   "start": "2026-11-17T23:00Z",
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/arg.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/crc.png",
    "state": "pre"
   },
   {
