@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-11T06:10:06Z",
+ "generated": "2026-11-11T14:16:52Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -313,7 +313,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/por.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/okc.png",
-   "state": "in"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -338,18 +338,6 @@
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131423.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21127.png",
    "state": "pre"
-  },
-  {
-   "league": "Women",
-   "home": "Benfica",
-   "away": "Austria Vienna",
-   "start": "2026-11-11T20:00Z",
-   "awayAlt": [
-    "Vienna"
-   ],
-   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20830.png",
-   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131643.png",
-   "state": "post"
   },
   {
    "league": "Women",
@@ -758,6 +746,18 @@
    "start": "2026-11-12T20:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/boe.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/cub.png",
+   "state": "pre"
+  },
+  {
+   "league": "Women",
+   "home": "Benfica",
+   "away": "Austria Vienna",
+   "start": "2026-11-12T20:00Z",
+   "awayAlt": [
+    "Vienna"
+   ],
+   "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20830.png",
+   "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131643.png",
    "state": "pre"
   },
   {
@@ -1376,7 +1376,7 @@
    "league": "Internationals",
    "home": "Tahiti",
    "away": "Cook Islands",
-   "start": "2026-11-14T04:00Z",
+   "start": "2026-11-14T05:30Z",
    "awayAlt": [
     "Cook Isl"
    ],
@@ -2445,7 +2445,7 @@
    "league": "Internationals",
    "home": "Tahiti",
    "away": "Cook Islands",
-   "start": "2026-11-17T04:00Z",
+   "start": "2026-11-17T05:30Z",
    "awayAlt": [
     "Cook Isl"
    ],
