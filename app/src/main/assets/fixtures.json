@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-11T14:16:52Z",
+ "generated": "2026-11-12T00:40:10Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -325,7 +325,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/vie.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/14561.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -337,7 +337,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131423.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21127.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -349,7 +349,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20092.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19256.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "NBA",
@@ -364,7 +364,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/ind.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/wsh.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NBA",
@@ -379,7 +379,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/ny.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/cle.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NBA",
@@ -394,7 +394,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/tor.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/bos.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NBA",
