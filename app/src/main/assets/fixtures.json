@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-14T06:17:08Z",
+ "generated": "2026-11-14T13:34:55Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -901,7 +901,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/tah.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/cok.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -910,7 +910,7 @@
    "start": "2026-11-14T06:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bhr.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/yem.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -919,7 +919,7 @@
    "start": "2026-11-14T10:15Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/jpn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/bra.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Internationals",
@@ -928,7 +928,7 @@
    "start": "2026-11-14T12:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/countries/500/chn.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/countries/500/mas.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Internationals",
