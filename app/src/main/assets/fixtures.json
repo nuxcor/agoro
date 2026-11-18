@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-18T07:23:34Z",
+ "generated": "2026-11-18T20:29:00Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -992,7 +992,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21124.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19257.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -1004,7 +1004,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21128.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131635.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Women",
@@ -1019,7 +1019,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19970.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/19258.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Women",
@@ -1031,7 +1031,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/20092.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/131423.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NBA",
