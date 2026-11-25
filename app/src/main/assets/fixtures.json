@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-25T08:27:52Z",
+ "generated": "2026-11-25T21:39:32Z",
  "source": "site.api.espn.com",
  "days": 8,
  "counts": {
@@ -393,7 +393,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/21922.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/83.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -402,7 +402,7 @@
    "start": "2026-11-25T17:45Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/494.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/102.png",
-   "state": "pre"
+   "state": "post"
   },
   {
    "league": "Champions League",
@@ -414,7 +414,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/1068.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/510.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -423,7 +423,7 @@
    "start": "2026-11-25T20:00Z",
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/570.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/364.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -438,7 +438,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/110.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/134.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -450,7 +450,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/166.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/132.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -462,7 +462,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/160.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -474,7 +474,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/493.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/436.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "Champions League",
@@ -489,7 +489,7 @@
    ],
    "homeLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/2250.png",
    "awayLogo": "https://a.espncdn.com/i/teamlogos/soccer/500/360.png",
-   "state": "pre"
+   "state": "in"
   },
   {
    "league": "NBA",
